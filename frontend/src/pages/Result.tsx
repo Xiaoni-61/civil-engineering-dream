@@ -10,7 +10,7 @@ const Result = () => {
   const {
     status,
     currentRound,
-    maxRounds,
+    gameStats,
     stats,
     score,
     endReason,
@@ -38,7 +38,7 @@ const Result = () => {
   }
 
   const isWin = status === GameStatus.COMPLETED;
-  const endMessage = endReason ? END_MESSAGES[endReason] : END_MESSAGES.max_rounds;
+  const endMessage = endReason ? END_MESSAGES[endReason] : END_MESSAGES.reputation_depleted;
 
   const handlePlayAgain = () => {
     resetGame();
@@ -96,30 +96,30 @@ const Result = () => {
               {/* 统计数据网格 */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                  <div className="text-2xl mb-1">🔄</div>
-                  <div className="text-xs text-slate-500 mb-1">完成回合</div>
+                  <div className="text-2xl mb-1">📅</div>
+                  <div className="text-xs text-slate-500 mb-1">经历季度</div>
                   <div className="text-lg font-bold text-slate-800 tabular-nums">
-                    {currentRound}/{maxRounds}
+                    Q{currentRound}
                   </div>
                 </div>
-                <div className="bg-status-progress/5 rounded-feishu p-4 border border-status-progress/20 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-                  <div className="text-2xl mb-1">📈</div>
-                  <div className="text-xs text-slate-500 mb-1">项目进度</div>
-                  <div className="text-lg font-bold text-status-progress tabular-nums">
-                    {stats.progress}%
+                <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+                  <div className="text-2xl mb-1">🏗️</div>
+                  <div className="text-xs text-slate-500 mb-1">完成项目</div>
+                  <div className="text-lg font-bold text-slate-800 tabular-nums">
+                    {gameStats.completedProjects}
                   </div>
                 </div>
-                <div className="bg-status-quality/5 rounded-feishu p-4 border border-status-quality/20 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                  <div className="text-2xl mb-1">🏆</div>
-                  <div className="text-xs text-slate-500 mb-1">项目质量</div>
-                  <div className="text-lg font-bold text-status-quality tabular-nums">
-                    {stats.quality}%
+                <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                  <div className="text-2xl mb-1">⭐</div>
+                  <div className="text-xs text-slate-500 mb-1">优质项目</div>
+                  <div className="text-lg font-bold text-slate-800 tabular-nums">
+                    {gameStats.qualityProjects}
                   </div>
                 </div>
-                <div className="bg-status-health/5 rounded-feishu p-4 border border-red-200 animate-slide-up" style={{ animationDelay: '0.25s' }}>
+                <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.25s' }}>
                   <div className="text-2xl mb-1">❤️</div>
                   <div className="text-xs text-slate-500 mb-1">剩余健康</div>
-                  <div className="text-lg font-bold text-status-health tabular-nums">
+                  <div className="text-lg font-bold text-slate-800 tabular-nums">
                     {stats.health}%
                   </div>
                 </div>
@@ -137,35 +137,28 @@ const Result = () => {
                       <span className="text-lg">💰</span>
                       <span className="text-sm text-slate-600">现金</span>
                     </div>
-                    <span className="text-base font-bold text-status-cash tabular-nums">{stats.cash}</span>
+                    <span className="text-base font-bold text-emerald-600 tabular-nums">{stats.cash}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-feishu">
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">❤️</span>
                       <span className="text-sm text-slate-600">健康</span>
                     </div>
-                    <span className="text-base font-bold text-status-health tabular-nums">{stats.health}</span>
+                    <span className="text-base font-bold text-red-500 tabular-nums">{stats.health}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-feishu">
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">⭐</span>
                       <span className="text-sm text-slate-600">声誉</span>
                     </div>
-                    <span className="text-base font-bold text-status-reputation tabular-nums">{stats.reputation}</span>
+                    <span className="text-base font-bold text-amber-500 tabular-nums">{stats.reputation}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-feishu">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg">📈</span>
-                      <span className="text-sm text-slate-600">进度</span>
-                    </div>
-                    <span className="text-base font-bold text-status-progress tabular-nums">{stats.progress}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white rounded-feishu md:col-span-2">
                     <div className="flex items-center space-x-2">
                       <span className="text-lg">🏆</span>
                       <span className="text-sm text-slate-600">质量</span>
                     </div>
-                    <span className="text-base font-bold text-status-quality tabular-nums">{stats.quality}</span>
+                    <span className="text-base font-bold text-purple-500 tabular-nums">{stats.quality}</span>
                   </div>
                 </div>
               </div>

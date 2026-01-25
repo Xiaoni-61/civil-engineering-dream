@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 项目概述 (Project Overview)
 
 **还我一个土木梦（Civil Engineering Dream）**
-- 类型：H5 手机网页小游戏（3-5 分钟一局）
+- 类型：H5 手机网页小游戏（60 分钟一局）
 - 核心玩法：土木项目管理模拟 + 事件决策 + 战绩单结算
 - 目标用户：土木/建筑/工程管理从业者与泛职场用户
 - 完整 PRD：`还我一个土木梦prd.md`

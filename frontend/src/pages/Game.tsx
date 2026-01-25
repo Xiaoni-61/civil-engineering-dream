@@ -11,12 +11,14 @@ const Game = () => {
   const {
     status,
     currentRound,
-    maxRounds,
+    eventsInQuarter,
+    maxEventsPerQuarter,
     stats,
     currentEvent,
     startGame,
     selectOption,
     isLLMEnhancing,
+    finishQuarter,
   } = useGameStore();
 
   // 组件挂载时开始游戏
@@ -35,6 +37,13 @@ const Game = () => {
     }
   }, [status, navigate]);
 
+  // 进入策略阶段
+  useEffect(() => {
+    if (status === GameStatus.STRATEGY_PHASE) {
+      navigate('/strategy');
+    }
+  }, [status, navigate]);
+
   const handleSelectOption = (optionId: string) => {
     selectOption(optionId);
   };
@@ -43,6 +52,11 @@ const Game = () => {
     if (window.confirm('确定要退出游戏吗？当前进度将不会保存。')) {
       navigate('/');
     }
+  };
+
+  const handleFinishQuarter = () => {
+    finishQuarter();
+    navigate('/settlement');
   };
 
   // 加载中状态
@@ -63,6 +77,8 @@ const Game = () => {
       </div>
     );
   }
+
+  const canFinishQuarter = eventsInQuarter >= maxEventsPerQuarter;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -99,12 +115,13 @@ const Game = () => {
               </h1>
             </div>
 
-            {/* 回合指示器 */}
+            {/* 季度指示器 */}
             <div className="flex items-center space-x-2 px-3 py-1.5 bg-brand-50 rounded-feishu border border-brand-200">
-              <span className="text-xs text-brand-700 font-medium">回合</span>
+              <span className="text-xs text-brand-700 font-medium">季度</span>
               <span className="text-sm font-bold text-brand-600 tabular-nums">
-                {currentRound}/{maxRounds}
+                Q{currentRound}
               </span>
+              <span className="text-xs text-brand-500">({eventsInQuarter}/{maxEventsPerQuarter})</span>
             </div>
           </div>
         </div>
@@ -119,7 +136,7 @@ const Game = () => {
               <StatusBar
                 stats={stats}
                 round={currentRound}
-                maxRounds={maxRounds}
+                maxRounds={999} // 无上限，显示占位
               />
             </div>
           </div>
@@ -133,6 +150,19 @@ const Game = () => {
             />
           </div>
         </div>
+
+        {/* 完成季度按钮 */}
+        {canFinishQuarter && (
+          <div className="fixed bottom-6 right-6 z-30">
+            <button
+              onClick={handleFinishQuarter}
+              className="flex items-center space-x-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-feishu-lg shadow-feishu-xl transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-95"
+            >
+              <span className="text-lg">📊</span>
+              <span className="font-medium">进入策略阶段</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 游戏结束遮罩 */}
@@ -143,7 +173,7 @@ const Game = () => {
               {status === GameStatus.COMPLETED ? '🎉' : '😢'}
             </div>
             <h2 className="text-2xl font-bold text-slate-800 mb-2">
-              {status === GameStatus.COMPLETED ? '项目完成！' : '游戏结束'}
+              {status === GameStatus.COMPLETED ? '晋升合伙人！' : '游戏结束'}
             </h2>
             <p className="text-sm text-slate-600 mb-4">
               正在计算最终得分...

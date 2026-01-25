@@ -8,55 +8,355 @@ import { EventCard } from './event';
 export enum GameStatus {
   IDLE = 'idle',           // 未开始
   PLAYING = 'playing',     // 进行中
+  STRATEGY_PHASE = 'strategy_phase', // 策略阶段
+  SETTLEMENT = 'settlement', // 季度结算
   PAUSED = 'paused',       // 暂停
-  COMPLETED = 'completed', // 完成（通关）
-  FAILED = 'failed',       // 失败（任一指标归零）
+  COMPLETED = 'completed', // 完成（晋升到合伙人）
+  FAILED = 'failed',       // 失败（破产/过劳/封杀）
 }
 
 export enum EndReason {
-  PROJECT_COMPLETE = 'project_complete', // 项目完成
-  OUT_OF_CASH = 'out_of_cash',           // 现金耗尽
-  HEALTH_DEPLETED = 'health_depleted',   // 健康耗尽
-  MAX_ROUNDS = 'max_rounds',             // 达到最大回合数
+  PROMOTED_TO_PARTNER = 'promoted_to_partner', // 晋升合伙人（胜利）
+  OUT_OF_CASH = 'out_of_cash',                 // 破产
+  HEALTH_DEPLETED = 'health_depleted',         // 过劳猝死
+  REPUTATION_DEPLETED = 'reputation_depleted', // 行业封杀
 }
 
+/**
+ * 职级等级
+ */
+export enum Rank {
+  INTERN = 'intern',                    // 实习生
+  ASSISTANT_ENGINEER = 'assistant_engineer', // 助理工程师
+  ENGINEER = 'engineer',                // 工程师
+  SENIOR_ENGINEER = 'senior_engineer',  // 高级工程师
+  PROJECT_MANAGER = 'project_manager',  // 项目经理
+  PROJECT_DIRECTOR = 'project_director', // 项目总监
+  PARTNER = 'partner',                  // 合伙人
+}
+
+/**
+ * 职级配置
+ */
+export interface RankConfig {
+  rank: Rank;
+  name: string;
+  assetsRequired: number;    // 净资产要求
+  projectsRequired: number;  // 完成项目数要求
+  reputationRequired: number; // 声誉要求
+  specialRequirement?: string; // 特殊要求
+  quarterlySalary: number;   // 季度工资
+}
+
+/**
+ * 材料类型
+ */
+export enum MaterialType {
+  CEMENT = 'cement',         // 水泥
+  STEEL = 'steel',           // 钢筋
+  SAND = 'sand',             // 砂石
+  CONCRETE = 'concrete',     // 混凝土
+}
+
+/**
+ * 材料配置
+ */
+export interface MaterialConfig {
+  type: MaterialType;
+  name: string;
+  unit: string;
+  basePrice: number;         // 基准价格
+  priceVolatility: number;   // 价格波动幅度 (0-1)
+  storageFee: number;        // 仓储费/季度/单位
+  minTrade: number;          // 最小交易量
+  maxTrade: number;          // 最大交易量
+}
+
+/**
+ * 材料库存
+ */
+export interface MaterialInventory {
+  type: MaterialType;
+  amount: number;
+  averageCost: number; // 平均成本
+}
+
+/**
+ * 材料市场价格
+ */
+export interface MaterialPrice {
+  type: MaterialType;
+  currentPrice: number;
+  priceChange: number; // 相比基准的变化 (百分比)
+  trend: 'up' | 'down' | 'stable';
+}
+
+/**
+ * 关系类型
+ */
+export enum RelationshipType {
+  CLIENT = 'client',         // 甲方
+  SUPERVISION = 'supervision', // 监理
+  DESIGN = 'design',         // 设计院
+  LABOR = 'labor',           // 劳务队
+  GOVERNMENT = 'government', // 政府部门
+}
+
+/**
+ * 关系配置
+ */
+export interface RelationshipConfig {
+  type: RelationshipType;
+  name: string;
+  initialValue: number;
+  decayRate: number;         // 每季度衰减
+  maintenanceCost: 'low' | 'medium' | 'high';
+}
+
+/**
+ * 关系状态
+ */
+export interface RelationshipState {
+  type: RelationshipType;
+  value: number; // 0-100
+}
+
+/**
+ * 季度结算数据
+ */
+export interface QuarterSettlement {
+  quarter: number;
+  income: number;
+  expenses: {
+    salary: number;
+    storage: number;
+    total: number;
+  };
+  relationshipDecay: Record<RelationshipType, number>;
+  netChange: number;
+  promotionCheck: {
+    canPromote: boolean;
+    nextRank?: Rank;
+    missingRequirements?: string[];
+  };
+}
+
+/**
+ * 游戏统计
+ */
+export interface GameStats {
+  completedProjects: number;
+  qualityProjects: number; // 质量≥90的项目数
+  totalQuarters: number;
+  totalEvents: number;
+}
+
+/**
+ * 扩展的游戏状态
+ */
 export interface GameState {
   status: GameStatus;
-  currentRound: number;
-  maxRounds: number;
+  currentRound: number; // 改为季度数
   stats: PlayerStats;
   currentEvent: EventCard | null;
   eventHistory: EventCard[];
+
+  // 职级系统
+  rank: Rank;
+  gameStats: GameStats;
+
+  // 材料市场
+  inventory: Record<MaterialType, number>; // 库存
+  materialPrices: Record<MaterialType, MaterialPrice>;
+
+  // 关系系统
+  relationships: Record<RelationshipType, number>; // 关系值 0-100
+
+  // 项目进度（单个项目内）
+  projectProgress: number; // 当前项目进度
+  projectQuality: number;  // 当前项目质量
+  eventsInQuarter: number; // 本季度已处理事件数
+  maxEventsPerQuarter: number; // 本季度最大事件数
+
   score: number;
   endReason?: EndReason;
 }
 
+/**
+ * 扩展的游戏配置
+ */
 export interface GameConfig {
-  maxRounds: number;
   initialStats: PlayerStats;
-  winConditions: {
-    minProgress: number;
-    minQuality: number;
-  };
-  loseConditions: {
-    criticalStats: Array<keyof PlayerStats>; // 这些指标归零即失败
-  };
+  initialRank: Rank;
+  maxEventsPerQuarter: number; // 每季度最大事件数
+  initialInventory: Record<MaterialType, number>;
+  initialRelationships: Record<RelationshipType, number>;
 }
 
-export const DEFAULT_GAME_CONFIG: GameConfig = {
-  maxRounds: 20,
-  initialStats: {
-    cash: 50,
-    health: 100,
-    reputation: 50,
-    progress: 0,
-    quality: 50,
+/**
+ * 买卖操作结果
+ */
+export interface TradeResult {
+  success: boolean;
+  cashChange: number;
+  inventoryChange: number;
+  message: string;
+}
+
+/**
+ * 关系维护结果
+ */
+export interface MaintenanceResult {
+  success: boolean;
+  relationshipChange: number;
+  cashChange: number;
+  healthChange?: number;
+  message: string;
+}
+
+// 职级配置表（工资调整后）
+export const RANK_CONFIGS: Record<Rank, RankConfig> = {
+  [Rank.INTERN]: {
+    rank: Rank.INTERN,
+    name: '实习生',
+    assetsRequired: 0,
+    projectsRequired: 0,
+    reputationRequired: 0,
+    quarterlySalary: -2000,  // 从 -5000 → -2000
   },
-  winConditions: {
-    minProgress: 100,
-    minQuality: 60,
+  [Rank.ASSISTANT_ENGINEER]: {
+    rank: Rank.ASSISTANT_ENGINEER,
+    name: '助理工程师',
+    assetsRequired: 100000,
+    projectsRequired: 2,
+    reputationRequired: 40,
+    quarterlySalary: 5000,  // 从 15000 → 5000
   },
-  loseConditions: {
-    criticalStats: ['cash', 'health'],
+  [Rank.ENGINEER]: {
+    rank: Rank.ENGINEER,
+    name: '工程师',
+    assetsRequired: 500000,
+    projectsRequired: 5,
+    reputationRequired: 60,
+    quarterlySalary: 12000,  // 从 30000 → 12000
+  },
+  [Rank.SENIOR_ENGINEER]: {
+    rank: Rank.SENIOR_ENGINEER,
+    name: '高级工程师',
+    assetsRequired: 1500000,
+    projectsRequired: 10,
+    reputationRequired: 70,
+    specialRequirement: '完成过1个优质项目(质量≥90)',
+    quarterlySalary: 20000,  // 从 50000 → 20000
+  },
+  [Rank.PROJECT_MANAGER]: {
+    rank: Rank.PROJECT_MANAGER,
+    name: '项目经理',
+    assetsRequired: 5000000,
+    projectsRequired: 15,
+    reputationRequired: 80,
+    specialRequirement: '完成过3个项目',
+    quarterlySalary: 35000,  // 从 80000 → 35000
+  },
+  [Rank.PROJECT_DIRECTOR]: {
+    rank: Rank.PROJECT_DIRECTOR,
+    name: '项目总监',
+    assetsRequired: 15000000,
+    projectsRequired: 25,
+    reputationRequired: 90,
+    specialRequirement: '完成过5个优质项目',
+    quarterlySalary: 55000,  // 从 120000 → 55000
+  },
+  [Rank.PARTNER]: {
+    rank: Rank.PARTNER,
+    name: '合伙人',
+    assetsRequired: 50000000,
+    projectsRequired: 40,
+    reputationRequired: 95,
+    specialRequirement: '完成过10个优质项目',
+    quarterlySalary: 100000,  // 从 0 → 100000（分红制）
+  },
+};
+
+// 材料配置表（价格调整后）
+export const MATERIAL_CONFIGS: Record<MaterialType, MaterialConfig> = {
+  [MaterialType.CEMENT]: {
+    type: MaterialType.CEMENT,
+    name: '水泥',
+    unit: '吨',
+    basePrice: 45,  // 从 450 → 45
+    priceVolatility: 0.2,
+    storageFee: 0.5,  // 从 5 → 0.5
+    minTrade: 10,
+    maxTrade: 100,
+  },
+  [MaterialType.STEEL]: {
+    type: MaterialType.STEEL,
+    name: '钢筋',
+    unit: '吨',
+    basePrice: 420,  // 从 4200 → 420
+    priceVolatility: 0.15,
+    storageFee: 1.5,  // 从 15 → 1.5
+    minTrade: 1,
+    maxTrade: 20,
+  },
+  [MaterialType.SAND]: {
+    type: MaterialType.SAND,
+    name: '砂石',
+    unit: '立方',
+    basePrice: 12,  // 从 120 → 12
+    priceVolatility: 0.25,
+    storageFee: 0.2,  // 从 2 → 0.2
+    minTrade: 50,
+    maxTrade: 500,
+  },
+  [MaterialType.CONCRETE]: {
+    type: MaterialType.CONCRETE,
+    name: '混凝土',
+    unit: '立方',
+    basePrice: 38,  // 从 380 → 38
+    priceVolatility: 0.18,
+    storageFee: 0.8,  // 从 8 → 0.8
+    minTrade: 10,
+    maxTrade: 100,
+  },
+};
+
+// 关系配置表
+export const RELATIONSHIP_CONFIGS: Record<RelationshipType, RelationshipConfig> = {
+  [RelationshipType.CLIENT]: {
+    type: RelationshipType.CLIENT,
+    name: '甲方爸爸',
+    initialValue: 50,
+    decayRate: 4,
+    maintenanceCost: 'high',
+  },
+  [RelationshipType.SUPERVISION]: {
+    type: RelationshipType.SUPERVISION,
+    name: '监理单位',
+    initialValue: 50,
+    decayRate: 3,
+    maintenanceCost: 'medium',
+  },
+  [RelationshipType.DESIGN]: {
+    type: RelationshipType.DESIGN,
+    name: '设计院',
+    initialValue: 50,
+    decayRate: 3,
+    maintenanceCost: 'medium',
+  },
+  [RelationshipType.LABOR]: {
+    type: RelationshipType.LABOR,
+    name: '劳务队',
+    initialValue: 50,
+    decayRate: 2,
+    maintenanceCost: 'low',
+  },
+  [RelationshipType.GOVERNMENT]: {
+    type: RelationshipType.GOVERNMENT,
+    name: '政府部门',
+    initialValue: 50,
+    decayRate: 5,
+    maintenanceCost: 'high',
   },
 };

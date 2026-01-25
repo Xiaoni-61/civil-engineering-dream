@@ -29,12 +29,27 @@ export {
 export type {
   GameState,
   GameConfig,
+  RankConfig,
+  MaterialConfig,
+  MaterialInventory,
+  MaterialPrice,
+  RelationshipConfig,
+  RelationshipState,
+  QuarterSettlement,
+  GameStats,
+  TradeResult,
+  MaintenanceResult,
 } from './game';
 
 export {
   GameStatus,
   EndReason,
-  DEFAULT_GAME_CONFIG,
+  Rank,
+  MaterialType,
+  RelationshipType,
+  RANK_CONFIGS,
+  MATERIAL_CONFIGS,
+  RELATIONSHIP_CONFIGS,
 } from './game';
 
 // Leaderboard types

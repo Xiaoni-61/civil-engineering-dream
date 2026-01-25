@@ -15,7 +15,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_001_1',
         text: '全部答应，展现积极态度',
-        effects: { reputation: 10, quality: -5, cash: -5 },
+        effects: { reputation: 10, quality: -5, cash: -2500 },
         feedback: '甲方很满意，但项目压力增加了...',
       },
       {
@@ -41,19 +41,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_002_1',
         text: '选择老牌施工队',
-        effects: { cash: -15, quality: 10, progress: 5 },
+        effects: { cash: -11250, quality: 10, progress: 5 },
         feedback: '虽然贵，但确实专业，工程进展顺利。',
       },
       {
         id: 'opt_002_2',
         text: '选择新兴队伍',
-        effects: { cash: 10, quality: -5 },
+        effects: { cash: 5000, quality: -5 },
         feedback: '省了不少钱，但质量让人担心...',
       },
       {
         id: 'opt_002_3',
         text: '选择熟人队伍',
-        effects: { reputation: 5, quality: -2, cash: -5 },
+        effects: { reputation: 5, quality: -2, cash: -2500 },
         feedback: '给朋友面子，但工作效率确实一般。',
       },
     ],
@@ -67,19 +67,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_003_1',
         text: '使用原预算，减少其他开支',
-        effects: { cash: -10, health: -5, quality: 5 },
+        effects: { cash: -5000, health: -5, quality: 5 },
         feedback: '保证了主材质量，但要从其他地方节省。',
       },
       {
         id: 'opt_003_2',
         text: '寻找替代供应商',
-        effects: { cash: -5, progress: -5, quality: -3 },
+        effects: { cash: -2500, progress: -5, quality: -3 },
         feedback: '找到了便宜的货源，但耽误了时间。',
       },
       {
         id: 'opt_003_3',
         text: '向甲方申请追加预算',
-        effects: { reputation: -10, cash: 15 },
+        effects: { reputation: -10, cash: 11250 },
         feedback: '甲方不太高兴，但还是批了钱。',
       },
     ],
@@ -93,7 +93,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_004_1',
         text: '立即停工整改',
-        effects: { quality: 10, progress: -10, cash: -10 },
+        effects: { quality: 10, progress: -10, cash: -5000 },
         feedback: '按规矩办事，质量有保障。',
       },
       {
@@ -119,7 +119,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_005_1',
         text: '虚心接受，立即整改',
-        effects: { cash: -8, reputation: 5, progress: -3 },
+        effects: { cash: -4000, reputation: 5, progress: -3 },
         feedback: '获得了检查组的好评。',
       },
       {
@@ -131,7 +131,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_005_3',
         text: '迅速整改并汇报',
-        effects: { cash: -5, health: -5, reputation: 8 },
+        effects: { cash: -2500, health: -5, reputation: 8 },
         feedback: '加班处理，给领导留下好印象。',
       },
     ],
@@ -146,13 +146,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_006_1',
         text: '大规模加班',
-        effects: { progress: 15, health: -15, cash: -10 },
+        effects: { progress: 15, health: -15, cash: -5000 },
         feedback: '进度追上来了，但身体和钱包都吃不消。',
       },
       {
         id: 'opt_006_2',
         text: '适度加班',
-        effects: { progress: 8, health: -8, cash: -5 },
+        effects: { progress: 8, health: -8, cash: -2500 },
         feedback: '平衡了进度和健康。',
       },
       {
@@ -172,13 +172,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_007_1',
         text: '全部返工',
-        effects: { quality: 15, progress: -15, cash: -20, health: -10 },
+        effects: { quality: 15, progress: -15, cash: -15000, health: -10 },
         feedback: '虽然痛苦，但保证了质量。',
       },
       {
         id: 'opt_007_2',
         text: '部分修补',
-        effects: { quality: 5, progress: -5, cash: -10 },
+        effects: { quality: 5, progress: -5, cash: -5000 },
         feedback: '修补了主要问题，但留有遗憾。',
       },
       {
@@ -198,7 +198,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_008_1',
         text: '停工等待',
-        effects: { progress: -8, health: 10, cash: -5 },
+        effects: { progress: -8, health: 10, cash: -2500 },
         feedback: '借机休息，养精蓄锐。',
       },
       {
@@ -224,19 +224,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_009_1',
         text: '拒绝加价，更换供应商',
-        effects: { progress: -10, cash: 5, health: -10 },
+        effects: { progress: -10, cash: 2500, health: -10 },
         feedback: '原则保住了，但耽误了工期。',
       },
       {
         id: 'opt_009_2',
         text: '接受加价',
-        effects: { cash: -15, progress: 5 },
+        effects: { cash: -11250, progress: 5 },
         feedback: '花钱买时间，也是无奈之举。',
       },
       {
         id: 'opt_009_3',
         text: '协商折中方案',
-        effects: { cash: -8, health: -5, reputation: 3 },
+        effects: { cash: -4000, health: -5, reputation: 3 },
         feedback: '双方各让一步，算是解决了。',
       },
     ],
@@ -250,19 +250,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_010_1',
         text: '妥善处理，全力救治',
-        effects: { cash: -15, reputation: 10, health: -5 },
+        effects: { cash: -11250, reputation: 10, health: -5 },
         feedback: '赢得了工人的信任。',
       },
       {
         id: 'opt_010_2',
         text: '按流程处理',
-        effects: { cash: -8, reputation: 3 },
+        effects: { cash: -4000, reputation: 3 },
         feedback: '按规定办事，还算合理。',
       },
       {
         id: 'opt_010_3',
         text: '私下了解',
-        effects: { cash: -5, reputation: -10 },
+        effects: { cash: -2500, reputation: -10 },
         feedback: '省了麻烦，但工人们心里有怨气。',
       },
     ],
@@ -276,7 +276,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_011_1',
         text: '请专家指导',
-        effects: { cash: -10, quality: 15, progress: -5 },
+        effects: { cash: -5000, quality: 15, progress: -5 },
         feedback: '专业的事交给专业的人。',
       },
       {
@@ -308,7 +308,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_012_2',
         text: '解释实际困难',
-        effects: { reputation: -5, cash: 5 },
+        effects: { reputation: -5, cash: 2500 },
         feedback: '领导表示理解，但印象打了折扣。',
       },
       {
@@ -328,7 +328,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_013_1',
         text: '申请追加预算',
-        effects: { cash: 20, reputation: -15, health: -10 },
+        effects: { cash: 15000, reputation: -15, health: -10 },
         feedback: '钱批下来了，但要受不少批评。',
       },
       {
@@ -340,7 +340,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_013_3',
         text: '自己垫付部分',
-        effects: { cash: 10, health: -5, reputation: 5 },
+        effects: { cash: 5000, health: -5, reputation: 5 },
         feedback: '自掏腰包，但保住了信誉。',
       },
     ],
@@ -374,7 +374,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_015_1',
         text: '组织团建活动',
-        effects: { cash: -10, progress: -3, reputation: 8, health: 5 },
+        effects: { cash: -5000, progress: -3, reputation: 8, health: 5 },
         feedback: '团建后气氛好多了。',
       },
       {
@@ -401,13 +401,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_016_1',
         text: '全面检查整改',
-        effects: { progress: -5, quality: 15, cash: -10, health: -10 },
+        effects: { progress: -5, quality: 15, cash: -5000, health: -10 },
         feedback: '确保万无一失。',
       },
       {
         id: 'opt_016_2',
         text: '重点部位检查',
-        effects: { quality: 8, health: -5, cash: -5 },
+        effects: { quality: 8, health: -5, cash: -2500 },
         feedback: '抓住重点，合理安排。',
       },
       {
@@ -427,13 +427,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_017_1',
         text: '通宵达旦赶工',
-        effects: { progress: 20, health: -20, cash: -15 },
+        effects: { progress: 20, health: -20, cash: -11250 },
         feedback: '终于赶在deadline前完成了！',
       },
       {
         id: 'opt_017_2',
         text: '合理加班',
-        effects: { progress: 12, health: -10, cash: -8 },
+        effects: { progress: 12, health: -10, cash: -4000 },
         feedback: '按部就班完成了大部分工作。',
       },
       {
@@ -459,13 +459,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_018_2',
         text: '承认不足，立即整改',
-        effects: { progress: -5, quality: 5, cash: -10 },
+        effects: { progress: -5, quality: 5, cash: -5000 },
         feedback: '及时纠正，避免了大问题。',
       },
       {
         id: 'opt_018_3',
         text: '找关系疏通',
-        effects: { cash: -15, reputation: -10 },
+        effects: { cash: -11250, reputation: -10 },
         feedback: '花钱消灾，但不是长久之计。',
       },
     ],
@@ -532,19 +532,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_021_1',
         text: '全部自己跑',
-        effects: { progress: -8, health: -10, cash: -5 },
+        effects: { progress: -8, health: -10, cash: -2500 },
         feedback: '虽然省了中介费，但跑断了腿。',
       },
       {
         id: 'opt_021_2',
         text: '聘请专业代理',
-        effects: { cash: -12, progress: 3 },
+        effects: { cash: -9000, progress: 3 },
         feedback: '花钱买效率，很值得。',
       },
       {
         id: 'opt_021_3',
         text: '找当地熟人',
-        effects: { reputation: 3, cash: -8, progress: 2 },
+        effects: { reputation: 3, cash: -4000, progress: 2 },
         feedback: '人脉派上用场了。',
       },
     ],
@@ -558,13 +558,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_022_1',
         text: '立即改善宿舍',
-        effects: { cash: -15, health: 5, reputation: 8 },
+        effects: { cash: -11250, health: 5, reputation: 8 },
         feedback: '工人很感激，积极性提高。',
       },
       {
         id: 'opt_022_2',
         text: '给补贴代替',
-        effects: { cash: -10, reputation: 3 },
+        effects: { cash: -5000, reputation: 3 },
         feedback: '算是安抚了，但不够彻底。',
       },
       {
@@ -584,19 +584,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_023_1',
         text: '购买最新型设备',
-        effects: { cash: -25, progress: 10, quality: 8 },
+        effects: { cash: -25000, progress: 10, quality: 8 },
         feedback: '设备先进，工作效率大幅提升。',
       },
       {
         id: 'opt_023_2',
         text: '租赁二手设备',
-        effects: { cash: -8, progress: 3, quality: -3 },
+        effects: { cash: -4000, progress: 3, quality: -3 },
         feedback: '省钱了，但设备时常出问题。',
       },
       {
         id: 'opt_023_3',
         text: '购买二手设备',
-        effects: { cash: -12, progress: 5, quality: -2 },
+        effects: { cash: -9000, progress: 5, quality: -2 },
         feedback: '一次性投资，长期省钱。',
       },
     ],
@@ -610,13 +610,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_024_1',
         text: '主动整改，超标准执行',
-        effects: { cash: -10, health: 5, reputation: 12 },
+        effects: { cash: -5000, health: 5, reputation: 12 },
         feedback: '获得了环保部门的高度评价。',
       },
       {
         id: 'opt_024_2',
         text: '按最低标准整改',
-        effects: { cash: -5, reputation: 2 },
+        effects: { cash: -2500, reputation: 2 },
         feedback: '勉强过关。',
       },
       {
@@ -636,19 +636,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_025_1',
         text: '投入重金，邀请行业专家',
-        effects: { cash: -15, quality: 12, reputation: 8 },
+        effects: { cash: -11250, quality: 12, reputation: 8 },
         feedback: '团队素质明显提升。',
       },
       {
         id: 'opt_025_2',
         text: '内部培训',
-        effects: { cash: -5, quality: 5, progress: -3 },
+        effects: { cash: -2500, quality: 5, progress: -3 },
         feedback: '节省成本，效果一般。',
       },
       {
         id: 'opt_025_3',
         text: '不培训',
-        effects: { cash: 5, quality: -8 },
+        effects: { cash: 2500, quality: -8 },
         feedback: '省钱了，但技能水平堪忧。',
       },
     ],
@@ -663,7 +663,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_026_1',
         text: '虽然不爽也得改',
-        effects: { progress: -12, quality: 5, cash: -15, health: -10 },
+        effects: { progress: -12, quality: 5, cash: -11250, health: -10 },
         feedback: '甲方是爹，只能照办。',
       },
       {
@@ -689,7 +689,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_027_1',
         text: '先垫付工资，后追款',
-        effects: { cash: -20, reputation: 10, health: -8 },
+        effects: { cash: -15000, reputation: 10, health: -8 },
         feedback: '委屈自己，维护工人利益。',
       },
       {
@@ -741,13 +741,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_029_1',
         text: '紧急调货，全力采购',
-        effects: { cash: -18, progress: 5 },
+        effects: { cash: -13500, progress: 5 },
         feedback: '花了大价钱，但保住了进度。',
       },
       {
         id: 'opt_029_2',
         text: '替代方案，使用其他材料',
-        effects: { cash: -8, quality: -10 },
+        effects: { cash: -4000, quality: -10 },
         feedback: '省了钱，但质量受影响。',
       },
       {
@@ -767,7 +767,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_030_1',
         text: '立即请专家，全力补救',
-        effects: { cash: -20, quality: 12, progress: -8, health: -10 },
+        effects: { cash: -15000, quality: 12, progress: -8, health: -10 },
         feedback: '虽然花钱，但避免了大问题。',
       },
       {
@@ -793,7 +793,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_031_1',
         text: '虚心接受，立即整改',
-        effects: { cash: -8, quality: 10, progress: -5, reputation: 5 },
+        effects: { cash: -4000, quality: 10, progress: -5, reputation: 5 },
         feedback: '与监理关系和谐，未来合作顺利。',
       },
       {
@@ -805,7 +805,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_031_3',
         text: '找关系疏通',
-        effects: { cash: -15, reputation: -10 },
+        effects: { cash: -11250, reputation: -10 },
         feedback: '花钱消灾，但名声受损。',
       },
     ],
@@ -819,13 +819,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_032_1',
         text: '加强安保，安装监控',
-        effects: { cash: -12, reputation: 8, health: 5 },
+        effects: { cash: -9000, reputation: 8, health: 5 },
         feedback: '投资安全，工人很放心。',
       },
       {
         id: 'opt_032_2',
         text: '派人巡查',
-        effects: { cash: -5, reputation: 3 },
+        effects: { cash: -2500, reputation: 3 },
         feedback: '缓解了问题，但不够彻底。',
       },
       {
@@ -845,13 +845,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_033_1',
         text: '挽留，给予提升机会',
-        effects: { cash: -10, health: 5, reputation: 5, quality: 10 },
+        effects: { cash: -5000, health: 5, reputation: 5, quality: 10 },
         feedback: '人才留住了，项目稳了。',
       },
       {
         id: 'opt_033_2',
         text: '放他走，另找人才',
-        effects: { cash: -15, quality: -15, progress: -8 },
+        effects: { cash: -11250, quality: -15, progress: -8 },
         feedback: '新人上手需要时间，短期阵痛。',
       },
       {
@@ -871,7 +871,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_034_1',
         text: '立即垫付，维护信誉',
-        effects: { cash: -18, reputation: 8 },
+        effects: { cash: -13500, reputation: 8 },
         feedback: '工人的工资有了着落，感谢有你。',
       },
       {
@@ -923,13 +923,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_036_1',
         text: '按一级标准全力整改',
-        effects: { cash: -15, health: 10, reputation: 15 },
+        effects: { cash: -11250, health: 10, reputation: 15 },
         feedback: '成为了行业标杆项目。',
       },
       {
         id: 'opt_036_2',
         text: '按二级标准达标',
-        effects: { cash: -8, reputation: 5 },
+        effects: { cash: -4000, reputation: 5 },
         feedback: '能过关，但不够突出。',
       },
       {
@@ -949,13 +949,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_037_1',
         text: '接受涨价',
-        effects: { cash: -18, progress: 5 },
+        effects: { cash: -13500, progress: 5 },
         feedback: '虽然肉疼，但不耽误工期。',
       },
       {
         id: 'opt_037_2',
         text: '更换材料品牌',
-        effects: { cash: -10, quality: -8 },
+        effects: { cash: -5000, quality: -8 },
         feedback: '省钱了，但质量档次降低。',
       },
       {
@@ -975,13 +975,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_038_1',
         text: '全部返工，追究责任',
-        effects: { cash: -20, quality: 15, reputation: 5 },
+        effects: { cash: -15000, quality: 15, reputation: 5 },
         feedback: '虽然麻烦，但保证了质量。',
       },
       {
         id: 'opt_038_2',
         text: '部分返工，控制成本',
-        effects: { cash: -10, quality: 5 },
+        effects: { cash: -5000, quality: 5 },
         feedback: '平衡了质量和成本。',
       },
       {
@@ -1001,7 +1001,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_039_1',
         text: '积极参与，全力争取',
-        effects: { cash: -10, reputation: 15, progress: -5 },
+        effects: { cash: -5000, reputation: 15, progress: -5 },
         feedback: '虽然花钱又耽误进度，但获得了殊荣。',
       },
       {
@@ -1027,13 +1027,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_040_1',
         text: '立即全面整改',
-        effects: { cash: -12, progress: -8, quality: 10, reputation: 10 },
+        effects: { cash: -9000, progress: -8, quality: 10, reputation: 10 },
         feedback: '虽然短期有压力，但长期受益。',
       },
       {
         id: 'opt_040_2',
         text: '部分调整',
-        effects: { cash: -5, quality: 3 },
+        effects: { cash: -2500, quality: 3 },
         feedback: '基本符合，但可能有遗漏。',
       },
       {
@@ -1059,7 +1059,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_041_2',
         text: '给予加薪奖励，留任工作',
-        effects: { cash: -15, progress: 5 },
+        effects: { cash: -11250, progress: 5 },
         feedback: '花钱留住了劳动力。',
       },
       {
@@ -1131,13 +1131,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_044_1',
         text: '主动沟通，赔偿损失',
-        effects: { cash: -10, reputation: 10, health: 5 },
+        effects: { cash: -5000, reputation: 10, health: 5 },
         feedback: '化解了矛盾，获得了谅解。',
       },
       {
         id: 'opt_044_2',
         text: '采取降噪措施',
-        effects: { cash: -8, progress: -5 },
+        effects: { cash: -4000, progress: -5 },
         feedback: '虽然耽误进度，但问题解决了。',
       },
       {
@@ -1157,7 +1157,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_045_1',
         text: '银行贷款',
-        effects: { cash: 25, health: -10, progress: 2 },
+        effects: { cash: 25000, health: -10, progress: 2 },
         feedback: '解决了燃眉之急，但债务增加。',
       },
       {
@@ -1184,13 +1184,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_046_1',
         text: '立即返工，完全解决',
-        effects: { cash: -12, quality: 12, progress: -8 },
+        effects: { cash: -9000, quality: 12, progress: -8 },
         feedback: '彻底解决了问题。',
       },
       {
         id: 'opt_046_2',
         text: '调整密封胶',
-        effects: { cash: -5, quality: 5 },
+        effects: { cash: -2500, quality: 5 },
         feedback: '成本低，效果也还可以。',
       },
       {
@@ -1210,13 +1210,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_047_1',
         text: '全力冲刺，不计成本',
-        effects: { progress: 20, health: -20, cash: -15 },
+        effects: { progress: 20, health: -20, cash: -11250 },
         feedback: '虽然透支了，但如期完成。',
       },
       {
         id: 'opt_047_2',
         text: '加班加点，量力而为',
-        effects: { progress: 12, health: -12, cash: -10 },
+        effects: { progress: 12, health: -12, cash: -5000 },
         feedback: '有序推进，大部分完成。',
       },
       {
@@ -1236,13 +1236,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_048_1',
         text: '逐一整改，完美呈现',
-        effects: { progress: -5, quality: 15, cash: -8 },
+        effects: { progress: -5, quality: 15, cash: -4000 },
         feedback: '完美收官。',
       },
       {
         id: 'opt_048_2',
         text: '整改主要问题',
-        effects: { progress: -2, quality: 8, cash: -4 },
+        effects: { progress: -2, quality: 8, cash: -2000 },
         feedback: '基本完美，细节有遗漏。',
       },
       {
@@ -1262,13 +1262,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_049_1',
         text: '主动承担，完全免费维修',
-        effects: { cash: -10, reputation: 15, health: 5 },
+        effects: { cash: -5000, reputation: 15, health: 5 },
         feedback: '完全诠释了什么叫"质量承诺"。',
       },
       {
         id: 'opt_049_2',
         text: '按合同维修',
-        effects: { cash: -5, reputation: 5 },
+        effects: { cash: -2500, reputation: 5 },
         feedback: '按规定办事，尽职尽责。',
       },
       {
@@ -1314,19 +1314,19 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_051_1',
         text: '详细统计，发现成本节约机会',
-        effects: { cash: 15, reputation: 5 },
+        effects: { cash: 11250, reputation: 5 },
         feedback: '数据清楚，可为下一个项目借鉴。',
       },
       {
         id: 'opt_051_2',
         text: '粗略统计',
-        effects: { cash: 5 },
+        effects: { cash: 2500 },
         feedback: '大概知道了赚多少。',
       },
       {
         id: 'opt_051_3',
         text: '不统计',
-        effects: { cash: -10, reputation: -5 },
+        effects: { cash: -5000, reputation: -5 },
         feedback: '糊里糊涂，损失无算。',
       },
     ],
@@ -1366,13 +1366,13 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_053_1',
         text: '大方奖励，现金红包',
-        effects: { cash: -12, reputation: 15, health: 10 },
+        effects: { cash: -9000, reputation: 15, health: 10 },
         feedback: '员工非常满足，明年继续合作。',
       },
       {
         id: 'opt_053_2',
         text: '适度奖励',
-        effects: { cash: -5, reputation: 8 },
+        effects: { cash: -2500, reputation: 8 },
         feedback: '略感满意。',
       },
       {
@@ -1418,7 +1418,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_055_1',
         text: '定期走访，建立友谊',
-        effects: { cash: -5, reputation: 15 },
+        effects: { cash: -2500, reputation: 15 },
         feedback: '为将来合作铺路。',
       },
       {
@@ -1444,7 +1444,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_056_1',
         text: '庆祝活动，全员分享荣誉',
-        effects: { cash: -8, reputation: 20, health: 8 },
+        effects: { cash: -4000, reputation: 20, health: 8 },
         feedback: '荣誉鼓舞人心。',
       },
       {
@@ -1482,7 +1482,7 @@ export const EVENTS: EventCard[] = [
       {
         id: 'opt_057_3',
         text: '拖延支付',
-        effects: { cash: 10, reputation: -20 },
+        effects: { cash: 5000, reputation: -20 },
         feedback: '虽然赚了，但完全失信。',
       },
     ],
