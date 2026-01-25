@@ -57,3 +57,14 @@ export type {
   LeaderboardEntry,
   LeaderboardQuery,
 } from './leaderboard';
+
+// Team types
+export type {
+  TeamMember,
+  TeamIssue,
+  TeamState,
+} from './team';
+
+export {
+  TeamMemberType,
+} from './team';
