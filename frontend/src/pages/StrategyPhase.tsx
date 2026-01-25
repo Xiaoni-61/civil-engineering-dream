@@ -21,6 +21,12 @@ const StrategyPhase = () => {
     sellMaterial,
     maintainRelationship,
     finishQuarter,
+    maintenanceCount,
+    getMaxMaintenanceCount,
+    isRelationshipUnlocked,
+    materialTradeCount,
+    getMaxMaterialTradeCount,
+    getMaxBuyableAmount,
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'material' | 'relationship'>('material');
@@ -72,11 +78,14 @@ const StrategyPhase = () => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <button
-              onClick={() => navigate('/game')}
+              onClick={() => {
+                finishQuarter();
+                navigate('/settlement');
+              }}
               className="flex items-center space-x-2 text-slate-600 hover:text-brand-600 transition-colors group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 rounded px-2 py-1 -ml-2 active:scale-95"
             >
               <span className="group-hover:-translate-x-1 transition-transform">←</span>
-              <span className="text-sm font-medium">返回游戏</span>
+              <span className="text-sm font-medium">完成季度</span>
             </button>
 
             <div className="absolute left-1/2 transform -translate-x-1/2 text-center">
@@ -85,16 +94,6 @@ const StrategyPhase = () => {
                 策略阶段
               </h1>
             </div>
-
-            <button
-              onClick={() => {
-                finishQuarter();
-                navigate('/settlement');
-              }}
-              className="flex items-center space-x-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-feishu cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-95"
-            >
-              <span>完成季度</span>
-            </button>
           </div>
         </div>
       </nav>
@@ -126,21 +125,23 @@ const StrategyPhase = () => {
         <div className="flex space-x-2 mb-6">
           <button
             onClick={() => setActiveTab('material')}
-            className={`flex-1 py-3 px-4 rounded-feishu font-medium transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+            className={`flex-1 py-3 px-4 rounded-feishu font-bold text-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
               activeTab === 'material'
-                ? 'bg-brand-500 text-white shadow-feishu'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 border-2 border-blue-500'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-300'
             }`}
+            style={activeTab === 'material' ? { textShadow: '0 1px 2px rgba(0,0,0,0.3)' } : {}}
           >
             🏗️ 材料市场
           </button>
           <button
             onClick={() => setActiveTab('relationship')}
-            className={`flex-1 py-3 px-4 rounded-feishu font-medium transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+            className={`flex-1 py-3 px-4 rounded-feishu font-bold text-lg transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
               activeTab === 'relationship'
-                ? 'bg-brand-500 text-white shadow-feishu'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/30 border-2 border-blue-500'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border-2 border-slate-300'
             }`}
+            style={activeTab === 'relationship' ? { textShadow: '0 1px 2px rgba(0,0,0,0.3)' } : {}}
           >
             🤝 关系维护
           </button>
@@ -151,15 +152,22 @@ const StrategyPhase = () => {
           <div className="bg-white rounded-feishu-lg shadow-feishu p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-slate-800">材料市场</h2>
-              <button
-                onClick={() => setShowPriceChart(true)}
-                className="text-sm text-brand-600 hover:text-brand-700 cursor-pointer flex items-center"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                </svg>
-                价格走势
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="text-sm bg-slate-100 px-3 py-1 rounded-full">
+                  <span className="text-slate-600">本季度已交易：</span>
+                  <span className="font-bold text-brand-600">{materialTradeCount}/{getMaxMaterialTradeCount()}</span>
+                  <span className="text-slate-600 ml-1">次</span>
+                </div>
+                <button
+                  onClick={() => setShowPriceChart(true)}
+                  className="text-sm text-brand-600 hover:text-brand-700 cursor-pointer flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                  </svg>
+                  价格走势
+                </button>
+              </div>
             </div>
 
             {/* 材料选择 */}
@@ -177,19 +185,19 @@ const StrategyPhase = () => {
                       className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                         selectedMaterial === type
                           ? 'border-brand-500 bg-brand-50'
-                          : 'border-slate-200 hover:border-slate-300'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
                       <div className="text-2xl mb-1">{display.icon}</div>
-                      <div className="text-sm font-medium">{display.label}</div>
-                      <div className={`text-sm font-bold ${price?.trend === 'up' ? 'text-red-600' : price?.trend === 'down' ? 'text-green-600' : 'text-slate-700'}`}>
-                        {price?.currentPrice || config.basePrice} {config.unit}
+                      <div className={`text-sm font-semibold ${selectedMaterial === type ? 'text-brand-900' : 'text-slate-800'}`}>{display.label}</div>
+                      <div className={`text-sm font-bold ${price?.trend === 'up' ? 'text-red-600' : price?.trend === 'down' ? 'text-green-600' : 'text-slate-800'}`}>
+                        {price?.currentPrice || config.basePrice}/{config.unit}
                       </div>
-                      <div className={`text-xs ${price?.trend === 'up' ? 'text-red-500' : price?.trend === 'down' ? 'text-green-500' : 'text-slate-400'}`}>
+                      <div className={`text-xs font-medium ${price?.trend === 'up' ? 'text-red-500' : price?.trend === 'down' ? 'text-green-500' : 'text-slate-600'}`}>
                         {price?.trend === 'up' ? '↑' : price?.trend === 'down' ? '↓' : '─'}
                         {price?.priceChange ? `${price.priceChange > 0 ? '+' : ''}${price.priceChange}%` : '0%'}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
+                      <div className={`text-xs mt-1 ${selectedMaterial === type ? 'text-brand-700' : 'text-slate-600'}`}>
                         库存: {inventory[type]}
                       </div>
                     </button>
@@ -199,47 +207,65 @@ const StrategyPhase = () => {
             </div>
 
             {/* 交易操作 */}
-            <div className="bg-slate-50 rounded-feishu p-4">
-              <div className="flex flex-col md:flex-row gap-4 items-end">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">交易数量</label>
-                  <input
-                    type="number"
-                    min={MATERIAL_CONFIGS[selectedMaterial].minTrade}
-                    max={MATERIAL_CONFIGS[selectedMaterial].maxTrade}
-                    value={tradeAmount}
-                    onChange={(e) => setTradeAmount(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-feishu focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleTrade('buy')}
-                    disabled={stats.cash < (materialPrices[selectedMaterial]?.currentPrice || MATERIAL_CONFIGS[selectedMaterial].basePrice) * tradeAmount}
-                    className="px-6 py-2 bg-red-500 hover:bg-red-600 disabled:bg-slate-300 text-white rounded-feishu cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed active:scale-95"
-                  >
-                    买入
-                  </button>
-                  <button
-                    onClick={() => handleTrade('sell')}
-                    disabled={inventory[selectedMaterial] < tradeAmount}
-                    className="px-6 py-2 bg-green-500 hover:bg-green-600 disabled:bg-slate-300 text-white rounded-feishu cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed active:scale-95"
-                  >
-                    卖出
-                  </button>
-                </div>
+            {materialTradeCount >= getMaxMaterialTradeCount() ? (
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-feishu p-6 text-center">
+                <div className="text-2xl mb-2">🔒</div>
+                <div className="text-sm font-medium text-orange-800">本季度交易次数已达上限</div>
+                <div className="text-xs text-orange-600 mt-1">下季度将重置交易次数</div>
               </div>
-              {tradeMessage && (
-                <div className="mt-3 text-sm text-center text-slate-600">{tradeMessage}</div>
-              )}
-            </div>
+            ) : (
+              <div className="bg-slate-50 rounded-feishu p-4">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">交易数量</label>
+                    <input
+                      type="number"
+                      min={MATERIAL_CONFIGS[selectedMaterial].minTrade}
+                      max={MATERIAL_CONFIGS[selectedMaterial].maxTrade}
+                      value={tradeAmount}
+                      onChange={(e) => setTradeAmount(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-feishu focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    <div className="text-xs text-slate-500 mt-1">
+                      最大可买: {getMaxBuyableAmount(selectedMaterial)} {MATERIAL_CONFIGS[selectedMaterial].unit}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleTrade('buy')}
+                      disabled={stats.cash < (materialPrices[selectedMaterial]?.currentPrice || MATERIAL_CONFIGS[selectedMaterial].basePrice) * tradeAmount || materialTradeCount >= getMaxMaterialTradeCount()}
+                      className="px-6 py-2 bg-red-500 hover:bg-red-600 disabled:bg-slate-300 text-white rounded-feishu cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed active:scale-95"
+                    >
+                      买入
+                    </button>
+                    <button
+                      onClick={() => handleTrade('sell')}
+                      disabled={inventory[selectedMaterial] < tradeAmount || materialTradeCount >= getMaxMaterialTradeCount()}
+                      className="px-6 py-2 bg-green-500 hover:bg-green-600 disabled:bg-slate-300 text-white rounded-feishu cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed active:scale-95"
+                    >
+                      卖出
+                    </button>
+                  </div>
+                </div>
+                {tradeMessage && (
+                  <div className="mt-3 text-sm text-center text-slate-600">{tradeMessage}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* 关系维护 */}
         {activeTab === 'relationship' && (
           <div className="bg-white rounded-feishu-lg shadow-feishu p-6">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">关系维护</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-800">关系维护</h2>
+              <div className="text-sm bg-slate-100 px-3 py-1 rounded-full">
+                <span className="text-slate-600">本季度已维护：</span>
+                <span className="font-bold text-brand-600">{maintenanceCount}/{getMaxMaintenanceCount()}</span>
+                <span className="text-slate-600 ml-1">次</span>
+              </div>
+            </div>
 
             {/* 关系选择 */}
             <div className="mb-6">
@@ -249,21 +275,33 @@ const StrategyPhase = () => {
                   const display = RELATIONSHIP_DISPLAY[type];
                   const value = relationships[type];
                   const level = getRelationshipLevel(value);
+                  const isUnlocked = isRelationshipUnlocked(type);
                   return (
                     <button
                       key={type}
-                      onClick={() => setSelectedRelationship(type)}
-                      className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 ${
+                      onClick={() => isUnlocked && setSelectedRelationship(type)}
+                      disabled={!isUnlocked}
+                      className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed relative ${
                         selectedRelationship === type
                           ? 'border-brand-500 bg-brand-50'
-                          : 'border-slate-200 hover:border-slate-300'
+                          : isUnlocked
+                          ? 'border-slate-200 hover:border-slate-300 bg-white'
+                          : 'border-slate-200 bg-slate-50 opacity-60'
                       }`}
                     >
+                      {!isUnlocked && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100/90 rounded-feishu">
+                          <div className="text-center">
+                            <div className="text-2xl mb-1">🔒</div>
+                            <div className="text-xs font-semibold text-slate-700">未解锁</div>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-2xl">{display.icon}</div>
-                        <div className={`text-sm font-medium ${level.color}`}>{level.label}</div>
+                        <div className={`text-sm font-bold ${level.color}`}>{level.label}</div>
                       </div>
-                      <div className="text-sm font-medium">{display.label}</div>
+                      <div className={`text-sm font-semibold ${selectedRelationship === type ? 'text-brand-900' : 'text-slate-800'}`}>{display.label}</div>
                       <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
                         <div
                           className={`h-2 rounded-full ${
@@ -272,7 +310,7 @@ const StrategyPhase = () => {
                           style={{ width: `${value}%` }}
                         ></div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">关系值: {value}/100</div>
+                      <div className={`text-xs font-medium mt-1 ${selectedRelationship === type ? 'text-brand-700' : 'text-slate-600'}`}>关系值: {value}/100</div>
                     </button>
                   );
                 })}
@@ -280,40 +318,47 @@ const StrategyPhase = () => {
             </div>
 
             {/* 维护方式 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {Object.entries(MAINTENANCE_OPTIONS).map(([key, option]) => {
-                const canAfford = stats.cash >= option.cost;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleMaintain(key as 'dinner' | 'gift' | 'favor' | 'solidarity')}
-                    disabled={!canAfford}
-                    className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed active:scale-95 ${
-                      canAfford
-                        ? 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
-                        : 'bg-slate-100 border-slate-200 opacity-60'
-                    }`}
+            {maintenanceCount >= getMaxMaintenanceCount() ? (
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-feishu p-6 text-center">
+                <div className="text-2xl mb-2">⚠️</div>
+                <div className="text-sm font-medium text-orange-800">本季度维护次数已达上限</div>
+                <div className="text-xs text-orange-600 mt-1">下季度将根据您的职级获得新的维护次数</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(MAINTENANCE_OPTIONS).map(([key, option]) => {
+                  const canAfford = stats.cash >= option.cost;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleMaintain(key as 'dinner' | 'gift' | 'favor' | 'solidarity')}
+                      disabled={!canAfford}
+                      className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed active:scale-95 ${
+                        canAfford
+                          ? 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+                          : 'bg-slate-100 border-slate-200 opacity-60'
+                      }`}
                   >
                     <div className="text-2xl mb-2">{option.icon}</div>
-                    <div className="text-sm font-medium mb-2">{option.name}</div>
+                    <div className="text-sm font-bold mb-2 text-slate-800">{option.name}</div>
 
                     {/* 花费和收获 */}
                     <div className="space-y-1 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-600">💰花费</span>
+                        <span className="font-semibold text-slate-700">💰花费</span>
                         <span className={`font-bold ${canAfford ? 'text-red-600' : 'text-red-400'}`}>
                           -{formatAmount(option.cost)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-600">🤝关系</span>
+                        <span className="font-semibold text-slate-700">🤝关系</span>
                         <span className="font-bold text-green-600">
                           +{option.relationshipGain}
                         </span>
                       </div>
                       {'healthCost' in option && option.healthCost && (
                         <div className="flex items-center justify-between">
-                          <span className="text-slate-600">❤️健康</span>
+                          <span className="font-semibold text-slate-700">❤️健康</span>
                           <span className="font-bold text-red-500">
                             -{option.healthCost}
                           </span>
@@ -323,7 +368,8 @@ const StrategyPhase = () => {
                   </button>
                 );
               })}
-            </div>
+              </div>
+            )}
 
             {maintenanceMessage && (
               <div className="mt-4 text-center text-sm text-slate-600 bg-slate-50 p-3 rounded-feishu">

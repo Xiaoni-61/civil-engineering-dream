@@ -1565,6 +1565,91 @@ export const EVENTS: EventCard[] = [
       },
     ],
   },
+
+  // ========== 涨薪事件（中期及后期）==========
+  {
+    id: 'event_061',
+    title: '年度绩效考核',
+    description: '公司进行年度绩效考核，你的表现获得了领导的认可，有机会获得涨薪。',
+    options: [
+      {
+        id: 'opt_061_1',
+        text: '争取涨薪',
+        effects: { reputation: 5 },
+        feedback: '你的努力得到了认可！',
+        action: 'raiseSalary',
+        actionFeedbackOverride: '领导批准了你的涨薪申请！',
+      },
+      {
+        id: 'opt_061_2',
+        text: '保持低调',
+        effects: { reputation: -3 },
+        feedback: '错失了涨薪机会。',
+      },
+      {
+        id: 'opt_061_3',
+        text: '要求晋升',
+        effects: { reputation: 3, health: -5 },
+        feedback: '虽未成功晋升，但领导记住了你的野心。',
+      },
+    ],
+  },
+
+  {
+    id: 'event_062',
+    title: '重要客户表扬',
+    description: '你负责的项目获得了重要客户的书面表扬，公司决定给予奖励。',
+    options: [
+      {
+        id: 'opt_062_1',
+        text: '申请涨薪',
+        effects: { reputation: 8, progress: 5 },
+        feedback: '客户表扬为你争取到了更好的待遇！',
+        action: 'raiseSalary',
+        actionFeedbackOverride: '基于客户的表扬，公司批准了涨薪！',
+      },
+      {
+        id: 'opt_062_2',
+        text: '选择奖金',
+        effects: { cash: 20000 },
+        feedback: '拿到了一次性奖金，但工资没变。',
+      },
+      {
+        id: 'opt_062_3',
+        text: '保持谦逊',
+        effects: { reputation: 5 },
+        feedback: '你的谦逊态度赢得了更多尊重。',
+      },
+    ],
+  },
+
+  {
+    id: 'event_063',
+    title: '公司利润增长',
+    description: '公司今年利润大幅增长，决定为优秀员工加薪。',
+    options: [
+      {
+        id: 'opt_063_1',
+        text: '申请加薪',
+        effects: { reputation: 3 },
+        feedback: '恭喜加薪成功！',
+        action: 'raiseSalary',
+        actionFeedbackOverride: '基于公司业绩，你的工资获得了提升！',
+      },
+      {
+        id: 'opt_063_2',
+        text: '观望等待',
+        effects: { reputation: -2 },
+        feedback: '别人都加薪了，你还在等待。',
+      },
+      {
+        id: 'opt_063_3',
+        text: '主动承担更多',
+        effects: { health: -8, progress: 10 },
+        feedback: '虽然辛苦，但积累了经验。',
+      },
+    ],
+  },
 ];
 
 // 事件索引（方便快速查找）
@@ -1576,6 +1661,6 @@ export const EVENT_MAP = EVENTS.reduce((map, event) => {
 // 按回合推荐的事件（可用于顺序模式）
 export const EVENT_BY_PHASE = {
   early: EVENTS.slice(0, 10),   // 1-10 回合（初期 10 张）
-  mid: EVENTS.slice(10, 40),    // 11-40 回合（中期 30 张）
-  late: EVENTS.slice(40, 60),   // 41-60 回合（后期 20 张）
+  mid: EVENTS.slice(10, 43),     // 11-43 回合（中期 33 张，包含涨薪事件）
+  late: EVENTS.slice(43, 63),    // 44-63 回合（后期 20 张）
 };

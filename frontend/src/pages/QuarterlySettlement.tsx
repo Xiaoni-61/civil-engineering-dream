@@ -188,10 +188,10 @@ const QuarterlySettlement = () => {
                 <button
                   onClick={handlePromotion}
                   className={`w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
-                            shadow-feishu hover:shadow-feishu-lg hover:-translate-y-0.5 active:scale-[0.98]
+                            shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
                             ${canPromote
-                              ? 'bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 focus:ring-amber-500'
-                              : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 focus:ring-brand-500'
+                              ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-400 hover:to-amber-500 focus:ring-orange-500 border-2 border-orange-700'
+                              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 focus:ring-blue-500 border-2 border-blue-800'
                             }`}
                 >
                   <span className="flex items-center justify-center">

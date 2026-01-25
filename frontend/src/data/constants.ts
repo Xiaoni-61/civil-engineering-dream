@@ -50,16 +50,19 @@ export const PROJECT_COMPLETION = {
   reward: 50000,     // 项目完成奖励（主要收入来源）
 };
 
-// 生活成本（每季度固定支出）
-export const LIVING_COSTS = {
-  total: 10000,  // 总生活成本
-  breakdown: {
-    accommodation: 3000,  // 住宿费
-    food: 4000,          // 餐饮费
-    transport: 1500,     // 交通费
-    communication: 500,  // 通讯费
-    miscellaneous: 1000, // 其他杂费
-  },
+// 生活成本配置（当季度工资的百分比范围）
+export const LIVING_COSTS_CONFIG = {
+  minPercent: 0.10,  // 最低 10%
+  maxPercent: 0.25,  // 最高 25%
+};
+
+// 生活成本说明（用于显示）
+export const LIVING_COSTS_BREAKDOWN = {
+  accommodation: '住宿费',
+  food: '餐饮费',
+  transport: '交通费',
+  communication: '通讯费',
+  miscellaneous: '其他杂费',
 };
 
 // 指标显示配置
@@ -267,14 +270,14 @@ export const STAT_RANGE = {
 
 // LLM 增强配置
 export const LLM_CONFIG = {
-  // 动态描述增强概率
-  enhanceDescriptionProbability: 0.15, // 15%
+  // 动态描述增强概率（降低频率以提升加载速度）
+  enhanceDescriptionProbability: 0.05, // 从 15% 降低到 5%
 
   // 特殊事件触发配置
   specialEvent: {
     minQuarter: 2,
     maxCount: 2, // 每局最多 2 次
-    probability: 0.1, // 10% 基础概率
+    probability: 0.05, // 从 10% 降低到 5%（降低特殊事件频率）
   },
 
   // 启用状态（可通过环境变量控制）

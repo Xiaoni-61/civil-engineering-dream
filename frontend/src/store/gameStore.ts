@@ -31,11 +31,14 @@ import {
   LLM_CONFIG,
   BONUS_EVENTS,
   DISASTER_EVENTS,
-  LIVING_COSTS,
   MAINTENANCE_OPTIONS,
+  LIVING_COSTS_CONFIG,
 } from '@/data/constants';
 import { startGame as apiStartGame, finishGame as apiFinishGame } from '@/api';
 import { enhanceDescription, generateSpecialEvent } from '@/api';
+
+// 材料市场交易限制
+const MAX_MATERIAL_TRADES_PER_QUARTER = 3; // 每季度最多交易3次
 
 interface GameStore extends GameState {
   // 扩展状态
@@ -61,6 +64,7 @@ interface GameStore extends GameState {
 
   // 季度流程
   enterStrategyPhase: () => void;
+  returnToEventPhase: () => void;
   finishQuarter: () => void;
   nextQuarter: () => void;
   executePromotion: (newRank: Rank) => void;
@@ -69,6 +73,8 @@ interface GameStore extends GameState {
   buyMaterial: (materialType: MaterialType, amount: number) => TradeResult;
   sellMaterial: (materialType: MaterialType, amount: number) => TradeResult;
   updateMaterialPrices: () => void;
+  getMaxMaterialTradeCount: () => number;
+  getMaxBuyableAmount: (materialType: MaterialType) => number;
 
   // 关系维护操作
   maintainRelationship: (
@@ -76,6 +82,8 @@ interface GameStore extends GameState {
     method: 'dinner' | 'gift' | 'favor' | 'solidarity'
   ) => MaintenanceResult;
   decayRelationships: () => void;
+  getMaxMaintenanceCount: () => number;
+  isRelationshipUnlocked: (relationshipType: RelationshipType) => boolean;
 
   // Helper methods
   applyEffects: (effects: Effects) => void;
@@ -85,6 +93,7 @@ interface GameStore extends GameState {
   calculateNetAssets: () => number;
   calculateStorageFee: () => number;
   calculateQuarterlySalary: () => number;
+  raiseSalary: () => { success: boolean; newSalary?: number; message: string }; // 涨薪方法
 
   // LLM Helper
   shouldTriggerSpecialEvent: (quarter: number, stats: PlayerStats) => boolean;
@@ -108,6 +117,7 @@ const createInitialState = (): GameState => ({
 
   // 职级系统
   rank: GAME_CONFIG.initialRank,
+  actualSalary: RANK_CONFIGS[GAME_CONFIG.initialRank].minQuarterlySalary, // 初始化为最低工资
   gameStats: {
     completedProjects: 0,
     qualityProjects: 0,
@@ -121,6 +131,9 @@ const createInitialState = (): GameState => ({
 
   // 关系系统
   relationships: { ...GAME_CONFIG.initialRelationships },
+  maintenanceCount: 0, // 本季度已维护次数
+  materialTradeCount: 0, // 本季度已交易次数
+  maintainedRelationships: new Set<RelationshipType>(), // 本季度已维护的关系
 
   // 项目进度
   projectProgress: 0,
@@ -151,6 +164,57 @@ const initializeMaterialPrices = (): Record<MaterialType, MaterialPrice> => {
 // 辅助函数：限制数值在 0-100 之间
 const clampStat = (value: number): number => {
   return Math.max(0, Math.min(100, value));
+};
+
+// 辅助函数：根据职级获取每季度最大维护次数
+const getMaxMaintenanceCount = (rank: Rank): number => {
+  switch (rank) {
+    case Rank.INTERN:
+      return 1; // 实习生：1次
+    case Rank.ASSISTANT_ENGINEER:
+      return 2; // 助理工程师：2次
+    case Rank.ENGINEER:
+      return 3; // 工程师：3次
+    case Rank.SENIOR_ENGINEER:
+      return 4; // 高级工程师：4次
+    case Rank.PROJECT_MANAGER:
+      return 5; // 项目经理：5次
+    case Rank.PROJECT_DIRECTOR:
+      return 6; // 项目总监：6次
+    case Rank.PARTNER:
+      return 8; // 合伙人：8次
+    default:
+      return 3;
+  }
+};
+
+// 辅助函数：根据职级判断关系是否已解锁
+const isRelationshipUnlocked = (rank: Rank, relationshipType: RelationshipType): boolean => {
+  switch (rank) {
+    case Rank.INTERN:
+      // 实习生：只解锁甲方、劳务队
+      return relationshipType === RelationshipType.CLIENT ||
+             relationshipType === RelationshipType.LABOR;
+    case Rank.ASSISTANT_ENGINEER:
+      // 助理工程师：+ 监理
+      return relationshipType === RelationshipType.CLIENT ||
+             relationshipType === RelationshipType.LABOR ||
+             relationshipType === RelationshipType.SUPERVISION;
+    case Rank.ENGINEER:
+      // 工程师：+ 设计院
+      return relationshipType === RelationshipType.CLIENT ||
+             relationshipType === RelationshipType.LABOR ||
+             relationshipType === RelationshipType.SUPERVISION ||
+             relationshipType === RelationshipType.DESIGN;
+    case Rank.SENIOR_ENGINEER:
+    case Rank.PROJECT_MANAGER:
+    case Rank.PROJECT_DIRECTOR:
+    case Rank.PARTNER:
+      // 高级工程师及以上：解锁全部关系（包括政府部门）
+      return true;
+    default:
+      return false;
+  }
 };
 
 // 辅助函数：从数组中随机抽取一个元素
@@ -212,6 +276,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialEventCount: 0,
         isLLMEnhancing: false,
         eventsInQuarter: 0,
+        maintenanceCount: 0, // 初始化维护次数
       });
 
       recentEventIds.clear();
@@ -237,6 +302,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialEventCount: 0,
         isLLMEnhancing: false,
         eventsInQuarter: 0,
+        maintenanceCount: 0, // 初始化维护次数
       });
 
       recentEventIds.clear();
@@ -284,9 +350,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (quarter <= 5) {
       eventPool = EVENTS.slice(0, 10);
     } else if (quarter <= 15) {
-      eventPool = EVENTS.slice(10, 40);
+      eventPool = EVENTS.slice(10, 43); // 中期事件（包含涨薪事件）
     } else {
-      eventPool = EVENTS.slice(40, 60);
+      eventPool = EVENTS.slice(43, 63); // 后期事件
     }
 
     let event = getRandomEvent(eventPool, recentEventIds);
@@ -314,7 +380,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 进入策略阶段
   enterStrategyPhase: () => {
-    set({ status: GameStatus.STRATEGY_PHASE });
+    set({
+      status: GameStatus.STRATEGY_PHASE,
+      currentEvent: null, // 清空当前事件
+      // 不重置 eventsInQuarter，保持当前季度的事件计数
+    });
+  },
+
+  // 返回事件阶段
+  returnToEventPhase: async () => {
+    const state = get();
+
+    // 直接返回事件阶段
+    set({ status: GameStatus.PLAYING });
+
+    // 如果没有当前事件，自动抽取新事件
+    if (!state.currentEvent) {
+      await get().drawEvent();
+    }
   },
 
   // 完成季度（进入结算）
@@ -327,17 +410,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 计算季度结算
     const salary = get().calculateQuarterlySalary();
     const storageFee = get().calculateStorageFee();
-    const livingCost = LIVING_COSTS.total;
+    // 生活成本：当季度工资的 10%-25% 随机
+    const livingCostPercent = LIVING_COSTS_CONFIG.minPercent +
+      Math.random() * (LIVING_COSTS_CONFIG.maxPercent - LIVING_COSTS_CONFIG.minPercent);
+    const livingCost = Math.round(salary * livingCostPercent);
     const relationshipDecay: Record<RelationshipType, number> = {} as any;
 
-    // 关系衰减
+    // 关系衰减 - 只对已解锁且未维护的关系进行衰减
+    const newRelationships = { ...state.relationships };
     Object.values(RelationshipType).forEach((type) => {
+      // 检查关系是否已解锁
+      const isUnlocked = isRelationshipUnlocked(state.rank, type);
+      if (!isUnlocked) {
+        return; // 未解锁的关系不衰减
+      }
+
+      // 检查本季度是否已维护过此关系
+      if (state.maintainedRelationships.has(type)) {
+        return; // 已维护的关系不衰减
+      }
+
       const config = RELATIONSHIP_CONFIGS[type];
       const decay = config.decayRate;
       const currentValue = state.relationships[type];
       relationshipDecay[type] = decay;
-      state.relationships[type] = Math.max(0, currentValue - decay);
+      newRelationships[type] = Math.max(0, currentValue - decay);
     });
+    set({ relationships: newRelationships });
 
     // 更新材料价格
     get().updateMaterialPrices();
@@ -432,6 +531,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       currentSettlement: settlement,
       status: GameStatus.SETTLEMENT,
+      maintenanceCount: 0, // 重置维护次数
+      materialTradeCount: 0, // 重置交易次数
+      maintainedRelationships: new Set<RelationshipType>(), // 重置已维护关系
     });
   },
 
@@ -476,6 +578,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!option) {
       console.error('Option not found:', optionId);
       return;
+    }
+
+    // 处理特殊动作
+    if (option.action === 'raiseSalary') {
+      const result = get().raiseSalary();
+      if (result.success) {
+        // 涨薪成功，使用覆盖反馈
+        const eventWithFeedback = {
+          ...state.currentEvent,
+          options: state.currentEvent.options.map(opt =>
+            opt.id === optionId
+              ? { ...opt, feedback: option.actionFeedbackOverride || result.message }
+              : opt
+          ),
+        };
+        const eventHistory = [...state.eventHistory, eventWithFeedback];
+        set({ eventHistory, currentEvent: null });
+
+        get().checkGameEnd();
+        if (get().status === GameStatus.PLAYING) {
+          if (state.eventsInQuarter >= state.maxEventsPerQuarter) {
+            get().enterStrategyPhase();
+          } else {
+            get().drawEvent();
+          }
+        }
+        return;
+      }
+      // 涨薪失败（如实习生），继续应用正常效果
     }
 
     get().applyEffects(option.effects);
@@ -635,7 +766,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 执行晋升
   executePromotion: (newRank: Rank) => {
-    set({ rank: newRank });
+    const state = get();
+    const newRankConfig = RANK_CONFIGS[newRank];
+
+    // 晋升时工资处理：
+    // 如果当前工资 >= 新职位最低工资，保持不变
+    // 否则提升到新职位最低工资
+    const newSalary = Math.max(state.actualSalary, newRankConfig.minQuarterlySalary);
+
+    set({
+      rank: newRank,
+      actualSalary: newSalary,
+    });
+
     get().checkGameEnd(); // 检查是否达到胜利条件
   },
 
@@ -672,6 +815,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }
 
+    // 检查交易次数
+    if (state.materialTradeCount >= MAX_MATERIAL_TRADES_PER_QUARTER) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: `本季度交易次数已达上限（${MAX_MATERIAL_TRADES_PER_QUARTER}次）`,
+      };
+    }
+
     const cost = material.currentPrice * amount;
 
     if (state.stats.cash < cost) {
@@ -692,6 +845,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       stats: newStats,
       inventory: newInventory,
+      materialTradeCount: state.materialTradeCount + 1,
     });
 
     return {
@@ -717,6 +871,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }
 
+    // 检查交易次数
+    if (state.materialTradeCount >= MAX_MATERIAL_TRADES_PER_QUARTER) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: `本季度交易次数已达上限（${MAX_MATERIAL_TRADES_PER_QUARTER}次）`,
+      };
+    }
+
     const currentInventory = state.inventory[materialType];
 
     if (currentInventory < amount) {
@@ -739,6 +903,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       stats: newStats,
       inventory: newInventory,
+      materialTradeCount: state.materialTradeCount + 1,
     });
 
     return {
@@ -778,12 +943,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ materialPrices: newPrices, materialPriceHistory: newHistory });
   },
 
+  // 获取最大交易次数
+  getMaxMaterialTradeCount: (): number => {
+    return MAX_MATERIAL_TRADES_PER_QUARTER;
+  },
+
+  // 计算最大可购买数量
+  getMaxBuyableAmount: (materialType: MaterialType): number => {
+    const state = get();
+    const material = state.materialPrices[materialType];
+    const config = MATERIAL_CONFIGS[materialType];
+
+    if (!material || !config) {
+      return 0;
+    }
+
+    // 计算基于现金的最大可购买量
+    const maxByCash = Math.floor(state.stats.cash / material.currentPrice);
+
+    // 限制在材料的最大交易量范围内
+    return Math.min(maxByCash, config.maxTrade);
+  },
+
   // 关系维护
   maintainRelationship: (
     relationshipType: RelationshipType,
     method: 'dinner' | 'gift' | 'favor' | 'solidarity'
   ): MaintenanceResult => {
     const state = get();
+
+    // 检查维护次数
+    const maxCount = getMaxMaintenanceCount(state.rank);
+    if (state.maintenanceCount >= maxCount) {
+      return {
+        success: false,
+        relationshipChange: 0,
+        cashChange: 0,
+        healthChange: 0,
+        message: `本季度维护次数已达上限（${maxCount}次）`,
+      };
+    }
 
     const option = MAINTENANCE_OPTIONS[method];
     const cost = option.cost;
@@ -807,9 +1006,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newRelationships = { ...state.relationships };
     newRelationships[relationshipType] = Math.min(100, state.relationships[relationshipType] + relationshipGain);
 
+    // 记录已维护的关系
+    const newMaintained = new Set(state.maintainedRelationships);
+    newMaintained.add(relationshipType);
+
     set({
       stats: newStats,
       relationships: newRelationships,
+      maintenanceCount: state.maintenanceCount + 1, // 增加维护次数
+      maintainedRelationships: newMaintained,
     });
 
     return {
@@ -824,6 +1029,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 关系衰减
   decayRelationships: () => {
     // 这部分在 finishQuarter 中已经处理
+  },
+
+  // 获取最大维护次数
+  getMaxMaintenanceCount: (): number => {
+    const state = get();
+    return getMaxMaintenanceCount(state.rank);
+  },
+
+  // 判断关系是否已解锁
+  isRelationshipUnlocked: (relationshipType: RelationshipType): boolean => {
+    const state = get();
+    return isRelationshipUnlocked(state.rank, relationshipType);
   },
 
   // 计算净资产
@@ -858,8 +1075,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 计算季度工资
   calculateQuarterlySalary: (): number => {
     const state = get();
+    return state.actualSalary; // 返回实际工资
+  },
+
+  // 涨薪方法（随机事件调用）
+  raiseSalary: (): { success: boolean; newSalary?: number; message: string } => {
+    const state = get();
     const rankConfig = RANK_CONFIGS[state.rank];
-    return rankConfig.quarterlySalary; // 正数为收入，负数为支出
+
+    // 实习生和合伙人不涨薪
+    if (state.rank === Rank.INTERN || state.rank === Rank.PARTNER) {
+      return {
+        success: false,
+        message: state.rank === Rank.INTERN ? '实习生不能涨薪' : '合伙人是分红制，不涨薪',
+      };
+    }
+
+    const [minRaise, maxRaise] = rankConfig.raiseRange;
+    if (minRaise === 0 && maxRaise === 0) {
+      return {
+        success: false,
+        message: '当前职级不支持涨薪',
+      };
+    }
+
+    // 计算涨薪百分比
+    const raisePercent = Math.random() * (maxRaise - minRaise) + minRaise;
+    const raiseAmount = Math.round(state.actualSalary * (raisePercent / 100));
+    const newSalary = state.actualSalary + raiseAmount;
+
+    set({ actualSalary: newSalary });
+
+    return {
+      success: true,
+      newSalary,
+      message: `恭喜！工资上涨 ${raisePercent.toFixed(1)}%，从 ${state.actualSalary} 涨到 ${newSalary}`,
+    };
   },
 
   // LLM 增强事件描述
@@ -965,6 +1216,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       specialEventCount: 0,
       isLLMEnhancing: false,
       currentSettlement: null,
+      maintenanceCount: 0, // 重置维护次数
     });
   },
 

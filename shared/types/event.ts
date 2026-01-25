@@ -4,11 +4,15 @@
 
 import { Effects } from './player';
 
+export type EventOptionAction = 'raiseSalary' | 'none';
+
 export interface EventOption {
   id: string;
   text: string;
   effects: Effects;
   feedback?: string; // 选择后的反馈文本
+  action?: EventOptionAction; // 特殊动作（如涨薪）
+  actionFeedbackOverride?: string; // 动作成功后的反馈覆盖
 }
 
 export interface EventCard {

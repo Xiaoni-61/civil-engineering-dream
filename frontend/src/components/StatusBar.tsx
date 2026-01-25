@@ -3,13 +3,15 @@
  */
 
 import { memo } from 'react';
-import { PlayerStats } from '@shared/types';
+import { PlayerStats, Rank, RANK_CONFIGS } from '@shared/types';
 import { STAT_DISPLAY } from '@/data/constants';
 
 interface StatusBarProps {
   stats: PlayerStats;
   round: number;
   maxRounds: number;
+  rank: Rank;
+  actualSalary: number; // 实际季度工资
 }
 
 interface StatItemProps {
@@ -84,9 +86,14 @@ const StatItem: React.FC<StatItemProps> = memo(({
 
 StatItem.displayName = 'StatItem';
 
-const StatusBar: React.FC<StatusBarProps> = memo(({ stats, round, maxRounds }) => {
+const StatusBar: React.FC<StatusBarProps> = memo(({ stats, round, maxRounds, rank, actualSalary }) => {
   // 计算完成进度百分比
   const roundProgress = (round / maxRounds) * 100;
+
+  // 获取职级配置
+  const rankConfig = RANK_CONFIGS[rank];
+  const minSalary = rankConfig.minQuarterlySalary;
+  const hasRaise = actualSalary > minSalary;
 
   return (
     <div className="bg-white rounded-feishu-lg shadow-feishu p-5 animate-slide-up">
@@ -107,6 +114,29 @@ const StatusBar: React.FC<StatusBarProps> = memo(({ stats, round, maxRounds }) =
             <span className="text-sm text-slate-500 tabular-nums">{maxRounds}</span>
           </div>
           <p className="text-xs text-slate-500">回合</p>
+        </div>
+      </div>
+
+      {/* 职级和工资信息 */}
+      <div className="mb-5 p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-feishu border border-amber-200">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">👔</span>
+            <div>
+              <div className="text-xs text-amber-700">当前职级</div>
+              <div className="text-sm font-bold text-amber-900">{rankConfig.name}</div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-amber-700">季度工资</div>
+            <div className={`text-sm font-bold tabular-nums ${actualSalary >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {actualSalary >= 0 ? '+' : ''}{actualSalary}
+              {hasRaise && <span className="ml-1 text-xs text-amber-600">📈</span>}
+            </div>
+            {hasRaise && (
+              <div className="text-xs text-amber-600/70">基础: {minSalary}</div>
+            )}
+          </div>
         </div>
       </div>
 

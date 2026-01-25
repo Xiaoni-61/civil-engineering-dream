@@ -45,7 +45,8 @@ export interface RankConfig {
   projectsRequired: number;  // 完成项目数要求
   reputationRequired: number; // 声誉要求
   specialRequirement?: string; // 特殊要求
-  quarterlySalary: number;   // 季度工资
+  minQuarterlySalary: number; // 最低季度工资
+  raiseRange: [number, number]; // 涨薪幅度范围 [百分比下限, 百分比上限]，如 [5, 15] 表示 5%-15%
 }
 
 /**
@@ -163,6 +164,7 @@ export interface GameState {
 
   // 职级系统
   rank: Rank;
+  actualSalary: number; // 实际季度工资（可能高于最低工资）
   gameStats: GameStats;
 
   // 材料市场
@@ -171,6 +173,9 @@ export interface GameState {
 
   // 关系系统
   relationships: Record<RelationshipType, number>; // 关系值 0-100
+  maintenanceCount: number; // 本季度已维护次数
+  materialTradeCount: number; // 本季度已交易次数（买卖合并计数）
+  maintainedRelationships: Set<RelationshipType>; // 本季度已维护的关系集合
 
   // 项目进度（单个项目内）
   projectProgress: number; // 当前项目进度
@@ -214,7 +219,7 @@ export interface MaintenanceResult {
   message: string;
 }
 
-// 职级配置表（工资调整后）
+// 职级配置表
 export const RANK_CONFIGS: Record<Rank, RankConfig> = {
   [Rank.INTERN]: {
     rank: Rank.INTERN,
@@ -222,7 +227,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     assetsRequired: 0,
     projectsRequired: 0,
     reputationRequired: 0,
-    quarterlySalary: -2000,  // 从 -5000 → -2000
+    minQuarterlySalary: 9000,  // 实习生生活补贴（固定，不涨薪）
+    raiseRange: [0, 0],  // 实习生不涨薪
   },
   [Rank.ASSISTANT_ENGINEER]: {
     rank: Rank.ASSISTANT_ENGINEER,
@@ -230,7 +236,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     assetsRequired: 100000,
     projectsRequired: 2,
     reputationRequired: 40,
-    quarterlySalary: 5000,  // 从 15000 → 5000
+    minQuarterlySalary: 15000,
+    raiseRange: [3, 8],  // 3%-8% 涨薪
   },
   [Rank.ENGINEER]: {
     rank: Rank.ENGINEER,
@@ -238,7 +245,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     assetsRequired: 500000,
     projectsRequired: 5,
     reputationRequired: 60,
-    quarterlySalary: 12000,  // 从 30000 → 12000
+    minQuarterlySalary: 36000,
+    raiseRange: [5, 12],  // 5%-12% 涨薪
   },
   [Rank.SENIOR_ENGINEER]: {
     rank: Rank.SENIOR_ENGINEER,
@@ -247,7 +255,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     projectsRequired: 10,
     reputationRequired: 70,
     specialRequirement: '完成过1个优质项目(质量≥90)',
-    quarterlySalary: 20000,  // 从 50000 → 20000
+    minQuarterlySalary: 60000,
+    raiseRange: [8, 15],  // 8%-15% 涨薪
   },
   [Rank.PROJECT_MANAGER]: {
     rank: Rank.PROJECT_MANAGER,
@@ -256,7 +265,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     projectsRequired: 15,
     reputationRequired: 80,
     specialRequirement: '完成过3个项目',
-    quarterlySalary: 35000,  // 从 80000 → 35000
+    minQuarterlySalary: 100000,
+    raiseRange: [10, 20],  // 10%-20% 涨薪
   },
   [Rank.PROJECT_DIRECTOR]: {
     rank: Rank.PROJECT_DIRECTOR,
@@ -265,7 +275,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     projectsRequired: 25,
     reputationRequired: 90,
     specialRequirement: '完成过5个优质项目',
-    quarterlySalary: 55000,  // 从 120000 → 55000
+    minQuarterlySalary: 165000,
+    raiseRange: [12, 25],  // 12%-25% 涨薪
   },
   [Rank.PARTNER]: {
     rank: Rank.PARTNER,
@@ -274,7 +285,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     projectsRequired: 40,
     reputationRequired: 95,
     specialRequirement: '完成过10个优质项目',
-    quarterlySalary: 100000,  // 从 0 → 100000（分红制）
+    minQuarterlySalary: 300000,
+    raiseRange: [0, 0],  // 合伙人分红制，不涨薪
   },
 };
 

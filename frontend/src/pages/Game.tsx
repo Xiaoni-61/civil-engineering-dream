@@ -15,6 +15,8 @@ const Game = () => {
     maxEventsPerQuarter,
     stats,
     currentEvent,
+    rank,
+    actualSalary,
     startGame,
     selectOption,
     isLLMEnhancing,
@@ -59,8 +61,8 @@ const Game = () => {
     navigate('/settlement');
   };
 
-  // 加载中状态
-  if (status === GameStatus.IDLE || !currentEvent) {
+  // 加载中状态 - 只有在真正需要初始化时才显示
+  if (status === GameStatus.IDLE) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
         <div className="text-center animate-fade-in">
@@ -72,6 +74,25 @@ const Game = () => {
           </p>
           <p className="text-xs text-slate-500 mt-1">
             {isLLMEnhancing ? '✨ LLM 增强中' : 'Initializing Game'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果没有当前事件但游戏正在进行，显示继续提示
+  if (!currentEvent && status === GameStatus.PLAYING) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-feishu-lg shadow-feishu-lg mb-4">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-500 border-t-transparent"></div>
+          </div>
+          <p className="text-sm font-medium text-slate-600">
+            {isLLMEnhancing ? 'AI 正在生成内容...' : '准备下一事件...'}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">
+            {isLLMEnhancing ? '✨ LLM 增强中' : 'Loading Next Event'}
           </p>
         </div>
       </div>
@@ -137,17 +158,21 @@ const Game = () => {
                 stats={stats}
                 round={currentRound}
                 maxRounds={999} // 无上限，显示占位
+                rank={rank}
+                actualSalary={actualSalary}
               />
             </div>
           </div>
 
           {/* 右侧：事件卡 */}
           <div className="lg:col-span-8">
-            <EventCard
-              event={currentEvent}
-              onSelectOption={handleSelectOption}
-              disabled={status !== GameStatus.PLAYING}
-            />
+            {currentEvent && (
+              <EventCard
+                event={currentEvent}
+                onSelectOption={handleSelectOption}
+                disabled={status !== GameStatus.PLAYING}
+              />
+            )}
           </div>
         </div>
 

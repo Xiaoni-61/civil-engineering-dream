@@ -168,10 +168,10 @@ const Result = () => {
                 <button
                   onClick={handlePlayAgain}
                   className={`w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
-                            shadow-feishu hover:shadow-feishu-lg hover:-translate-y-0.5 active:scale-[0.98]
+                            shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
                             ${isWin
-                              ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 focus:ring-emerald-500'
-                              : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 focus:ring-brand-500'
+                              ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 focus:ring-green-500 border-2 border-green-700'
+                              : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 focus:ring-blue-500 border-2 border-blue-800'
                             }`}
                 >
                   <span className="flex items-center justify-center">
@@ -183,10 +183,10 @@ const Result = () => {
                 <button
                   onClick={() => navigate('/leaderboard')}
                   className="w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
-                           bg-gradient-to-r from-engineering-safety to-engineering-helmet
-                           hover:from-engineering-helmet hover:to-engineering-safety
-                           shadow-feishu hover:shadow-feishu-lg hover:-translate-y-0.5 active:scale-[0.98]
-                           focus:ring-engineering-safety"
+                           bg-gradient-to-r from-purple-600 to-indigo-700
+                           hover:from-purple-500 hover:to-indigo-600
+                           shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
+                           focus:ring-purple-500 border-2 border-purple-800"
                 >
                   <span className="flex items-center justify-center">
                     <span className="mr-2">🏆</span>
