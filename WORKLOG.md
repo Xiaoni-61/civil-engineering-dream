@@ -1,5 +1,78 @@
 # 开发工作日志 (WORKLOG)
 
+## 2026-01-25
+
+### 重大玩法重构：基础架构阶段
+
+**改动点**:
+- 移除现金不足导致游戏结束
+- 实现行动点系统（基于健康）
+- 实现游戏阶段系统（前期个人 vs 后期团队）
+- 添加团队系统类型定义和配置
+- 重构事件系统触发机制
+
+**涉及文件** (共创建/修改 10 个):
+
+**类型定义**:
+- `shared/types/team.ts` - 团队系统类型（TeamMember、TeamIssue、TeamState）
+- `shared/types/game.ts` - 添加 GamePhase、ActionType、EventStatus 枚举
+- `shared/types/game.ts` - 扩展 GameState（phase、actionPoints、team、pendingEvents）
+- `shared/types/game.ts` - 移除 OUT_OF_CASH 结束原因
+- `shared/types/game.ts` - currentRound 改名为 currentQuarter
+- `shared/types/event.ts` - 添加 EventCard 扩展字段（isUrgent、deadline、status）
+- `shared/types/index.ts` - 更新类型导出
+
+**常量配置**:
+- `frontend/src/data/constants.ts` - 添加 ACTIONS 配置（6 种行动类型）
+- `frontend/src/data/constants.ts` - 添加 MAX_ACTIONS_PER_QUARTER、ACTION_POINTS_DIVISOR
+- `frontend/src/data/constants.ts` - 添加 PHASE_CONFIG（前后期职级划分）
+- `frontend/src/data/constants.ts` - 添加 EVENT_TRIGGER_CONFIG（每 2 AP 检测，50% 概率）
+- `frontend/src/data/constants.ts` - 添加 RECRUIT_CONFIG（4 种成员类型招募配置）
+- `frontend/src/data/constants.ts` - 添加 LEADERSHIP_GAIN、LEADERSHIP_EFFECTS
+- `frontend/src/data/constants.ts` - 添加 TEAM_ISSUE_TEMPLATES（4 种问题类型）
+- `frontend/src/data/constants.ts` - 移除 GAME_CONFIG.maxEventsPerQuarter
+
+**状态管理**:
+- `frontend/src/store/gameStoreNew.ts` - 新 Store 接口（约 1100 行）
+  - 实现行动点系统：doAction、calculateActionPoints
+  - 实现季度系统：finishQuarter、nextQuarter
+  - 实现团队系统：recruitMember、resolveTeamIssue、updateTeamEfficiency、generateTeamIssue
+  - 实现事件系统钩子：checkEventTrigger、deferEvent、ignoreEvent
+  - 季度开始自动恢复健康（+2）
+  - 行动点用完自动进入季度结算
+
+**UI 组件**:
+- `frontend/src/components/BottomNav.tsx` - 底部导航栏（5 个 Tab）
+  - 行动、团队🔒、市场、关系、事件
+  - 待处理事件通知徽章
+- `frontend/src/components/TopStatusBar.tsx` - 顶部状态栏
+  - 职级、工资（含涨薪指示）
+  - 现金、健康、声誉（进度条）
+  - 行动点（渐变背景）
+- `frontend/src/pages/ActionsPage.tsx` - 行动页面（UI 框架）
+  - 基础行动：做项目、培训、休息
+  - 团队行动：招募、团队项目、解决问题（后期）
+  - 完成本季度按钮
+
+**设计文档**:
+- `docs/plans/2026-01-25-gameplay-redesign.md` - 完整设计文档
+- `docs/plans/2026-01-25-gameplay-redesign-implementation.md` - 实施计划
+
+**验证状态**: ✅ 基础架构完成
+- TypeScript 编译通过
+- 核心类型定义完成
+- Store 接口框架完成
+- UI 组件结构完成
+
+**下一步**:
+- [ ] 迁移旧 gameStore 功能到 gameStoreNew
+- [ ] 创建 TeamPage、MarketPage、RelationsPage、EventsPage
+- [ ] 创建 MainGame 主容器组件
+- [ ] 更新路由配置
+- [ ] 端到端测试
+
+---
+
 ## 2026-01-23
 
 ### 项目目录结构初始化
