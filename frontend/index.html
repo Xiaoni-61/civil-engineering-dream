@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="description" content="还我一个土木梦 - H5 卡牌游戏" />
     <title>还我一个土木梦</title>
+
+    <!-- DNS 预连接和预获取 - 优化 API 连接速度 -->
+    <link rel="dns-prefetch" href="http://localhost:3001">
+    <link rel="preconnect" href="http://localhost:3001">
+
+    <!-- 预加载关键资源 -->
+    <link rel="modulepreload" href="/src/main.tsx">
   </head>
   <body>
     <div id="root"></div>

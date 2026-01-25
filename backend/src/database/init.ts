@@ -1,0 +1,118 @@
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = path.join(__dirname, '../../data');
+const DB_PATH = path.join(DATA_DIR, 'game.db');
+
+// 确保 data 目录存在
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log(`📁 创建数据目录: ${DATA_DIR}`);
+}
+
+export interface Database {
+  run: (sql: string, params?: any[]) => Promise<{ lastID?: number; changes?: number }>;
+  get: <T = any>(sql: string, params?: any[]) => Promise<T | undefined>;
+  all: <T = any>(sql: string, params?: any[]) => Promise<T[]>;
+  close: () => Promise<void>;
+}
+
+/**
+ * 初始化 SQLite 数据库
+ */
+export async function initDatabase(): Promise<Database> {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(DB_PATH, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      // 创建表结构
+      db.serialize(() => {
+        // 游戏会话表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS runs (
+            id TEXT PRIMARY KEY,
+            deviceId TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            payload TEXT NOT NULL,
+            signature TEXT NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // 排行榜表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS leaderboard (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deviceId TEXT UNIQUE NOT NULL,
+            bestScore INTEGER NOT NULL DEFAULT 0,
+            totalGames INTEGER NOT NULL DEFAULT 0,
+            totalCash INTEGER NOT NULL DEFAULT 0,
+            updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // 游戏统计表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS game_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deviceId TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            finalCash INTEGER NOT NULL,
+            finalHealth INTEGER NOT NULL,
+            finalReputation INTEGER NOT NULL,
+            finalProgress INTEGER NOT NULL,
+            finalQuality INTEGER NOT NULL,
+            roundsPlayed INTEGER NOT NULL,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (deviceId) REFERENCES leaderboard(deviceId)
+          )
+        `);
+
+        console.log('✅ 数据库表创建成功');
+      });
+
+      // 包装数据库方法为 Promise
+      const wrappedDb: Database = {
+        run: (sql: string, params?: any[]) =>
+          new Promise((resolve, reject) => {
+            db.run(sql, params || [], function (err) {
+              if (err) reject(err);
+              else resolve({ lastID: this.lastID, changes: this.changes });
+            });
+          }),
+
+        get: <T = any>(sql: string, params?: any[]) =>
+          new Promise<T | undefined>((resolve, reject) => {
+            db.get(sql, params || [], (err, row) => {
+              if (err) reject(err);
+              else resolve(row as T | undefined);
+            });
+          }),
+
+        all: <T = any>(sql: string, params?: any[]) =>
+          new Promise<T[]>((resolve, reject) => {
+            db.all(sql, params || [], (err, rows) => {
+              if (err) reject(err);
+              else resolve((rows || []) as T[]);
+            });
+          }),
+
+        close: () =>
+          new Promise((resolve, reject) => {
+            db.close((err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          }),
+      };
+
+      resolve(wrappedDb);
+    });
+  });
+}

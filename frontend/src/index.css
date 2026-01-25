@@ -20,3 +20,21 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* 横屏提示 - 仅在移动设备横屏时显示 */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .landscape-warning {
+    display: flex !important;
+  }
+}
+
+/* 禁用触摸高亮颜色 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 优化触摸滚动 */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}

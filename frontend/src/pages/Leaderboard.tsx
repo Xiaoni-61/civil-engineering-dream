@@ -1,82 +1,349 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getLeaderboard, getMyRank } from '@/api';
 
-const Leaderboard: React.FC = () => {
+type LeaderboardType = 'overall' | 'cash' | 'games';
+
+interface LeaderboardEntry {
+  rank: number;
+  deviceId: string;
+  value: number;
+  bestScore?: number;
+  totalGames?: number;
+  totalCash?: number;
+}
+
+interface MyRankData {
+  rank: number;
+  total: number;
+  percentile: string;
+  player: {
+    deviceId: string;
+    bestScore: number;
+    totalGames: number;
+    totalCash: number;
+  };
+}
+
+interface LeaderboardData {
+  type: LeaderboardType;
+  leaderboard: LeaderboardEntry[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+const tabs: { key: LeaderboardType; label: string }[] = [
+  { key: 'overall', label: '综合榜' },
+  { key: 'cash', label: '现金榜' },
+  { key: 'games', label: '次数榜' },
+];
+
+// 类型对应的标签和单位
+const typeConfig = {
+  overall: {
+    label: '综合分',
+    unit: '',
+    bgColor: 'bg-brand-500',
+    textColor: 'text-white',
+    badgeColor: 'bg-brand-100',
+    badgeText: 'text-brand-700',
+  },
+  cash: {
+    label: '总现金',
+    unit: '万',
+    bgColor: 'bg-status-cash',
+    textColor: 'text-white',
+    badgeColor: 'bg-status-cash/10',
+    badgeText: 'text-status-cash',
+  },
+  games: {
+    label: '总局数',
+    unit: '局',
+    bgColor: 'bg-status-reputation',
+    textColor: 'text-white',
+    badgeColor: 'bg-status-reputation/10',
+    badgeText: 'text-status-reputation',
+  },
+};
+
+export default function Leaderboard() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<LeaderboardType>('overall');
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardData | null>(null);
+  const [myRankData, setMyRankData] = useState<MyRankData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // 模拟排行榜数据
-  const mockLeaderboard = [
-    { rank: 1, name: '张工', score: 8500, rounds: 20 },
-    { rank: 2, name: '李工', score: 8200, rounds: 19 },
-    { rank: 3, name: '王工', score: 7800, rounds: 20 },
-  ];
+  // 加载排行榜数据
+  const loadLeaderboard = async (type: LeaderboardType) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getLeaderboard({
+        type,
+        limit: 50,
+        offset: 0,
+      });
+      setLeaderboardData(data);
+    } catch (err) {
+      console.error('加载排行榜失败:', err);
+      setError('加载排行榜失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 加载我的排名
+  const loadMyRank = async () => {
+    try {
+      const data = await getMyRank();
+      setMyRankData(data);
+    } catch (err) {
+      console.error('加载排名失败:', err);
+      // 我的排名加载失败不阻塞页面显示
+    }
+  };
+
+  // 初始化和切换 Tab 时加载数据
+  useEffect(() => {
+    loadLeaderboard(activeTab);
+    loadMyRank();
+  }, [activeTab]);
+
+  // 处理 Tab 切换
+  const handleTabChange = (tab: LeaderboardType) => {
+    setActiveTab(tab);
+  };
+
+  // 获取排名显示
+  const getRankDisplay = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
+
+  // 获取配置
+  const config = typeConfig[activeTab];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-yellow-500 to-orange-600 p-4">
-      <div className="max-w-2xl mx-auto py-8">
-        <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-          {/* 标题 */}
-          <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6">
-            <h1 className="text-3xl font-bold text-white text-center">
-              🏆 排行榜
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      {/* 顶部装饰条 */}
+      <div className="h-1 bg-gradient-to-r from-brand-500 via-engineering-safety to-brand-600"></div>
+
+      {/* 头部 */}
+      <div className="bg-white shadow-sm sticky top-0 z-30">
+        <div className="container mx-auto px-4">
+          {/* 顶部导航栏 */}
+          <div className="flex items-center justify-between h-14">
+            {/* 返回按钮 */}
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center space-x-2 text-slate-600 hover:text-brand-600 transition-colors group focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 rounded"
+            >
+              <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
+              <span className="text-sm font-medium hidden sm:inline">返回首页</span>
+            </button>
+
+            {/* 标题 */}
+            <h1 className="text-lg font-bold text-slate-800 flex items-center">
+              <span className="mr-2">🏆</span>
+              排行榜
             </h1>
+
+            {/* 占位，保持标题居中 */}
+            <div className="w-16"></div>
           </div>
 
+          {/* Tab 切换 */}
+          <div className="flex gap-2 pb-0">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => handleTabChange(tab.key)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1
+                    ${
+                      isActive
+                        ? 'bg-brand-500 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 主内容区 */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="max-w-3xl mx-auto space-y-4">
+          {/* 我的排名卡片 */}
+          {myRankData && (
+            <div className="bg-gradient-to-r from-brand-500 to-brand-600 rounded-feishu-lg p-5 shadow-feishu text-white animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-brand-100 text-sm mb-1">我的排名</p>
+                  <div className="flex items-baseline">
+                    <span className="text-4xl font-bold mr-2">
+                      {getRankDisplay(myRankData.rank)}
+                    </span>
+                    <span className="text-brand-100 text-sm">
+                      / {myRankData.total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-brand-100 text-xs mb-1">超过玩家</p>
+                  <p className="text-xl font-bold">
+                    {Math.round(parseFloat(myRankData.percentile))}%
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-3 gap-3 text-sm">
+                <div className="text-center">
+                  <p className="text-brand-100 text-xs">最佳成绩</p>
+                  <p className="text-lg font-bold">{myRankData.player.bestScore}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-brand-100 text-xs">总局数</p>
+                  <p className="text-lg font-bold">{myRankData.player.totalGames}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-brand-100 text-xs">总现金</p>
+                  <p className="text-lg font-bold">{myRankData.player.totalCash}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 排行榜列表 */}
-          <div className="p-6">
-            {mockLeaderboard.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
-                暂无排行数据
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {mockLeaderboard.map((entry) => (
+          <div className="bg-white rounded-feishu-lg shadow-feishu overflow-hidden">
+            {/* 加载状态 */}
+            {isLoading ? (
+              <div className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-500">加载中...</p>
+              </div>
+            ) : error ? (
+              /* 错误状态 */
+              <div className="p-8 text-center">
+                <div className="text-5xl mb-4">😢</div>
+                <p className="text-slate-600 mb-4">{error}</p>
+                <button
+                  onClick={() => loadLeaderboard(activeTab)}
+                  className="px-6 py-2 bg-brand-500 text-white rounded-feishu hover:bg-brand-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                >
+                  重试
+                </button>
+              </div>
+            ) : leaderboardData && leaderboardData.leaderboard.length > 0 ? (
+              /* 数据列表 */
+              <div className="divide-y divide-slate-100">
+                {leaderboardData.leaderboard.map((entry, index) => (
                   <div
-                    key={entry.rank}
-                    className="flex items-center justify-between bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-colors"
+                    key={entry.deviceId}
+                    className={`flex items-center p-4 hover:bg-slate-50 transition-colors ${
+                      index === 0 ? 'bg-brand-50/50' : ''
+                    }`}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className={`text-2xl font-bold ${
-                        entry.rank === 1 ? 'text-yellow-500' :
-                        entry.rank === 2 ? 'text-gray-400' :
-                        entry.rank === 3 ? 'text-orange-600' :
-                        'text-gray-600'
+                    {/* 排名 */}
+                    <div className="w-12 text-center tabular-nums">
+                      <span className={`text-lg font-bold ${
+                        entry.rank <= 3 ? 'text-2xl' : 'text-slate-600'
                       }`}>
-                        {entry.rank === 1 ? '🥇' :
-                         entry.rank === 2 ? '🥈' :
-                         entry.rank === 3 ? '🥉' :
-                         `#${entry.rank}`}
-                      </div>
-                      <div>
-                        <p className="font-bold text-gray-800">{entry.name}</p>
-                        <p className="text-sm text-gray-500">{entry.rounds} 回合</p>
-                      </div>
+                        {getRankDisplay(entry.rank)}
+                      </span>
                     </div>
+
+                    {/* 设备 ID（脱敏） */}
+                    <div className="flex-1 ml-4">
+                      <div className="font-medium text-slate-800">
+                        {entry.deviceId.substring(0, 8)}...
+                      </div>
+                      {/* 额外信息 */}
+                      {activeTab === 'overall' && entry.totalGames && (
+                        <div className="text-xs text-slate-500">
+                          {entry.totalGames} 局
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 分数 */}
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-orange-600">
-                        {entry.score}
-                      </p>
-                      <p className="text-xs text-gray-500">分数</p>
+                      <div className={`text-lg font-bold ${
+                        activeTab === 'overall'
+                          ? 'text-brand-600'
+                          : activeTab === 'cash'
+                          ? 'text-status-cash'
+                          : 'text-status-reputation'
+                      }`}>
+                        {(entry.value || 0).toLocaleString()}
+                      </div>
+                      {config.unit && (
+                        <div className="text-xs text-slate-400">
+                          {config.unit}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
+            ) : (
+              /* 空状态 */
+              <div className="p-8 text-center">
+                <div className="text-5xl mb-4">🎮</div>
+                <p className="text-slate-500 mb-2">暂无排行数据</p>
+                <p className="text-sm text-slate-400">完成游戏后即可上榜</p>
+              </div>
+            )}
+
+            {/* 分页信息 */}
+            {leaderboardData && leaderboardData.pagination.total > 50 && (
+              <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-sm text-slate-500">
+                共 {leaderboardData.pagination.total} 位玩家
+                显示前 50 名
+              </div>
             )}
           </div>
 
-          {/* 返回按钮 */}
-          <div className="p-6 border-t">
+          {/* 全局统计 */}
+          {leaderboardData && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-feishu p-4 shadow-feishu text-center">
+                <div className="text-xs text-slate-500 mb-1">总玩家数</div>
+                <div className="text-2xl font-bold text-brand-600">
+                  {leaderboardData.pagination.total.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-white rounded-feishu p-4 shadow-feishu text-center">
+                <div className="text-xs text-slate-500 mb-1">当前榜单</div>
+                <div className="text-lg font-bold text-slate-800">
+                  {config.label}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 底部按钮 */}
+          <div className="text-center">
             <button
               onClick={() => navigate('/')}
-              className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3 px-6 rounded-lg font-bold hover:from-yellow-600 hover:to-orange-600 transition-colors"
+              className="inline-flex items-center space-x-2 px-8 py-3 bg-white text-slate-700 rounded-feishu shadow-feishu hover:shadow-feishu-lg hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
             >
-              返回首页
+              <span>🏠</span>
+              <span className="font-medium">返回首页</span>
             </button>
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Leaderboard;
+}
