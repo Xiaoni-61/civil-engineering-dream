@@ -2,7 +2,7 @@
  * 游戏常量配置
  */
 
-import { GameConfig, Rank, MaterialType, RelationshipType } from '@shared/types';
+import { GameConfig, Rank, MaterialType, RelationshipType, ActionType, ActionConfig } from '@shared/types';
 
 // 游戏基础配置
 export const GAME_CONFIG: GameConfig = {
@@ -14,7 +14,6 @@ export const GAME_CONFIG: GameConfig = {
     quality: 50,
   },
   initialRank: Rank.INTERN,
-  maxEventsPerQuarter: 4, // 每季度最多处理 4 个事件
   initialInventory: {
     [MaterialType.CEMENT]: 0,
     [MaterialType.STEEL]: 0,
@@ -417,3 +416,106 @@ export const DISASTER_EVENTS = [
     probability: 0.01,
   },
 ];
+
+// ==================== 行动系统配置 ====================
+
+// 行动配置
+export const ACTIONS: Record<ActionType, ActionConfig> = {
+  [ActionType.DO_PROJECT]: {
+    type: ActionType.DO_PROJECT,
+    name: '做项目',
+    icon: '🏗️',
+    description: '消耗资金和健康，推进项目进度',
+    costAP: 1,
+    phase: 'both',
+    costCash: 5000,
+    effects: {
+      progress: 10,
+      quality: 5,
+      health: -5,
+    },
+  },
+  [ActionType.TRAINING]: {
+    type: ActionType.TRAINING,
+    name: '培训学习',
+    icon: '📚',
+    description: '消耗资金，提升技能或健康',
+    costAP: 1,
+    phase: 'both',
+    costCash: 8000,
+    effects: {
+      health: 8,
+    },
+  },
+  [ActionType.REST]: {
+    type: ActionType.REST,
+    name: '休息',
+    icon: '😴',
+    description: '恢复健康',
+    costAP: 1,
+    phase: 'both',
+    effects: {
+      health: 12,
+    },
+  },
+  [ActionType.RECRUIT]: {
+    type: ActionType.RECRUIT,
+    name: '招募成员',
+    icon: '👥',
+    description: '招募团队成员',
+    costAP: 1,
+    phase: 'late',
+  },
+  [ActionType.TEAM_PROJECT]: {
+    type: ActionType.TEAM_PROJECT,
+    name: '团队项目',
+    icon: '🎯',
+    description: '委派团队执行项目',
+    costAP: 1,
+    phase: 'late',
+  },
+  [ActionType.RESOLVE_ISSUE]: {
+    type: ActionType.RESOLVE_ISSUE,
+    name: '解决问题',
+    icon: '🔧',
+    description: '处理团队问题',
+    costAP: 1,
+    phase: 'late',
+  },
+};
+
+// 每季度最大行动次数
+export const MAX_ACTIONS_PER_QUARTER = 8;
+
+// 每季度开始自动恢复的健康值
+export const QUARTER_HEALTH_REGEN = 2;
+
+// 行动点计算：健康 / 20，向上取整
+export const ACTION_POINTS_DIVISOR = 20;
+
+// 游戏阶段配置
+export const PHASE_CONFIG = {
+  earlyGameRanks: [
+    Rank.INTERN,
+    Rank.ASSISTANT_ENGINEER,
+    Rank.ENGINEER,
+    Rank.SENIOR_ENGINEER,
+  ],
+  lateGameRanks: [
+    Rank.PROJECT_MANAGER,
+    Rank.PROJECT_DIRECTOR,
+    Rank.PARTNER,
+  ],
+};
+
+// 事件系统配置
+export const EVENT_TRIGGER_CONFIG = {
+  actionsPerTrigger: 2,      // 每消耗 2 行动点触发检测
+  triggerProbability: 0.5,   // 50% 概率触发事件
+  deferTurns: 2,            // 延后处理期限（行动次数）
+};
+
+export const EVENT_IGNORE_CONSEQUENCES = {
+  reputationPenalty: 10,     // 忽略事件的声誉惩罚
+  relationshipDecay: 5,      // 忽略事件的关系衰减
+};
