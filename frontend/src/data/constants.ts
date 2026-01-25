@@ -2,7 +2,7 @@
  * 游戏常量配置
  */
 
-import { GameConfig, Rank, MaterialType, RelationshipType, ActionType, ActionConfig } from '@shared/types';
+import { GameConfig, Rank, MaterialType, RelationshipType, ActionType, ActionConfig, TeamMemberType } from '@shared/types';
 
 // 游戏基础配置
 export const GAME_CONFIG: GameConfig = {
@@ -518,4 +518,111 @@ export const EVENT_TRIGGER_CONFIG = {
 export const EVENT_IGNORE_CONSEQUENCES = {
   reputationPenalty: 10,     // 忽略事件的声誉惩罚
   relationshipDecay: 5,      // 忽略事件的关系衰减
+};
+
+// ==================== 团队系统配置 ====================
+
+// 招募配置
+export const RECRUIT_CONFIG: Record<TeamMemberType, {
+  name: string;
+  baseSalary: number;
+  recruitCost: number;
+  skillRange: [number, number];
+}> = {
+  [TeamMemberType.ENGINEER]: {
+    name: '工程师',
+    baseSalary: 20000,
+    recruitCost: 15000,
+    skillRange: [1, 3],
+  },
+  [TeamMemberType.SALESPERSON]: {
+    name: '业务员',
+    baseSalary: 15000,
+    recruitCost: 10000,
+    skillRange: [1, 3],
+  },
+  [TeamMemberType.WORKER]: {
+    name: '劳务工',
+    baseSalary: 10000,
+    recruitCost: 8000,
+    skillRange: [1, 2],
+  },
+  [TeamMemberType.DESIGNER]: {
+    name: '设计师',
+    baseSalary: 18000,
+    recruitCost: 12000,
+    skillRange: [1, 3],
+  },
+};
+
+// 领导力获取方式
+export const LEADERSHIP_GAIN = {
+  resolveIssue: 10,        // 解决团队问题
+  teamSuccess: 5,          // 团队项目成功
+  memberMorale: 2,         // 提升成员士气
+  training: 3,             // 团队培训
+};
+
+// 领导力作用
+export const LEADERSHIP_EFFECTS = {
+  efficiencyPerPoint: 0.002,  // 每点领导力 +0.2% 效率
+  baseTeamSize: 3,            // 基础团队规模
+  extraMembersPer10Leadership: 2,  // 每10点领导力+2人
+  partnerRequirement: 60,     // 晋升合伙人所需领导力
+};
+
+// 团队问题模板
+export const TEAM_ISSUE_TEMPLATES = [
+  {
+    type: 'conflict' as const,
+    descriptions: [
+      '两名成员因工作分歧发生争执',
+      '团队成员之间出现沟通问题',
+      '工作分配不均引发矛盾',
+    ],
+    requiredLeadership: [10, 20, 30],
+  },
+  {
+    type: 'burnout' as const,
+    descriptions: [
+      '某成员出现职业倦怠迹象',
+      '团队成员工作压力过大',
+      '成员士气低落',
+    ],
+    requiredLeadership: [15, 25, 35],
+  },
+  {
+    type: 'mistake' as const,
+    descriptions: [
+      '团队成员在工作中出现失误',
+      '项目执行过程中发现问题',
+      '成员操作不当导致返工',
+    ],
+    requiredLeadership: [20, 30, 40],
+  },
+  {
+    type: 'demand' as const,
+    descriptions: [
+      '团队成员提出加薪要求',
+      '成员希望调整工作安排',
+      '团队对福利待遇有诉求',
+    ],
+    requiredLeadership: [25, 35, 45],
+  },
+];
+
+// 团队效果计算
+export const TEAM_EFFECTS = {
+  engineer: {
+    qualityBonusPerSkill: 5,  // 工程师：每技能点+5质量
+  },
+  salesperson: {
+    incomeBonusPerSkill: 3,   // 业务员：每技能点+3%收益
+  },
+  worker: {
+    costReductionPerSkill: 2, // 劳务工：每技能点-2%成本
+  },
+  designer: {
+    efficiencyBonusPerSkill: 4, // 设计师：每技能点+4%效率
+  },
 };
