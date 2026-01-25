@@ -39,6 +39,7 @@ export type {
   GameStats,
   TradeResult,
   MaintenanceResult,
+  ActionConfig,
 } from './game';
 
 export {
@@ -50,6 +51,9 @@ export {
   RANK_CONFIGS,
   MATERIAL_CONFIGS,
   RELATIONSHIP_CONFIGS,
+  GamePhase,
+  ActionType,
+  EventStatus,
 } from './game';
 
 // Leaderboard types

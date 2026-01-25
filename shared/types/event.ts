@@ -3,6 +3,7 @@
  */
 
 import { Effects } from './player';
+import { EventStatus } from './game';
 
 export type EventOptionAction = 'raiseSalary' | 'none';
 
@@ -23,6 +24,9 @@ export interface EventCard {
   options: EventOption[];
   llmEnhanced?: boolean; // 是否由 LLM 增强
   isSpecialEvent?: boolean; // 是否为特殊事件
+  isUrgent?: boolean; // 是否紧急（紧急事件必须立即处理）
+  deadline?: number; // 截止回合数
+  status?: EventStatus; // 事件状态
 }
 
 export enum EventType {

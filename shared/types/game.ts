@@ -4,6 +4,57 @@
 
 import { PlayerStats } from './player';
 import { EventCard } from './event';
+import { TeamState } from './team';
+
+/**
+ * 游戏阶段
+ */
+export enum GamePhase {
+  EARLY = 'early',   // 前期：实习生-高级工程师
+  LATE = 'late',     // 后期：项目经理-合伙人
+}
+
+/**
+ * 行动类型
+ */
+export enum ActionType {
+  DO_PROJECT = 'do_project',
+  TRAINING = 'training',
+  REST = 'rest',
+  RECRUIT = 'recruit',
+  TEAM_PROJECT = 'team_project',
+  RESOLVE_ISSUE = 'resolve_issue',
+}
+
+/**
+ * 行动配置
+ */
+export interface ActionConfig {
+  type: ActionType;
+  name: string;
+  icon: string;
+  description: string;
+  costAP: number;
+  phase: 'early' | 'late' | 'both';
+  costCash?: number;
+  effects?: {
+    progress?: number;
+    quality?: number;
+    health?: number;
+    cash?: number;
+    reputation?: number;
+  };
+}
+
+/**
+ * 事件状态
+ */
+export enum EventStatus {
+  PENDING = 'pending',
+  PROCESSED = 'processed',
+  EXPIRED = 'expired',
+  IGNORED = 'ignored',
+}
 
 export enum GameStatus {
   IDLE = 'idle',           // 未开始
@@ -17,7 +68,6 @@ export enum GameStatus {
 
 export enum EndReason {
   PROMOTED_TO_PARTNER = 'promoted_to_partner', // 晋升合伙人（胜利）
-  OUT_OF_CASH = 'out_of_cash',                 // 破产
   HEALTH_DEPLETED = 'health_depleted',         // 过劳猝死
   REPUTATION_DEPLETED = 'reputation_depleted', // 行业封杀
 }
@@ -157,7 +207,8 @@ export interface GameStats {
  */
 export interface GameState {
   status: GameStatus;
-  currentRound: number; // 改为季度数
+  currentQuarter: number; // 季度数（原 currentRound）
+  maxActionsPerQuarter: number; // 每季度最大行动次数
   stats: PlayerStats;
   currentEvent: EventCard | null;
   eventHistory: EventCard[];
@@ -180,8 +231,19 @@ export interface GameState {
   // 项目进度（单个项目内）
   projectProgress: number; // 当前项目进度
   projectQuality: number;  // 当前项目质量
-  eventsInQuarter: number; // 本季度已处理事件数
-  maxEventsPerQuarter: number; // 本季度最大事件数
+
+  // 新增：游戏阶段
+  phase: GamePhase;
+
+  // 新增：行动点系统
+  actionPoints: number;
+  maxActionPoints: number;
+
+  // 新增：团队系统
+  team: TeamState;
+
+  // 新增：待处理事件
+  pendingEvents: EventCard[];
 
   score: number;
   endReason?: EndReason;
@@ -193,7 +255,6 @@ export interface GameState {
 export interface GameConfig {
   initialStats: PlayerStats;
   initialRank: Rank;
-  maxEventsPerQuarter: number; // 每季度最大事件数
   initialInventory: Record<MaterialType, number>;
   initialRelationships: Record<RelationshipType, number>;
 }
