@@ -1,9 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
+import { EventCard } from '@/components/EventCard';
+import { EventResultCard } from '@/components/EventResultCard';
 
 export function EventsPage() {
   const navigate = useNavigate();
+
+  // 现有选择器
   const eventHistory = useGameStoreNew((state) => state.eventHistory);
   const currentEvent = useGameStoreNew((state) => state.currentEvent);
   const status = useGameStoreNew((state) => state.status);
@@ -14,7 +18,28 @@ export function EventsPage() {
   const nextQuarter = useGameStoreNew((state) => state.nextQuarter);
   const currentQuarter = useGameStoreNew((state) => state.currentQuarter);
 
+  // 新事件系统选择器
+  const quarterEvents = useGameStoreNew((state) => state.quarterEvents);
+  const currentEventIndex = useGameStoreNew((state) => state.currentEventIndex);
+  const getCurrentEvent = useGameStoreNew((state) => state.getCurrentEvent);
+  const getCurrentEventResult = useGameStoreNew((state) => state.getCurrentEventResult);
+  const showEventResult = useGameStoreNew((state) => state.showEventResult);
+  const isAllEventsCompleted = useGameStoreNew((state) => state.isAllEventsCompleted);
+
+  // 新的 actions
+  const selectEventOption = useGameStoreNew((state) => state.selectEventOption);
+  const continueToNextEvent = useGameStoreNew((state) => state.continueToNextEvent);
+
   const handleSelectOption = (optionId: string) => {
+    selectEventOption(optionId);
+  };
+
+  const handleContinue = () => {
+    continueToNextEvent();
+  };
+
+  // 旧的 selectOption 调用改为新的
+  const handleOldSelectOption = (optionId: string) => {
     selectOption(optionId);
   };
 
@@ -52,8 +77,59 @@ export function EventsPage() {
           </span>
         </div>
 
-        {/* 当前事件 */}
-        {status === GameStatus.PLAYING && currentEvent && (
+        {/* 新事件系统 - 进度指示器 */}
+        {quarterEvents.length > 0 && (
+          <div className="mb-6 bg-white rounded-xl p-3 border border-slate-200">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-700">本季度事件进度</span>
+              <span className="text-sm text-slate-600">
+                {currentEventIndex + 1} / {quarterEvents.length}
+              </span>
+            </div>
+            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand-500 transition-all"
+                style={{ width: `${((currentEventIndex + 1) / quarterEvents.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 新事件系统 - 当前事件卡片 */}
+        {getCurrentEvent() && !showEventResult && (
+          <section className="mb-6">
+            <EventCard
+              event={getCurrentEvent()!}
+              onSelectOption={handleSelectOption}
+            />
+          </section>
+        )}
+
+        {/* 新事件系统 - 结果卡片 */}
+        {showEventResult && getCurrentEventResult() && (
+          <section className="mb-6">
+            <EventResultCard
+              result={getCurrentEventResult()!}
+              onContinue={handleContinue}
+            />
+          </section>
+        )}
+
+        {/* 新事件系统 - 全部完成提示 */}
+        {isAllEventsCompleted() && quarterEvents.length > 0 && (
+          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-6 text-center mb-6">
+            <div className="text-4xl mb-3">🎉</div>
+            <h3 className="text-lg font-bold text-emerald-800 mb-2">
+              本季度事件已全部处理完成！
+            </h3>
+            <p className="text-sm text-emerald-700">
+              你可以继续使用行动点，或直接完成本季度
+            </p>
+          </div>
+        )}
+
+        {/* 保留旧的事件显示（兼容性）- 仅在没有新事件时显示 */}
+        {status === GameStatus.PLAYING && currentEvent && quarterEvents.length === 0 && (
           <section className="mb-6">
             <h2 className="text-lg font-bold text-slate-900 mb-3">当前事件</h2>
             <div className="bg-gradient-to-br from-brand-50 to-engineering-50 border-2 border-brand-200 rounded-xl p-5">
@@ -65,7 +141,7 @@ export function EventsPage() {
                   {currentEvent.options.map((option) => (
                     <button
                       key={option.id}
-                      onClick={() => handleSelectOption(option.id)}
+                      onClick={() => handleOldSelectOption(option.id)}
                       className="w-full py-3 px-4 bg-white border-2 border-slate-200 rounded-lg hover:border-brand-400 hover:bg-brand-50 active:scale-[0.98] transition-all text-left"
                     >
                       <div className="font-medium text-slate-900 mb-1">{option.text}</div>
@@ -120,8 +196,8 @@ export function EventsPage() {
           )}
         </section>
 
-        {/* 完成本季度按钮 */}
-        {status === GameStatus.PLAYING && (
+        {/* 完成本季度按钮 - 更新条件 */}
+        {status === GameStatus.PLAYING && (isAllEventsCompleted() || quarterEvents.length === 0) && (
           <div className="mb-4">
             <button
               onClick={handleFinishQuarter}
