@@ -7,6 +7,23 @@ import { EventCard } from './event';
 import { TeamState } from './team';
 
 /**
+ * 属性影响配置
+ */
+export interface AbilityEffects {
+  pricePredictionAccuracy: number;  // 价格预测准确率
+  specialEventChance: number;       // 特殊事件概率
+  relationBonus: number;            // 关系加成
+}
+
+/**
+ * 属性要求的类型
+ */
+export interface AbilityRequirement {
+  workAbility?: number;
+  luck?: number;
+}
+
+/**
  * 游戏阶段
  */
 export enum GamePhase {
