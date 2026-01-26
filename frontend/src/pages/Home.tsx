@@ -35,8 +35,8 @@ const Home = () => {
             {/* 开始游戏卡片 - 新游戏系统 */}
             <button
               onClick={() => {
-                // 导航到新游戏系统并初始化
-                navigate('/game-new/actions');
+                // 导航到人物创建页面
+                navigate('/character-creation');
               }}
               className="group relative bg-gradient-to-br from-brand-50 to-engineering-50 border-2 border-brand-200 rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-[0.98]"
               style={{ animationDelay: '0.1s' }}

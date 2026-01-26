@@ -7,12 +7,15 @@ import Leaderboard from './pages/Leaderboard';
 // import StrategyPhase from './pages/StrategyPhase';
 // import QuarterlySettlement from './pages/QuarterlySettlement';
 import { MainGame } from './pages/MainGame';
+import { CharacterCreationPage } from './pages/CharacterCreationPage';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+        {/* 人物创建页面 */}
+        <Route path="/character-creation" element={<CharacterCreationPage />} />
         {/* 新游戏系统（使用行动点和团队管理） */}
         <Route path="/game-new/*" element={<MainGame />} />
         {/* 旧游戏系统（季度制和事件驱动）- 暂时禁用 */}
