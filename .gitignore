@@ -3,5 +3,7 @@ node_modules/
 dist/
 /WORKLOG.md
 
-docs/
+# docs/ is ignored, but docs/plans/ is tracked
+docs/*
+!docs/plans/
 .worktrees/
