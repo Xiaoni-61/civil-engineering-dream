@@ -7,8 +7,25 @@
  * - 通用事件: 所有职级共享
  */
 
-import { DecisionEvent, EventPoolConfig } from './eventTypes';
+import {
+  DecisionEvent,
+  EventPoolConfig,
+  EventResult,
+  DecisionOption,
+  EventEffects,
+  RelationshipEffect
+} from './eventTypes';
 import { Rank } from '@shared/types';
+
+// 导出类型
+export type {
+  DecisionEvent,
+  EventPoolConfig,
+  EventResult,
+  DecisionOption,
+  EventEffects,
+  RelationshipEffect
+};
 
 // 导入各职级事件（后续添加）
 // import { commonEvents } from './commonEvents';

@@ -54,6 +54,15 @@ import {
 } from '@/data/constants';
 import { enhanceDescription, generateSpecialEvent } from '@/api/llmApi';
 import { startGame, finishGame } from '@/api/gameApi';
+import type {
+  DecisionEvent,
+  EventResult,
+} from '@/data/events/eventTypes';
+// 事件决策系统函数（将在后续任务中使用）
+// import {
+//   getEventsForRank,
+//   shuffleQuarterEvents
+// } from '@/data/events';
 
 // ==================== 全局变量 ====================
 
@@ -221,6 +230,14 @@ interface GameStore extends GameState {
   // 本季度已执行行动次数
   actionsThisQuarter: number;
 
+  // 事件决策系统
+  quarterEvents: DecisionEvent[];        // 本季度待处理事件
+  currentEventIndex: number;             // 当前事件索引
+  completedEventResults: EventResult[];  // 本季度已完成事件结果
+  allEventHistory: EventResult[];        // 全局事件历史（合并到eventHistory中）
+  pendingEventResult: EventResult | null; // 待确认的结果
+  showEventResult: boolean;             // 是否显示结果卡片
+
   // Actions
   startGame: () => Promise<void>;
   resetGame: () => void;
@@ -247,6 +264,14 @@ interface GameStore extends GameState {
   checkEventTrigger: () => Promise<void>;
   deferEvent: (eventId: string) => void;
   ignoreEvent: (eventId: string) => void;
+
+  // 事件决策系统 Actions
+  initializeQuarterEvents: () => void;
+  selectEventOption: (optionId: string) => void;
+  continueToNextEvent: () => void;
+  isAllEventsCompleted: () => boolean;
+  getCurrentEvent: () => DecisionEvent | null;
+  getCurrentEventResult: () => EventResult | null;
 
   // 保留的方法（待适配）
   selectOption: (optionId: string) => void;
@@ -314,6 +339,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
   actionsSinceLastEventCheck: 0,
   actionsThisQuarter: 0,
+
+  // 事件决策系统
+  quarterEvents: [],
+  currentEventIndex: 0,
+  completedEventResults: [],
+  allEventHistory: [],
+  pendingEventResult: null,
+  showEventResult: false,
 
   // ==================== 游戏流程 ====================
 
@@ -1605,5 +1638,61 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     return false;
+  },
+
+  // ==================== 事件决策系统 ====================
+
+  /**
+   * 初始化本季度事件
+   * 将在 Task 4 中实现
+   */
+  initializeQuarterEvents: () => {
+    // TODO: Task 4 - 实现事件初始化逻辑
+    console.log('initializeQuarterEvents - 待实现');
+  },
+
+  /**
+   * 选择事件选项
+   * 将在 Task 5 中实现
+   */
+  selectEventOption: (optionId: string) => {
+    // TODO: Task 5 - 实现事件选择逻辑
+    console.log('selectEventOption', optionId, '- 待实现');
+  },
+
+  /**
+   * 继续下一个事件
+   * 将在 Task 5 中实现
+   */
+  continueToNextEvent: () => {
+    // TODO: Task 5 - 实现继续逻辑
+    console.log('continueToNextEvent - 待实现');
+  },
+
+  /**
+   * 检查所有事件是否完成
+   */
+  isAllEventsCompleted: () => {
+    const state = get();
+    return state.currentEventIndex >= state.quarterEvents.length;
+  },
+
+  /**
+   * 获取当前事件
+   */
+  getCurrentEvent: () => {
+    const state = get();
+    if (state.currentEventIndex < state.quarterEvents.length) {
+      return state.quarterEvents[state.currentEventIndex];
+    }
+    return null;
+  },
+
+  /**
+   * 获取当前事件结果
+   */
+  getCurrentEventResult: () => {
+    const state = get();
+    return state.pendingEventResult;
   },
 }));
