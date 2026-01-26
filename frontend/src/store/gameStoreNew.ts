@@ -268,6 +268,7 @@ interface GameStore extends GameState {
   initializeQuarterEvents: () => void;
   selectEventOption: (optionId: string) => void;
   continueToNextEvent: () => void;
+  applyEventEffects: (effects: any) => void;
   isAllEventsCompleted: () => boolean;
   getCurrentEvent: () => DecisionEvent | null;
   getCurrentEventResult: () => EventResult | null;
@@ -1676,20 +1677,123 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   /**
    * 选择事件选项
-   * 将在 Task 5 中实现
+   * 创建事件结果记录并显示结果卡片
    */
   selectEventOption: (optionId: string) => {
-    // TODO: Task 5 - 实现事件选择逻辑
-    console.log('selectEventOption', optionId, '- 待实现');
+    const state = get();
+    const currentEvent = state.quarterEvents[state.currentEventIndex];
+
+    if (!currentEvent) {
+      console.error('No current event available');
+      return;
+    }
+
+    const selectedOption = currentEvent.options.find(o => o.id === optionId);
+    if (!selectedOption) {
+      console.error('Option not found:', optionId);
+      return;
+    }
+
+    // 创建结果记录
+    const result: EventResult = {
+      eventId: currentEvent.id,
+      eventTitle: currentEvent.title,
+      selectedOptionId: optionId,
+      selectedOptionText: selectedOption.text,
+      feedback: selectedOption.feedback,
+      effects: selectedOption.effects,
+      timestamp: Date.now(),
+    };
+
+    // 暂存结果，显示结果卡片
+    set({
+      pendingEventResult: result,
+      showEventResult: true,
+    });
   },
 
   /**
    * 继续下一个事件
-   * 将在 Task 5 中实现
+   * 应用当前事件的影响并移动到下一个事件
    */
   continueToNextEvent: () => {
-    // TODO: Task 5 - 实现继续逻辑
-    console.log('continueToNextEvent - 待实现');
+    const state = get();
+
+    if (!state.pendingEventResult) {
+      console.error('No pending event result');
+      return;
+    }
+
+    // 应用当前事件的影响
+    get().applyEventEffects(state.pendingEventResult.effects);
+
+    // 添加到已完成列表
+    const newCompleted = [...state.completedEventResults, state.pendingEventResult];
+    const newIndex = state.currentEventIndex + 1;
+
+    // 检查是否还有更多事件
+    if (newIndex < state.quarterEvents.length) {
+      // 还有更多事件
+      set({
+        completedEventResults: newCompleted,
+        currentEventIndex: newIndex,
+        pendingEventResult: null,
+        showEventResult: false,
+      });
+    } else {
+      // 所有事件已完成
+      set({
+        completedEventResults: newCompleted,
+        currentEventIndex: newIndex,
+        allEventHistory: [...state.allEventHistory, ...newCompleted],
+        eventHistory: [...state.eventHistory, ...newCompleted.map(r => ({
+          id: `${r.eventId}-${r.selectedOptionId}`,
+          title: r.eventTitle,
+          description: r.selectedOptionText,
+          options: [],
+        }))],
+        quarterEvents: [],
+        pendingEventResult: null,
+        showEventResult: false,
+      });
+    }
+  },
+
+  /**
+   * 应用事件效果
+   * 将事件选项的效果应用到游戏状态
+   */
+  applyEventEffects: (effects: any) => {
+    if (!effects) {
+      return;
+    }
+
+    const state = get();
+    const newStats = { ...state.stats };
+
+    // 应用各项效果
+    if (effects.cash) {
+      newStats.cash = Math.max(0, newStats.cash + effects.cash);
+    }
+    if (effects.health) {
+      newStats.health = clampStat(newStats.health + effects.health);
+    }
+    if (effects.reputation) {
+      newStats.reputation = clampStat(newStats.reputation + effects.reputation);
+    }
+    if (effects.progress) {
+      newStats.progress = clampStat(newStats.progress + effects.progress);
+      set({ projectProgress: clampStat(state.projectProgress + effects.progress) });
+    }
+    if (effects.quality) {
+      newStats.quality = clampStat(newStats.quality + effects.quality);
+      set({ projectQuality: clampStat(state.projectQuality + effects.quality) });
+    }
+
+    set({ stats: newStats });
+
+    // 检查游戏结束条件
+    get().checkGameEnd();
   },
 
   /**
@@ -1697,7 +1801,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
    */
   isAllEventsCompleted: () => {
     const state = get();
-    return state.currentEventIndex >= state.quarterEvents.length;
+    return state.quarterEvents.length > 0 &&
+           state.currentEventIndex >= state.quarterEvents.length;
   },
 
   /**
@@ -1705,10 +1810,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
    */
   getCurrentEvent: () => {
     const state = get();
-    if (state.currentEventIndex < state.quarterEvents.length) {
-      return state.quarterEvents[state.currentEventIndex];
-    }
-    return null;
+    return state.quarterEvents[state.currentEventIndex] || null;
   },
 
   /**
