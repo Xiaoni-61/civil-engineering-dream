@@ -58,11 +58,10 @@ import type {
   DecisionEvent,
   EventResult,
 } from '@/data/events/eventTypes';
-// 事件决策系统函数（将在后续任务中使用）
-// import {
-//   getEventsForRank,
-//   shuffleQuarterEvents
-// } from '@/data/events';
+import {
+  getEventsForRank,
+  shuffleQuarterEvents
+} from '@/data/events/index';
 
 // ==================== 全局变量 ====================
 
@@ -668,6 +667,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   nextQuarter: () => {
     const state = get();
     const newQuarter = state.currentQuarter + 1;
+
+    // 初始化本季度事件
+    get().initializeQuarterEvents();
 
     // 季度开始：自动恢复健康
     let newHealth = Math.min(100, state.stats.health + QUARTER_HEALTH_REGEN);
@@ -1644,11 +1646,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   /**
    * 初始化本季度事件
-   * 将在 Task 4 中实现
+   * 从当前职级可用事件中随机抽取 2-4 个事件
    */
   initializeQuarterEvents: () => {
-    // TODO: Task 4 - 实现事件初始化逻辑
-    console.log('initializeQuarterEvents - 待实现');
+    const state = get();
+    const rank = state.rank;
+
+    // 获取当前职级可用的事件
+    const availableEvents = getEventsForRank(rank);
+
+    // 如果没有可用事件，跳过
+    if (availableEvents.length === 0) {
+      console.warn('No events available for rank:', rank);
+      return;
+    }
+
+    // 随机抽取 2-4 个事件
+    const eventCount = Math.floor(Math.random() * 3) + 2;
+    const selectedEvents = shuffleQuarterEvents(availableEvents, eventCount);
+
+    set({
+      quarterEvents: selectedEvents,
+      currentEventIndex: 0,
+      completedEventResults: [],
+      pendingEventResult: null,
+      showEventResult: false,
+    });
   },
 
   /**
