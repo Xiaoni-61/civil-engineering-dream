@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { TRAINING_CONFIG, TRAINING_COOLDOWN } from '@/data/constants';
 import {
   GameState,
   GameStatus,
@@ -417,7 +418,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   executeTraining: (trainingType: 'basic_work' | 'advanced_work' | 'basic_luck' | 'advanced_luck') => {
     const state = get();
-    const { TRAINING_CONFIG, TRAINING_COOLDOWN } = require('@/data/constants');
 
     const config = TRAINING_CONFIG[trainingType];
     const cooldownKey = trainingType;
@@ -443,9 +443,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // 计算成功率
-    let successRate = config.successRate;
-    if (successRate === 'formula') {
+    let successRate: number;
+    if (config.successRate === 'formula') {
       successRate = 50 + stats.luck / 2;
+    } else {
+      successRate = config.successRate as number;
     }
 
     // 高级训练需要判定成功率
@@ -475,8 +477,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // 训练成功
-    const abilityType = trainingType.includes('work') ? 'workAbility' : 'luck';
-    const newAbility = Math.min(100, stats[abilityType] + config.effect[abilityType]);
+    const abilityType: 'workAbility' | 'luck' = trainingType.includes('work') ? 'workAbility' : 'luck';
+    const effect = config.effect as { workAbility?: number; luck?: number };
+    const newAbility = Math.min(100, stats[abilityType] + (effect[abilityType] || 0));
     const cooldown = trainingType.includes('advanced')
       ? TRAINING_COOLDOWN.advanced
       : TRAINING_COOLDOWN.basic;
@@ -497,7 +500,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     return {
       success: true,
-      message: `训练成功！${abilityType === 'workAbility' ? '工作能力' : '幸运'}+${config.effect[abilityType]}`
+      message: `训练成功！${abilityType === 'workAbility' ? '工作能力' : '幸运'}+${effect[abilityType]}`
     };
   },
 
@@ -1522,6 +1525,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       reputation: clampStat(currentStats.reputation + (effects.reputation || 0)),
       progress: clampStat(currentStats.progress + (effects.progress || 0)),
       quality: clampStat(currentStats.quality + (effects.quality || 0)),
+      workAbility: clampStat(currentStats.workAbility + (effects.workAbility || 0)),
+      luck: clampStat(currentStats.luck + (effects.luck || 0)),
     };
 
     set({

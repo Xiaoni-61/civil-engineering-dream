@@ -33,7 +33,7 @@ export function TrainingActionCard({ trainingType }: TrainingActionCardProps) {
 
   const abilityType = trainingType.includes('work') ? 'workAbility' : 'luck';
   const abilityName = abilityType === 'workAbility' ? '工作能力' : '幸运';
-  const effectValue = config.effect[abilityType];
+  const effectValue = config.effect[abilityType as keyof typeof config.effect];
 
   return (
     <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
