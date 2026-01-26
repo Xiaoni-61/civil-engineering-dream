@@ -30,6 +30,14 @@ export interface DecisionOption {
   text: string;
   feedback: string;
   effects: EventEffects;
+
+  // 新增：隐藏选项支持
+  requiredAbility?: {
+    workAbility?: number;
+    luck?: number;
+  };
+  hidden?: boolean;        // 是否为隐藏选项
+  riskFactor?: number;     // 冒险选项的失败率 (0-1)
 }
 
 /**
@@ -44,6 +52,8 @@ export interface EventEffects {
   relationships?: RelationshipEffect[];
   teamMorale?: number;
   leadership?: number;
+  workAbility?: number;  // 工作能力变化
+  luck?: number;         // 幸运变化
 }
 
 /**
