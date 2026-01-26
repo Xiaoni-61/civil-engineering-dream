@@ -10,12 +10,8 @@ export function TrainingActionCard({ trainingType }: TrainingActionCardProps) {
   const stats = useGameStoreNew((state) => state.stats);
   const luck = useGameStoreNew((state) => state.stats.luck);
   const currentQuarter = useGameStoreNew((state) => state.currentQuarter);
-  const trainingCooldowns = useGameStoreNew((state) => state.trainingCooldowns) || {
-    basic_work: 0,
-    advanced_work: 0,
-    basic_luck: 0,
-    advanced_luck: 0,
-  };
+  const trainingCooldowns = useGameStoreNew((state) => state.trainingCooldowns);
+  const executeTraining = useGameStoreNew((state) => state.executeTraining);
 
   // 计算高级训练的成功率
   const successRate = config.successRate === 'formula'
@@ -31,18 +27,8 @@ export function TrainingActionCard({ trainingType }: TrainingActionCardProps) {
   const canAfford = stats.cash >= config.cost.cash && stats.health >= config.cost.health;
 
   const handleClick = () => {
-    if (!canAfford) {
-      alert('资源不足');
-      return;
-    }
-
-    if (isOnCooldown) {
-      alert(`该训练需要冷却 ${cooldownRemaining} 个季度`);
-      return;
-    }
-
-    // TODO: 调用训练执行函数（在 Task 8 实现）
-    alert('训练功能将在后续任务中实现');
+    const result = executeTraining(trainingType);
+    alert(result.message);
   };
 
   const abilityType = trainingType.includes('work') ? 'workAbility' : 'luck';

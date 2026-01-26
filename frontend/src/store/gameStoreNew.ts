@@ -254,6 +254,10 @@ interface GameStore extends GameState {
     workAbility?: number;
     luck?: number;
   }) => void;
+  executeTraining: (trainingType: 'basic_work' | 'advanced_work' | 'basic_luck' | 'advanced_luck') => {
+    success: boolean;
+    message: string;
+  };
   startGame: () => Promise<void>;
   resetGame: () => void;
   uploadScore: () => Promise<void>;
@@ -409,6 +413,92 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }));
 
     recentEventIds.clear();
+  },
+
+  executeTraining: (trainingType: 'basic_work' | 'advanced_work' | 'basic_luck' | 'advanced_luck') => {
+    const state = get();
+    const { TRAINING_CONFIG, TRAINING_COOLDOWN } = require('@/data/constants');
+
+    const config = TRAINING_CONFIG[trainingType];
+    const cooldownKey = trainingType;
+    const cooldownQuarter = state.trainingCooldowns[cooldownKey];
+    const currentQuarter = state.currentQuarter;
+
+    // 检查冷却
+    if (cooldownQuarter > 0 && currentQuarter < cooldownQuarter) {
+      return {
+        success: false,
+        message: `该训练需要冷却 ${cooldownQuarter - currentQuarter} 个季度`
+      };
+    }
+
+    const stats = state.stats;
+
+    // 检查资源
+    if (stats.cash < config.cost.cash || stats.health < config.cost.health) {
+      return {
+        success: false,
+        message: '资源不足'
+      };
+    }
+
+    // 计算成功率
+    let successRate = config.successRate;
+    if (successRate === 'formula') {
+      successRate = 50 + stats.luck / 2;
+    }
+
+    // 高级训练需要判定成功率
+    if (trainingType.includes('advanced')) {
+      const roll = Math.random() * 100;
+
+      if (roll > successRate) {
+        // 训练失败
+        set((state) => ({
+          ...state,
+          stats: {
+            ...state.stats,
+            cash: state.stats.cash - config.cost.cash,
+            health: state.stats.health - config.cost.health
+          },
+          trainingCooldowns: {
+            ...state.trainingCooldowns,
+            [cooldownKey]: currentQuarter + TRAINING_COOLDOWN.advanced // 3个季度冷却
+          }
+        }));
+
+        return {
+          success: false,
+          message: '训练失败，资源已消耗'
+        };
+      }
+    }
+
+    // 训练成功
+    const abilityType = trainingType.includes('work') ? 'workAbility' : 'luck';
+    const newAbility = Math.min(100, stats[abilityType] + config.effect[abilityType]);
+    const cooldown = trainingType.includes('advanced')
+      ? TRAINING_COOLDOWN.advanced
+      : TRAINING_COOLDOWN.basic;
+
+    set((state) => ({
+      ...state,
+      stats: {
+        ...state.stats,
+        [abilityType]: newAbility,
+        cash: state.stats.cash - config.cost.cash,
+        health: state.stats.health - config.cost.health
+      },
+      trainingCooldowns: {
+        ...state.trainingCooldowns,
+        [cooldownKey]: currentQuarter + cooldown
+      }
+    }));
+
+    return {
+      success: true,
+      message: `训练成功！${abilityType === 'workAbility' ? '工作能力' : '幸运'}+${config.effect[abilityType]}`
+    };
   },
 
   startGame: async () => {
