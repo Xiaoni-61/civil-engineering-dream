@@ -214,6 +214,12 @@ interface GameStore extends GameState {
   // 扩展状态
   playerName?: string;       // 玩家姓名
   playerGender?: 'male' | 'female'; // 玩家性别
+  trainingCooldowns: {       // 训练冷却状态
+    basic_work: number;
+    advanced_work: number;
+    basic_luck: number;
+    advanced_luck: number;
+  };
   runId: string | null;
   deviceId: string | null;
 
@@ -335,6 +341,14 @@ const initializeMaterialPrices = (): Record<MaterialType, MaterialPrice> => {
 export const useGameStore = create<GameStore>((set, get) => ({
   // 初始化状态
   ...createInitialState(),
+  playerName: undefined,
+  playerGender: undefined,
+  trainingCooldowns: {
+    basic_work: 0,
+    advanced_work: 0,
+    basic_luck: 0,
+    advanced_luck: 0,
+  },
   runId: null,
   deviceId: null,
   specialEventCount: 0,

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { ACTIONS } from '@/data/constants';
 import { ActionType, Rank, GameStatus } from '@shared/types';
+import { TrainingActionCard } from '@/components/TrainingActionCard';
 
 export function ActionsPage() {
   const navigate = useNavigate();
@@ -149,6 +150,17 @@ export function ActionsPage() {
                   </button>
                 );
               })}
+          </div>
+        </section>
+
+        {/* 属性训练 */}
+        <section className="mb-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-3">属性训练</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <TrainingActionCard trainingType="basic_work" />
+            <TrainingActionCard trainingType="advanced_work" />
+            <TrainingActionCard trainingType="basic_luck" />
+            <TrainingActionCard trainingType="advanced_luck" />
           </div>
         </section>
 
