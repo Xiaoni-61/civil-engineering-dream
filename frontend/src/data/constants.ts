@@ -12,6 +12,8 @@ export const GAME_CONFIG: GameConfig = {
     reputation: 50,
     progress: 0,
     quality: 50,
+    workAbility: 0,  // 将通过人物创建设置
+    luck: 0,         // 将通过人物创建设置
   },
   initialRank: Rank.INTERN,
   initialInventory: {
@@ -95,6 +97,18 @@ export const STAT_DISPLAY = {
     icon: '🏆',
     color: '#8B5CF6', // purple
     dangerThreshold: 40,
+  },
+  workAbility: {
+    label: '工作能力',
+    icon: '📚',
+    color: '#3B82F6', // blue
+    dangerThreshold: 0,
+  },
+  luck: {
+    label: '幸运',
+    icon: '🎲',
+    color: '#F59E0B', // yellow
+    dangerThreshold: 0,
   },
 } as const;
 
@@ -748,4 +762,70 @@ export const TEAM_EFFECTS = {
   designer: {
     efficiencyBonusPerSkill: 4, // 设计师：每技能点+4%效率
   },
+};
+
+// ==================== 属性成长配置 ====================
+
+// 属性成长配置
+export const ABILITY_GROWTH = {
+  base: { workAbility: 5, luck: 3 },        // 基础训练
+  advanced: { workAbility: 8, luck: 5 },     // 高级训练
+  promotionBonus: [10, 8, 6, 5, 4, 3],      // 晋升加成（递减）
+};
+
+// 训练冷却配置
+export const TRAINING_COOLDOWN = {
+  basic: 1,      // 基础训练冷却 1 个季度
+  advanced: 3,   // 高级训练冷却 3 个季度
+};
+
+// 训练配置
+export const TRAINING_CONFIG = {
+  basic_work: {
+    name: '专业培训',
+    icon: '📚',
+    description: '提升工作能力',
+    effect: { workAbility: 5 },
+    cost: { cash: 2000, health: 5 },
+    successRate: 100,
+  },
+  advanced_work: {
+    name: '考取证书',
+    icon: '📖',
+    description: '大幅提升工作能力',
+    effect: { workAbility: 8 },
+    cost: { cash: 3000, health: 8 },
+    successRate: 'formula', // 50 + 幸运/2
+  },
+  basic_luck: {
+    name: '参加行业活动',
+    icon: '🎯',
+    description: '提升幸运',
+    effect: { luck: 3 },
+    cost: { cash: 1000, health: 2 },
+    successRate: 100,
+  },
+  advanced_luck: {
+    name: '外出社交',
+    icon: '🎲',
+    description: '大幅提升幸运',
+    effect: { luck: 5 },
+    cost: { cash: 1500, health: 3 },
+    successRate: 'formula', // 50 + 幸运/2
+  },
+};
+
+// 隐藏选项解锁阈值
+export const HIDDEN_OPTION_THRESHOLD = {
+  workAbility: 30,  // 工作能力 ≥ 30 解锁技术选项
+  luck: 40,         // 幸运 ≥ 40 解锁冒险选项
+};
+
+// 关系加成配置
+export const RELATIONSHIP_ABILITY_BONUS = {
+  workAbilityThreshold: 60,    // 工作能力 ≥ 60 时
+  designAndSupervisionBonus: 20, // 设计院、监理关系维护 +20% 成功率
+  luckThreshold: 60,            // 幸运 ≥ 60 时
+  mentorChance: 15,             // 15% 概率触发贵人相助
+  mentorBonus: 10,              // 贵人相助关系 +10
 };
