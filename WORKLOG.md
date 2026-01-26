@@ -2,6 +2,117 @@
 
 ## 2026-01-26
 
+### 事件决策系统 - Task 5: 实现事件选择逻辑
+
+**改动点**:
+- 实现事件选择、继续和效果应用的核心逻辑
+- 添加辅助查询方法
+
+**涉及文件** (共修改 1 个):
+- `frontend/src/store/gameStoreNew.ts`
+
+**具体改动**:
+
+**实现 selectEventOption 方法**:
+- 获取当前事件和选中的选项
+- 创建 EventResult 记录（包含 eventId, eventTitle, selectedOptionId, selectedOptionText, feedback, effects, timestamp）
+- 暂存结果到 pendingEventResult
+- 设置 showEventResult 为 true 以显示结果卡片
+
+**实现 continueToNextEvent 方法**:
+- 检查 pendingEventResult 是否存在
+- 调用 applyEventEffects 应用事件影响
+- 将结果添加到 completedEventResults
+- 更新 currentEventIndex
+- 检查是否还有更多事件：
+  - 有：更新状态，继续下一个事件
+  - 无：将所有结果合并到 allEventHistory 和 eventHistory，清空 quarterEvents
+
+**实现 applyEventEffects 方法**:
+- 应用事件效果到游戏状态（cash, health, reputation, progress, quality）
+- 更新 projectProgress 和 projectQuality
+- 调用 checkGameEnd 检查游戏结束条件
+
+**更新辅助查询方法**:
+- isAllEventsCompleted: 检查是否所有事件已完成
+- getCurrentEvent: 获取当前事件（返回 null 如果没有）
+- getCurrentEventResult: 获取当前待确认结果
+
+**更新 GameStore 接口**:
+- 添加 applyEventEffects 到接口定义
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- npm run build 成功
+- 逻辑流程完整：选择 → 显示结果 → 确认 → 应用效果 → 下一个
+
+**Review 状态**: ✅ 已完成
+- ✅ selectEventOption 正确创建结果记录
+- ✅ continueToNextEvent 正确应用效果和状态更新
+- ✅ eventHistory 兼容性保持（将 EventResult 转换为旧格式）
+- ✅ 所有辅助方法实现正确
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- continueToNextEvent 中维护了 eventHistory 的向后兼容性
+- applyEventEffects 独立于原有的 applyEffects 方法，专门处理事件效果
+
+---
+
+## 2026-01-26
+
+### 事件决策系统 - Task 4: 实现事件初始化逻辑
+
+**改动点**:
+- 实现 initializeQuarterEvents 方法，在 nextQuarter 中调用
+- 导入事件系统工具函数
+
+**涉及文件** (共修改 1 个):
+- `frontend/src/store/gameStoreNew.ts`
+
+**具体改动**:
+
+**新增导入**:
+```typescript
+import {
+  getEventsForRank,
+  shuffleQuarterEvents
+} from '@/data/events/index';
+```
+
+**实现 initializeQuarterEvents 方法**:
+- 获取当前职级可用的事件（通过 getEventsForRank）
+- 随机抽取 2-4 个事件（通过 shuffleQuarterEvents）
+- 重置事件状态：
+  - quarterEvents: 本季度待处理事件列表
+  - currentEventIndex: 当前事件索引（重置为 0）
+  - completedEventResults: 已完成事件结果（清空）
+  - pendingEventResult: 待确认结果（清空）
+  - showEventResult: 显示结果标志（重置为 false）
+
+**修改 nextQuarter 方法**:
+- 在方法开始部分添加 get().initializeQuarterEvents() 调用
+- 确保事件在季度其他逻辑之前初始化
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- 导入路径使用 `/index` 后缀确保正确解析
+
+**Review 状态**: ✅ 已完成
+- ✅ 函数逻辑正确
+- ✅ 在 nextQuarter 中正确位置调用
+- ✅ 事件状态重置完整
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 导入路径需要显式添加 `/index` 后缀才能被 TypeScript 正确解析
+
+---
+
+## 2026-01-26
+
 ### 事件决策系统 - Task 1: 创建事件类型定义
 
 **改动点**:
