@@ -16,7 +16,11 @@ const navItems = [
 export function BottomNav({ isLateGame = false }: BottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const pendingEvents = useGameStoreNew((state) => state.pendingEvents);
+  const quarterEvents = useGameStoreNew((state) => state.quarterEvents);
+  const isAllEventsCompleted = useGameStoreNew((state) => state.isAllEventsCompleted);
+
+  // 计算待处理事件数量
+  const hasPendingEvents = quarterEvents.length > 0 && !isAllEventsCompleted();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 safe-area-bottom z-50">
@@ -24,19 +28,25 @@ export function BottomNav({ isLateGame = false }: BottomNavProps) {
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const isLocked = item.path === '/game-new/team' && !isLateGame;
-          const pendingCount = item.path === '/game-new/events' ? pendingEvents.length : 0;
+
+          // 如果有待处理事件且当前不是事件页面，其他按钮显示禁用状态
+          const isBlocked = hasPendingEvents && item.path !== '/game-new/events';
 
           return (
             <button
               key={item.path}
-              onClick={() => !isLocked && navigate(item.path)}
-              disabled={isLocked}
+              onClick={() => {
+                if (!isLocked && !isBlocked) {
+                  navigate(item.path);
+                }
+              }}
+              disabled={isLocked || isBlocked}
               className={`
                 flex flex-col items-center justify-center flex-1 h-full
                 transition-all duration-200
                 ${isActive ? 'text-brand-700' : 'text-slate-700'}
-                ${isLocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                hover:bg-slate-50 active:bg-slate-100
+                ${(isLocked || isBlocked) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                ${!isLocked && !isBlocked ? 'hover:bg-slate-50 active:bg-slate-100' : ''}
               `}
             >
               <div className="relative">
@@ -44,9 +54,9 @@ export function BottomNav({ isLateGame = false }: BottomNavProps) {
                 {isLocked && (
                   <span className="absolute -top-1 -right-1 text-xs">🔒</span>
                 )}
-                {pendingCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {pendingCount}
+                {hasPendingEvents && item.path === '/game-new/events' && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
+                    !
                   </span>
                 )}
               </div>
