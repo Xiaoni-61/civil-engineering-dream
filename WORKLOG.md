@@ -1,5 +1,43 @@
 # 开发工作日志 (WORKLOG)
 
+## 2026-01-26
+
+### 事件决策系统 - Task 1: 创建事件类型定义
+
+**改动点**:
+- 创建事件决策系统的核心类型定义文件
+
+**涉及文件** (共创建 1 个):
+- `frontend/src/data/events/eventTypes.ts`
+
+**具体改动**:
+
+**新增类型定义**:
+- `EventCategory`: 事件类别 ('professional' | 'workplace')
+- `DecisionEvent`: 决策事件接口（id, title, description, category, requiredRank, options, flavorText）
+- `DecisionOption`: 决策选项接口（id, text, feedback, effects）
+- `EventEffects`: 事件影响效果接口（cash, health, reputation, progress, quality, relationships, teamMorale, leadership）
+- `RelationshipEffect`: 关系影响接口（type, change）
+- `EventResult`: 事件结果记录接口（eventId, eventTitle, selectedOptionId, selectedOptionText, feedback, effects, timestamp）
+- `EventPoolConfig`: 事件池配置接口（按职级分类的事件池）
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- 文件路径正确：`frontend/src/data/events/eventTypes.ts`
+- 类型导入自 `@shared/types`（Rank, RelationshipType）
+
+**Review 状态**: ✅ 已完成
+- ✅ 所有必需的类型定义已创建
+- ✅ 类型导出正确
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 新建 `frontend/src/data/events/` 目录
+- 类型系统设计支持多职级事件池和关系影响
+
+---
+
 ## 2026-01-25
 
 ### Home 页面路由更新和 JSX 语法修复
