@@ -14,6 +14,17 @@ export {
   MIN_STAT_VALUE,
 } from './player';
 
+// Character types
+export type {
+  CharacterCreation,
+  CharacterEvaluation,
+} from './character';
+
+export {
+  RANDOM_NAMES,
+  EVALUATIONS,
+} from './character';
+
 // Event types
 export type {
   EventOption,
@@ -40,6 +51,8 @@ export type {
   TradeResult,
   MaintenanceResult,
   ActionConfig,
+  AbilityEffects,
+  AbilityRequirement,
 } from './game';
 
 export {
