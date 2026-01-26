@@ -2742,3 +2742,189 @@ ${isActive ? 'text-brand-700' : 'text-slate-700'}
 - ✅ 所有按钮文字颜色统一为 text-slate-800
 - ✅ 底部导航栏颜色加深提升可读性
 
+
+
+## 2026-01-26 (续3)
+
+### Task 2: 创建事件索引文件和池管理
+
+**改动点**:
+- 创建事件系统索引文件 `frontend/src/data/events/index.ts`
+- 实现按职级组织的事件池管理
+- 提供事件获取、随机抽取和ID查找功能
+
+**涉及文件** (共新建 1 个):
+- `frontend/src/data/events/index.ts` - 事件索引和池管理
+
+**具体实现**:
+
+**文件结构**:
+```typescript
+// 按职级组织的事件池
+const commonEvents: DecisionEvent[] = [];        // 通用事件
+const internEvents: DecisionEvent[] = [];        // 实习生事件
+const assistantEngineerEvents: DecisionEvent[] = []; // 助理工程师事件
+const engineerEvents: DecisionEvent[] = [];       // 工程师事件
+const seniorEngineerEvents: DecisionEvent[] = []; // 高级工程师事件
+const managerEvents: DecisionEvent[] = [];        // 项目经理事件
+const directorEvents: DecisionEvent[] = [];       // 项目总监事件
+const partnerEvents: DecisionEvent[] = [];        // 合伙人事件
+```
+
+**核心功能**:
+1. **getEventsForRank(rank)** - 获取指定职级可用的所有事件
+   - 包含所有通用事件
+   - 包含当前及以下职级的事件
+   
+2. **shuffleQuarterEvents(events, count)** - 从事件池随机抽取
+   - Fisher-Yates 洗牌算法
+   - 返回指定数量的事件
+   
+3. **findEventById(eventId)** - 根据ID查找事件
+   - 遍历所有事件池
+   - 返回匹配的事件或undefined
+
+4. **eventPool** - 导出所有事件池配置
+   - 用于文档和测试
+   - 类型: EventPoolConfig
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- Vite 构建成功 (611ms)
+- 所有类型正确引用
+
+**Review 状态**: ✅ 已完成
+- ✅ 索引文件创建完成
+- ✅ 事件池管理结构清晰
+- ✅ 函数签名符合设计要求
+- ✅ 编译无错误
+- ✅ 已提交到 feature/event-system 分支
+
+**提交信息**:
+```
+feat(events): add event index with pool management
+```
+
+**特殊说明**:
+- 当前所有事件池为空数组，等待后续任务填充具体事件
+- 设计支持渐进式添加事件内容
+- 职级系统使用 Rank 枚举确保类型安全
+
+---
+
+## 2026-01-26
+
+### 事件决策系统 - Task 2: 创建事件索引文件
+
+**改动点**:
+- 创建事件决策系统的索引文件，导出事件池和工具函数
+
+**涉及文件** (共创建 1 个):
+- `frontend/src/data/events/index.ts`
+
+**具体改动**:
+
+**导出的类型**:
+- DecisionEvent, EventResult, DecisionOption, EventEffects, RelationshipEffect, EventPoolConfig
+
+**导出的函数**:
+- `getEventsForRank(rank)`: 获取指定职级可用的所有事件
+- `shuffleQuarterEvents(events, count)`: 从事件池中随机抽取指定数量的事件
+- `findEventById(eventId)`: 根据事件ID查找事件
+
+**导出的配置**:
+- `eventPool`: 事件池配置（按职级分类）
+  * common: 通用事件
+  * intern: 实习生事件
+  * assistantEngineer: 助理工程师事件
+  * engineer: 工程师事件
+  * seniorEngineer: 高级工程师事件
+  * manager: 项目经理事件
+  * director: 项目总监事件
+  * partner: 合伙人事件
+
+**事件池结构**:
+- 通用事件：所有职级共享
+- 职级事件：当前及以下职级可遇到
+- 支持低职级（实习生-高级工程师）40-50个事件
+- 支持高职级（项目经理-合伙人）30个事件
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- 函数签名正确
+- 导出结构清晰
+
+**Review 状态**: ✅ 已完成
+- ✅ 索引文件结构清晰
+- ✅ 函数实现完整
+- ✅ 类型导出正确
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 设计支持职级递进机制（低职级可遇到高职级事件）
+- 事件池为空数组，待后续任务填充实际事件
+
+---
+
+## 2026-01-26
+
+### 事件决策系统 - Task 3: 扩展 gameStoreNew 事件状态
+
+**改动点**:
+- 在 gameStoreNew.ts 中添加事件决策系统的状态和辅助函数
+
+**涉及文件** (共修改 2 个):
+- `frontend/src/data/events/index.ts` (添加类型导出)
+- `frontend/src/store/gameStoreNew.ts` (添加状态和 actions)
+
+**具体改动**:
+
+**新增状态字段** (6 个):
+- `quarterEvents: DecisionEvent[]` - 本季度待处理事件
+- `currentEventIndex: number` - 当前事件索引
+- `completedEventResults: EventResult[]` - 本季度已完成事件结果
+- `allEventHistory: EventResult[]` - 全局事件历史（合并到 eventHistory 中）
+- `pendingEventResult: EventResult | null` - 待确认的结果
+- `showEventResult: boolean` - 是否显示结果卡片
+
+**新增 Actions** (6 个):
+- `initializeQuarterEvents()` - 初始化本季度事件（Task 4 实现）
+- `selectEventOption(optionId)` - 选择事件选项（Task 5 实现）
+- `continueToNextEvent()` - 继续下一个事件（Task 5 实现）
+- `isAllEventsCompleted()` - 检查所有事件是否完成
+- `getCurrentEvent()` - 获取当前事件
+- `getCurrentEventResult()` - 获取当前事件结果
+
+**初始值设置**:
+```typescript
+quarterEvents: [],
+currentEventIndex: 0,
+completedEventResults: [],
+allEventHistory: [],
+pendingEventResult: null,
+showEventResult: false,
+```
+
+**导入更新**:
+- 从 `@/data/events/eventTypes` 导入类型（DecisionEvent, EventResult）
+- 预留 `getEventsForRank`, `shuffleQuarterEvents` 导入（后续任务使用）
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- 所有状态类型正确
+- 所有 action 方法签名正确
+
+**Review 状态**: ✅ 已完成
+- ✅ 状态字段添加完整
+- ✅ Action 方法签名正确
+- ✅ 初始值设置合理
+- ✅ 类型导入正确
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 使用 `import type` 导入类型，避免运行时依赖
+- 预留 TODO 注释，明确 Task 4 和 Task 5 的实现点
+- 设计考虑了季度事件流程（初始化 → 选择 → 结果 → 继续）
+
