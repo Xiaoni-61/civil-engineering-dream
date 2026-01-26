@@ -151,6 +151,8 @@ const createInitialState = (): GameState => ({
     reputation: GAME_CONFIG.initialStats.reputation,
     progress: GAME_CONFIG.initialStats.progress,
     quality: GAME_CONFIG.initialStats.quality,
+    workAbility: GAME_CONFIG.initialStats.workAbility,
+    luck: GAME_CONFIG.initialStats.luck,
   },
   currentEvent: null,
   eventHistory: [],
@@ -210,6 +212,8 @@ interface ActionResult {
 
 interface GameStore extends GameState {
   // 扩展状态
+  playerName?: string;       // 玩家姓名
+  playerGender?: 'male' | 'female'; // 玩家性别
   runId: string | null;
   deviceId: string | null;
 
@@ -238,6 +242,12 @@ interface GameStore extends GameState {
   showEventResult: boolean;             // 是否显示结果卡片
 
   // Actions
+  initializeGame: (config?: {
+    name?: string;
+    gender?: 'male' | 'female';
+    workAbility?: number;
+    luck?: number;
+  }) => void;
   startGame: () => Promise<void>;
   resetGame: () => void;
   uploadScore: () => Promise<void>;
@@ -349,6 +359,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
   showEventResult: false,
 
   // ==================== 游戏流程 ====================
+
+  initializeGame: (config?: {
+    name?: string;
+    gender?: 'male' | 'female';
+    workAbility?: number;
+    luck?: number;
+  }) => {
+    const defaultConfig = {
+      name: '玩家',
+      gender: 'male' as const,
+      workAbility: 5,
+      luck: 5
+    };
+
+    const finalConfig = { ...defaultConfig, ...config };
+
+    const initialState = createInitialState();
+    const initialPrices = initializeMaterialPrices();
+
+    // 覆盖初始属性中的 workAbility 和 luck
+    initialState.stats.workAbility = finalConfig.workAbility;
+    initialState.stats.luck = finalConfig.luck;
+
+    set((state) => ({
+      ...state,
+      ...initialState,
+      playerName: finalConfig.name,
+      playerGender: finalConfig.gender,
+      status: GameStatus.PLAYING,
+      currentQuarter: 1,
+      materialPrices: initialPrices,
+      actionsSinceLastEventCheck: 0,
+      actionsThisQuarter: 0,
+    }));
+
+    recentEventIds.clear();
+  },
 
   startGame: async () => {
     try {
