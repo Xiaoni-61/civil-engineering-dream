@@ -28,13 +28,10 @@ export type {
 };
 
 // 导入各职级事件
+import { commonEvents } from './commonEvents';
 import { internEvents } from './internEvents';
 // import { assistantEngineerEvents } from './assistantEngineerEvents';
 // ... 其他导入
-
-// 临时空数组，后续填充
-const commonEvents: DecisionEvent[] = [];
-// const internEvents: DecisionEvent[] = [];
 const assistantEngineerEvents: DecisionEvent[] = [];
 const engineerEvents: DecisionEvent[] = [];
 const seniorEngineerEvents: DecisionEvent[] = [];
