@@ -3039,3 +3039,131 @@ showEventResult: false,
 - 预留 TODO 注释，明确 Task 4 和 Task 5 的实现点
 - 设计考虑了季度事件流程（初始化 → 选择 → 结果 → 继续）
 
+
+---
+
+## 2025-01-26 17:30 - Task 6: 创建 EventCard 组件
+
+**任务**: 创建 EventCard 组件，用于显示决策事件卡
+
+**改动点**:
+
+**文件修改**:
+- `frontend/src/components/EventCard.tsx` (完全重写)
+
+**具体改动**:
+
+**组件实现**:
+```typescript
+import { DecisionEvent } from '@/data/events/eventTypes';
+
+interface EventCardProps {
+  event: DecisionEvent;
+  onSelectOption: (optionId: string) => void;
+}
+
+export function EventCard({ event, onSelectOption }: EventCardProps)
+```
+
+**功能特性**:
+1. **事件类别标签显示**
+   - 支持 `professional`（专业问题 🔧）和 `workplace`（职场博弈 💼）两种类别
+   - 使用不同的颜色样式区分
+
+2. **事件信息展示**
+   - 标题（`title`）：大字体加粗
+   - 描述（`description`）：普通文本
+   - 背景文本（`flavorText`）：可选，斜体小字
+
+3. **选项按钮**
+   - 渲染所有选项按钮
+   - 点击触发 `onSelectOption` 回调
+   - 悬停效果：边框变蓝、背景变色
+   - 点击效果：缩放动画
+
+**样式设计**:
+- 渐变背景：`from-brand-50 to-engineering-50`
+- 边框：`border-brand-200`
+- 圆角：`rounded-xl`
+- 响应式设计，符合飞书风格
+
+**验证状态**: ✅ 已完成
+- `npm run build` 构建成功
+- TypeScript 编译通过
+- 无错误和警告
+
+**Review 状态**: ✅ 已完成
+- ✅ 组件功能完整
+- ✅ 类型定义正确
+- ✅ 样式符合设计规范
+- ✅ 构建验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 使用 `DecisionEvent` 类型替代原有的 `EventCard` 类型
+- 支持事件类别可视化，提升用户体验
+- 按钮交互效果流畅，符合现代 UI 设计
+
+**Commit**: `ac0ac1f` - feat(components): add EventCard component
+
+
+
+## 2026-01-26
+
+### 事件决策系统 - Task 7: 创建 EventResultCard 组件
+
+**改动点**:
+- 创建 EventResultCard 组件用于显示事件决策结果
+- 支持显示各种效果影响（现金、健康、声誉、进度、质量）
+- 支持显示关系影响（甲方、监理、设计院、劳务队、政府部门）
+- 支持显示团队士气和领导力影响
+- 使用颜色区分正面/负面影响
+- 包含「继续」按钮用于关闭结果卡片
+
+**涉及文件** (共新增 1 个):
+- `frontend/src/components/EventResultCard.tsx`
+
+**具体改动**:
+
+**组件功能**:
+- 显示决策结果标题和图标（📋）
+- 显示玩家选择的选项文本
+- 显示反馈文字
+- 显示影响详情列表：
+  - 现金（💰）：使用 toLocaleString 格式化数字
+  - 健康（❤️）
+  - 声誉（⭐）
+  - 进度（📈）
+  - 质量（📊）
+  - 关系影响：显示关系图标和标签，使用颜色区分正负
+  - 团队士气（😊）
+  - 领导力（👑）
+- 正面影响使用绿色（text-emerald-600）
+- 负面影响使用红色（text-red-600）
+- 继续按钮使用 brand-500 颜色，支持 hover 和 active 状态
+
+**导入修复**:
+- 最初尝试从 `@/data/events` 导入类型，但 TypeScript 无法正确解析
+- 改为直接从 `@/data/events/eventTypes` 导入，与 EventCard 组件保持一致
+- 添加类型注解修复 TypeScript 错误
+
+**验证状态**: ✅ 已完成
+- TypeScript 编译通过
+- npm run build 成功
+- 组件结构清晰，符合设计规范
+- 样式使用 TailwindCSS，适配 Mobile First
+
+**Review 状态**: ✅ 已完成
+- ✅ 组件功能完整
+- ✅ 类型定义正确
+- ✅ 样式符合项目规范
+- ✅ 编译验证通过
+- ✅ 已提交到 feature/event-system 分支
+
+**特殊改动点**:
+- 使用 renderEffectItem 辅助函数减少重复代码
+- 关系影响使用类型断言（as RelationshipType）解决索引类型问题
+
+---
+
+
