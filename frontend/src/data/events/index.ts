@@ -30,14 +30,12 @@ export type {
 // 导入各职级事件
 import { commonEvents } from './commonEvents';
 import { internEvents } from './internEvents';
-// import { assistantEngineerEvents } from './assistantEngineerEvents';
-// ... 其他导入
-const assistantEngineerEvents: DecisionEvent[] = [];
-const engineerEvents: DecisionEvent[] = [];
-const seniorEngineerEvents: DecisionEvent[] = [];
-const managerEvents: DecisionEvent[] = [];
-const directorEvents: DecisionEvent[] = [];
-const partnerEvents: DecisionEvent[] = [];
+import { assistantEngineerEvents } from './assistantEngineerEvents';
+import { engineerEvents } from './engineerEvents';
+import { seniorEngineerEvents } from './seniorEngineerEvents';
+import { managerEvents } from './managerEvents';
+import { directorEvents } from './directorEvents';
+import { partnerEvents } from './partnerEvents';
 
 /**
  * 获取指定职级可用的所有事件
