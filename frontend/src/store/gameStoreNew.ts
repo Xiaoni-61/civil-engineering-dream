@@ -23,8 +23,8 @@ import {
   QuarterSettlement,
   GamePhase,
   ActionType,
+  EventStatus,
   TeamMemberType,
-  TeamState,
   TeamMember,
   TeamIssue,
 } from '@shared/types';
@@ -33,13 +33,13 @@ import {
   GAME_CONFIG,
   ACTIONS,
   MAX_ACTIONS_PER_QUARTER,
+  MAX_MATERIAL_TRADES_PER_QUARTER,
   QUARTER_HEALTH_REGEN,
   ACTION_POINTS_DIVISOR,
   RECRUIT_CONFIG,
   LEADERSHIP_GAIN,
   LEADERSHIP_EFFECTS,
   TEAM_ISSUE_TEMPLATES,
-  TEAM_EFFECTS,
   EVENT_TRIGGER_CONFIG,
   EVENT_IGNORE_CONSEQUENCES,
   PHASE_CONFIG,
@@ -48,9 +48,18 @@ import {
   MAINTENANCE_OPTIONS,
   LIVING_COSTS_CONFIG,
   PROJECT_COMPLETION,
+  QUARTER_START_EVENT_POOL,
   LOSE_CONDITIONS,
+  LLM_CONFIG,
 } from '@/data/constants';
-import { startGame as apiStartGame, finishGame as apiFinishGame } from '@/api';
+import { enhanceDescription, generateSpecialEvent } from '@/api/llmApi';
+import { startGame, finishGame } from '@/api/gameApi';
+
+// ==================== 全局变量 ====================
+
+// 用于跟踪最近使用的事件（避免重复）
+const recentEventIds = new Set<string>();
+const RECENT_EVENT_LIMIT = 3;
 
 // ==================== 辅助函数 ====================
 
@@ -84,6 +93,42 @@ const isRelationshipUnlocked = (rank: Rank, relationshipType: RelationshipType):
     default:
       return false;
   }
+};
+
+const getMaxMaintenanceCount = (rank: Rank): number => {
+  switch (rank) {
+    case Rank.INTERN:
+      return 1;
+    case Rank.ASSISTANT_ENGINEER:
+      return 2;
+    case Rank.ENGINEER:
+      return 3;
+    case Rank.SENIOR_ENGINEER:
+      return 4;
+    case Rank.PROJECT_MANAGER:
+      return 5;
+    case Rank.PROJECT_DIRECTOR:
+      return 6;
+    case Rank.PARTNER:
+      return 8;
+    default:
+      return 3;
+  }
+};
+
+// 从数组中随机抽取一个元素
+const getRandomEvent = (
+  events: EventCard[],
+  usedEventIds: Set<string>
+): EventCard => {
+  const availableEvents = events.filter((e) => !usedEventIds.has(e.id));
+
+  if (availableEvents.length === 0) {
+    usedEventIds.clear();
+    return events[Math.floor(Math.random() * events.length)];
+  }
+
+  return availableEvents[Math.floor(Math.random() * availableEvents.length)];
 };
 
 // ==================== 初始状态 ====================
@@ -181,6 +226,9 @@ interface GameStore extends GameState {
   resetGame: () => void;
   uploadScore: () => Promise<void>;
 
+  // 事件系统
+  drawEvent: () => Promise<void>;
+
   // 行动系统
   doAction: (actionType: ActionType) => ActionResult;
   calculateActionPoints: () => number;
@@ -271,7 +319,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   startGame: async () => {
     try {
-      const response = await apiStartGame();
+      const response = await startGame();
 
       const initialState = createInitialState();
       const initialPrices = initializeMaterialPrices();
@@ -292,6 +340,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
       });
+
+      recentEventIds.clear();
+      get().drawEvent();
     } catch (error) {
       console.error('Failed to start game:', error);
       const initialState = createInitialState();
@@ -348,7 +399,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     try {
-      const result = await apiFinishGame({
+      const result = await finishGame({
         runId: state.runId,
         score: state.score,
         finalStats: state.stats,
@@ -554,13 +605,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       income: projectIncome + bonusIncome,
       expenses: {
         salary,
+        livingCosts: livingCost,
         storage: storageFee,
         total: totalExpenses,
       },
       relationshipDecay,
       netChange,
       promotionCheck,
-    } as QuarterSettlement;
+      quarterStartEvents: state.currentSettlement?.quarterStartEvents,
+    };
 
     if (bonusEvent) {
       (settlement as any).bonusEvent = bonusEvent;
@@ -568,7 +621,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (disasterEvent) {
       (settlement as any).disasterEvent = disasterEvent;
     }
-    (settlement as any).livingCost = livingCost;
 
     set({
       currentSettlement: settlement,
@@ -582,9 +634,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   nextQuarter: () => {
     const state = get();
+    const newQuarter = state.currentQuarter + 1;
 
     // 季度开始：自动恢复健康
-    const newHealth = Math.min(100, state.stats.health + QUARTER_HEALTH_REGEN);
+    let newHealth = Math.min(100, state.stats.health + QUARTER_HEALTH_REGEN);
+    let newCash = state.stats.cash;
+    let newReputation = state.stats.reputation;
+    let newProgress = state.stats.progress;
+    let newQuality = state.stats.quality;
+
+    // 随机抽取2-3个季度开始事件
+    const eventCount = Math.floor(Math.random() * 2) + 2; // 2-3个事件
+    const selectedEvents: typeof QUARTER_START_EVENT_POOL = [];
+
+    // 过滤并选择事件
+    const shuffled = [...QUARTER_START_EVENT_POOL].sort(() => Math.random() - 0.5);
+    let attempts = 0;
+    while (selectedEvents.length < eventCount && attempts < shuffled.length * 2) {
+      const event = shuffled[attempts % shuffled.length];
+      if (!selectedEvents.includes(event) && Math.random() < event.probability) {
+        selectedEvents.push(event);
+      }
+      attempts++;
+    }
+
+    // 应用事件效果
+    selectedEvents.forEach(event => {
+      if (event.effects.cash) newCash += event.effects.cash;
+      if (event.effects.health) newHealth = Math.max(0, Math.min(100, newHealth + event.effects.health));
+      if (event.effects.reputation) newReputation = Math.max(0, Math.min(100, newReputation + event.effects.reputation));
+      if (event.effects.progress) newProgress = Math.max(0, Math.min(100, newProgress + event.effects.progress));
+      if (event.effects.quality) newQuality = Math.max(0, Math.min(100, newQuality + event.effects.quality));
+    });
 
     // 计算新的行动点
     const newActionPoints = calculateActionPoints(newHealth);
@@ -594,24 +675,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? GamePhase.LATE
       : GamePhase.EARLY;
 
-    set({
+    // 季度开始事件记录（用于显示）
+    const quarterStartEventsRecord = selectedEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      effects: e.effects,
+      isPositive: e.isPositive,
+    }));
+
+    set((prev) => ({
       status: GameStatus.PLAYING,
-      currentQuarter: state.currentQuarter + 1,
+      currentQuarter: newQuarter,
       stats: {
-        ...state.stats,
+        ...prev.stats,
         health: newHealth,
+        cash: newCash,
+        reputation: newReputation,
+        progress: newProgress,
+        quality: newQuality,
       },
       actionPoints: newActionPoints,
       maxActionPoints: newActionPoints,
       phase: newPhase,
-      currentSettlement: null,
+      currentSettlement: {
+        ...prev.currentSettlement,
+        quarterStartEvents: quarterStartEventsRecord,
+      } as QuarterSettlement,
+      currentEvent: null,
       gameStats: {
-        ...state.gameStats,
-        totalQuarters: state.gameStats.totalQuarters + 1,
+        ...prev.gameStats,
+        totalQuarters: prev.gameStats.totalQuarters + 1,
       },
       actionsThisQuarter: 0,
       actionsSinceLastEventCheck: 0,
-    });
+    }));
   },
 
   // ==================== 团队系统 ====================
@@ -786,6 +884,65 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ==================== 事件系统 ====================
 
+  drawEvent: async () => {
+    const state = get();
+
+    if (state.status !== GameStatus.PLAYING) {
+      return;
+    }
+
+    const quarter = state.currentQuarter;
+    const stats = state.stats;
+
+    // 检查是否触发特殊事件
+    if (get().shouldTriggerSpecialEvent(quarter, stats)) {
+      const specialEvent = await get().generateLLMSpecialEvent();
+      if (specialEvent) {
+        set((prev) => ({
+          ...prev,
+          specialEventCount: prev.specialEventCount + 1,
+          currentEvent: specialEvent,
+          gameStats: {
+            ...prev.gameStats,
+            totalEvents: prev.gameStats.totalEvents + 1,
+          },
+        }));
+        return;
+      }
+    }
+
+    // 抽取常规事件
+    let eventPool: EventCard[];
+    if (quarter <= 5) {
+      eventPool = EVENTS.slice(0, 10);
+    } else if (quarter <= 15) {
+      eventPool = EVENTS.slice(10, 43); // 中期事件（包含涨薪事件）
+    } else {
+      eventPool = EVENTS.slice(43, 63); // 后期事件
+    }
+
+    let event = getRandomEvent(eventPool, recentEventIds);
+
+    recentEventIds.add(event.id);
+    if (recentEventIds.size > RECENT_EVENT_LIMIT) {
+      const firstId = Array.from(recentEventIds)[0];
+      recentEventIds.delete(firstId);
+    }
+
+    // LLM 增强描述（使用配置的概率）
+    if (Math.random() < LLM_CONFIG.enhanceDescriptionProbability) {
+      event = await get().enhanceEventDescription(event);
+    }
+
+    set({
+      currentEvent: event,
+      gameStats: {
+        ...state.gameStats,
+        totalEvents: state.gameStats.totalEvents + 1,
+      },
+    });
+  },
+
   checkEventTrigger: async () => {
     const state = get();
 
@@ -799,15 +956,41 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // 概率检测
       if (Math.random() < EVENT_TRIGGER_CONFIG.triggerProbability) {
-        // TODO: 实现事件抽取逻辑
-        console.log('触发事件');
+        await get().drawEvent();
       }
     }
   },
 
   deferEvent: (eventId: string) => {
-    // TODO: 实现延后事件逻辑
-    console.log('延后事件:', eventId);
+    const state = get();
+
+    // 检查是否是当前事件
+    if (state.currentEvent && state.currentEvent.id === eventId) {
+      // 将当前事件添加到待处理事件列表
+      const eventWithDeadline = {
+        ...state.currentEvent,
+        status: EventStatus.PENDING as const,
+        deadline: state.actionsThisQuarter + EVENT_TRIGGER_CONFIG.deferTurns,
+      };
+      set({
+        currentEvent: null,
+        pendingEvents: [...state.pendingEvents, eventWithDeadline],
+      });
+      return;
+    }
+
+    // 检查是否已在待处理列表中
+    const event = state.pendingEvents.find(e => e.id === eventId);
+    if (event) {
+      // 更新截止时间
+      set({
+        pendingEvents: state.pendingEvents.map(e =>
+          e.id === eventId
+            ? { ...e, deadline: state.actionsThisQuarter + EVENT_TRIGGER_CONFIG.deferTurns }
+            : e
+        ),
+      });
+    }
   },
 
   ignoreEvent: (eventId: string) => {
@@ -829,21 +1012,74 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  // ==================== 保留的方法（待适配）====================
+  // ==================== 事件处理方法 ====================
 
   selectOption: (optionId: string) => {
-    // TODO: 适配新系统
-    console.log('selectOption:', optionId);
+    const state = get();
+
+    if (!state.currentEvent || state.status !== GameStatus.PLAYING) {
+      return;
+    }
+
+    const option = state.currentEvent.options?.find((opt) => opt.id === optionId);
+
+    if (!option) {
+      console.error('Option not found:', optionId);
+      return;
+    }
+
+    // 处理特殊动作（涨薪）
+    if (option.action === 'raiseSalary') {
+      const raiseResult = get().raiseSalary();
+      if (raiseResult.success) {
+        // 涨薪成功，使用覆盖反馈
+        const eventWithFeedback = {
+          ...state.currentEvent,
+          options: state.currentEvent.options.map(opt =>
+            opt.id === optionId
+              ? { ...opt, feedback: option.actionFeedbackOverride || raiseResult.message }
+              : opt
+          ),
+        };
+        const eventHistory = [...state.eventHistory, eventWithFeedback];
+        set({ eventHistory, currentEvent: null });
+
+        get().checkGameEnd();
+        // 新系统不自动抽取事件，等待玩家行动
+        return;
+      }
+      // 涨薪失败（如实习生），继续应用正常效果
+    }
+
+    // 应用效果
+    if (option.effects) {
+      get().applyEffects(option.effects);
+    }
+
+    // 添加到历史
+    const eventHistory = [...state.eventHistory, state.currentEvent];
+
+    set({
+      eventHistory,
+      currentEvent: null,
+    });
+
+    // 检查失败条件
+    get().checkGameEnd();
   },
 
   enterStrategyPhase: () => {
-    // TODO: 适配新系统
-    console.log('enterStrategyPhase');
+    set({
+      status: GameStatus.STRATEGY_PHASE,
+      currentEvent: null, // 清空当前事件
+    });
   },
 
   returnToEventPhase: () => {
-    // TODO: 适配新系统
-    console.log('returnToEventPhase');
+    set({
+      status: GameStatus.PLAYING,
+    });
+    // 不自动抽取事件，等待玩家行动
   },
 
   executePromotion: (newRank: Rank) => {
@@ -861,41 +1097,228 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   buyMaterial: (materialType: MaterialType, amount: number): TradeResult => {
-    // TODO: 适配新系统
-    return { success: false, cashChange: 0, inventoryChange: 0, message: '待实现' };
+    const state = get();
+    const material = state.materialPrices[materialType];
+    const config = MATERIAL_CONFIGS[materialType];
+
+    if (!material || !config) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: '材料不存在',
+      };
+    }
+
+    // 检查交易次数
+    if (state.materialTradeCount >= MAX_MATERIAL_TRADES_PER_QUARTER) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: `本季度交易次数已达上限（${MAX_MATERIAL_TRADES_PER_QUARTER}次）`,
+      };
+    }
+
+    const cost = material.currentPrice * amount;
+
+    if (state.stats.cash < cost) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: '现金不足',
+      };
+    }
+
+    const newStats = { ...state.stats };
+    newStats.cash = Math.max(0, state.stats.cash - cost);
+
+    const newInventory = { ...state.inventory };
+    newInventory[materialType] = state.inventory[materialType] + amount;
+
+    set({
+      stats: newStats,
+      inventory: newInventory,
+      materialTradeCount: state.materialTradeCount + 1,
+    });
+
+    return {
+      success: true,
+      cashChange: -cost,
+      inventoryChange: amount,
+      message: `成功买入 ${amount}${config.unit} ${config.name}`,
+    };
   },
 
   sellMaterial: (materialType: MaterialType, amount: number): TradeResult => {
-    // TODO: 适配新系统
-    return { success: false, cashChange: 0, inventoryChange: 0, message: '待实现' };
+    const state = get();
+    const material = state.materialPrices[materialType];
+    const config = MATERIAL_CONFIGS[materialType];
+
+    if (!material || !config) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: '材料不存在',
+      };
+    }
+
+    // 检查交易次数
+    if (state.materialTradeCount >= MAX_MATERIAL_TRADES_PER_QUARTER) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: `本季度交易次数已达上限（${MAX_MATERIAL_TRADES_PER_QUARTER}次）`,
+      };
+    }
+
+    const currentInventory = state.inventory[materialType];
+
+    if (currentInventory < amount) {
+      return {
+        success: false,
+        cashChange: 0,
+        inventoryChange: 0,
+        message: '库存不足',
+      };
+    }
+
+    const revenue = material.currentPrice * amount;
+
+    const newStats = { ...state.stats };
+    newStats.cash = state.stats.cash + revenue;
+
+    const newInventory = { ...state.inventory };
+    newInventory[materialType] = currentInventory - amount;
+
+    set({
+      stats: newStats,
+      inventory: newInventory,
+      materialTradeCount: state.materialTradeCount + 1,
+    });
+
+    return {
+      success: true,
+      cashChange: revenue,
+      inventoryChange: -amount,
+      message: `成功卖出 ${amount}${config.unit} ${config.name}`,
+    };
   },
 
   updateMaterialPrices: () => {
-    // TODO: 适配新系统
-    console.log('updateMaterialPrices');
+    const state = get();
+    const newPrices: Record<MaterialType, MaterialPrice> = {} as any;
+    const newHistory: Record<MaterialType, number[]> = JSON.parse(JSON.stringify(state.materialPriceHistory));
+
+    Object.values(MaterialType).forEach((type) => {
+      const config = MATERIAL_CONFIGS[type];
+      const oldPrice = state.materialPrices[type]?.currentPrice || config.basePrice;
+      const variance = (Math.random() - 0.5) * 2 * config.priceVolatility;
+      const newPrice = Math.round(oldPrice * (1 + variance));
+
+      newPrices[type] = {
+        type,
+        currentPrice: newPrice,
+        priceChange: Math.round(variance * 100),
+        trend: variance > 0.05 ? 'up' : variance < -0.05 ? 'down' : 'stable',
+      };
+
+      // 记录历史价格（最多保留 20 个数据点）
+      newHistory[type].push(newPrice);
+      if (newHistory[type].length > 20) {
+        newHistory[type].shift();
+      }
+    });
+
+    set({ materialPrices: newPrices, materialPriceHistory: newHistory });
   },
 
   maintainRelationship: (
     relationshipType: RelationshipType,
     method: 'dinner' | 'gift' | 'favor' | 'solidarity'
   ): MaintenanceResult => {
-    // TODO: 适配新系统
-    return { success: false, relationshipChange: 0, cashChange: 0, message: '待实现' };
+    const state = get();
+
+    // 检查维护次数
+    const maxCount = getMaxMaintenanceCount(state.rank);
+    if (state.maintenanceCount >= maxCount) {
+      return {
+        success: false,
+        relationshipChange: 0,
+        cashChange: 0,
+        healthChange: 0,
+        message: `本季度维护次数已达上限（${maxCount}次）`,
+      };
+    }
+
+    const option = MAINTENANCE_OPTIONS[method];
+    const cost = option.cost;
+    const relationshipGain = option.relationshipGain;
+    const healthCost = 'healthCost' in option ? (option.healthCost || 0) : 0;
+
+    if (state.stats.cash < cost) {
+      return {
+        success: false,
+        relationshipChange: 0,
+        cashChange: 0,
+        healthChange: 0,
+        message: '现金不足',
+      };
+    }
+
+    const newStats = { ...state.stats };
+    newStats.cash = Math.max(0, state.stats.cash - cost);
+    newStats.health = Math.max(0, state.stats.health - healthCost);
+
+    const newRelationships = { ...state.relationships };
+    newRelationships[relationshipType] = Math.min(100, state.relationships[relationshipType] + relationshipGain);
+
+    // 记录已维护的关系
+    const newMaintained = new Set(state.maintainedRelationships);
+    newMaintained.add(relationshipType);
+
+    set({
+      stats: newStats,
+      relationships: newRelationships,
+      maintenanceCount: state.maintenanceCount + 1,
+      maintainedRelationships: newMaintained,
+    });
+
+    return {
+      success: true,
+      relationshipChange: relationshipGain,
+      cashChange: -cost,
+      healthChange: healthCost || undefined,
+      message: `关系维护成功，关系值 +${relationshipGain}`,
+    };
   },
 
   getMaxMaintenanceCount: () => {
-    // TODO: 适配新系统
-    return 3;
+    const state = get();
+    return getMaxMaintenanceCount(state.rank);
   },
 
   getMaxMaterialTradeCount: () => {
-    // TODO: 适配新系统
-    return 3;
+    return MAX_MATERIAL_TRADES_PER_QUARTER;
   },
 
   getMaxBuyableAmount: (materialType: MaterialType): number => {
-    // TODO: 适配新系统
-    return 10;
+    const state = get();
+    const material = state.materialPrices[materialType];
+    const config = MATERIAL_CONFIGS[materialType];
+
+    if (!material || !config) {
+      return 0;
+    }
+
+    // 计算基于现金的最大可购买量
+    const maxByCash = Math.floor(state.stats.cash / material.currentPrice);
+
+    // 限制在材料的最大交易量范围内
+    return Math.min(maxByCash, config.maxTrade);
   },
 
   isRelationshipUnlocked: (relationshipType: RelationshipType): boolean => {
@@ -1106,17 +1529,81 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   enhanceEventDescription: async (event: EventCard): Promise<EventCard> => {
-    // TODO: 适配 LLM 系统
-    return event;
+    try {
+      set({ isLLMEnhancing: true });
+
+      const state = get();
+      const result = await enhanceDescription({
+        baseEvent: {
+          id: event.id,
+          title: event.title,
+          description: event.description,
+        },
+        stats: state.stats,
+        round: state.currentQuarter,
+      });
+
+      if (result && result.description) {
+        return {
+          ...event,
+          description: result.description,
+          llmEnhanced: true,
+        };
+      }
+
+      return event;
+    } catch (error) {
+      console.warn('LLM enhance failed:', error);
+      return event;
+    } finally {
+      set({ isLLMEnhancing: false });
+    }
   },
 
   generateLLMSpecialEvent: async (): Promise<EventCard | null> => {
-    // TODO: 适配 LLM 系统
-    return null;
+    try {
+      set({ isLLMEnhancing: true });
+
+      const state = get();
+      const result = await generateSpecialEvent({
+        stats: state.stats,
+        round: state.currentQuarter,
+      });
+
+      if (result) {
+        return result as EventCard;
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('LLM special event generation failed:', error);
+      return null;
+    } finally {
+      set({ isLLMEnhancing: false });
+    }
   },
 
   shouldTriggerSpecialEvent: (quarter: number, stats: PlayerStats) => {
-    // TODO: 适配新系统
+    const state = get();
+
+    if (state.specialEventCount >= LLM_CONFIG.specialEvent.maxCount) {
+      return false;
+    }
+
+    if (quarter < LLM_CONFIG.specialEvent.minQuarter) {
+      return false;
+    }
+
+    // 固定节点触发（第 3、6、9 季度）
+    if ([3, 6, 9].includes(quarter)) {
+      return Math.random() < 0.6;
+    }
+
+    // 危机时刻触发
+    if (stats.cash < 20000 || stats.health < 20) {
+      return Math.random() < 0.25;
+    }
+
     return false;
   },
 }));

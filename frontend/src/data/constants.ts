@@ -141,21 +141,25 @@ export const RANK_DISPLAY = {
 export const MATERIAL_DISPLAY = {
   [MaterialType.CEMENT]: {
     label: '水泥',
+    shortLabel: '水泥',
     icon: '🧱',
     color: '#9CA3AF',
   },
   [MaterialType.STEEL]: {
     label: '钢筋',
+    shortLabel: '钢筋',
     icon: '🔩',
     color: '#6B7280',
   },
   [MaterialType.SAND]: {
     label: '砂石',
+    shortLabel: '砂石',
     icon: '⛰️',
     color: '#D97706',
   },
   [MaterialType.CONCRETE]: {
     label: '混凝土',
+    shortLabel: '混凝土',
     icon: '🏗️',
     color: '#78716C',
   },
@@ -167,26 +171,31 @@ export const RELATIONSHIP_DISPLAY = {
     label: '甲方',
     icon: '🤵',
     color: '#DC2626',
+    unlockHint: '实习生即可接触',
   },
   [RelationshipType.SUPERVISION]: {
     label: '监理',
     icon: '📝',
     color: '#2563EB',
+    unlockHint: '晋升助理工程师解锁',
   },
   [RelationshipType.DESIGN]: {
     label: '设计院',
     icon: '📐',
     color: '#7C3AED',
+    unlockHint: '晋升工程师解锁',
   },
   [RelationshipType.LABOR]: {
     label: '劳务队',
     icon: '👷',
     color: '#EA580C',
+    unlockHint: '实习生即可接触',
   },
   [RelationshipType.GOVERNMENT]: {
     label: '政府部门',
     icon: '🏛️',
     color: '#BE185D',
+    unlockHint: '晋升高级工程师解锁',
   },
 };
 
@@ -417,6 +426,117 @@ export const DISASTER_EVENTS = [
   },
 ];
 
+// 季度开始事件池（每次随机抽取2-3个事件同时发生）
+export const QUARTER_START_EVENT_POOL = [
+  // 正面事件
+  {
+    id: 'qs_bonus',
+    title: '季度奖金',
+    description: '公司发放了季度奖金！',
+    probability: 0.3,
+    effects: { cash: 5000, reputation: 2 },
+    isPositive: true,
+  },
+  {
+    id: 'qs_good_health',
+    title: '身体状况良好',
+    description: '经过休息，你的身体状态恢复得不错。',
+    probability: 0.3,
+    effects: { health: 10 },
+    isPositive: true,
+  },
+  {
+    id: 'qs_praise',
+    title: '领导表扬',
+    description: '你在上季度的工作表现得到了领导的公开表扬。',
+    probability: 0.25,
+    effects: { reputation: 5 },
+    isPositive: true,
+  },
+  {
+    id: 'qs_market_up',
+    title: '市场需求旺盛',
+    description: '本季度市场需求旺盛，项目收益有望提升。',
+    probability: 0.2,
+    effects: { progress: 5 },
+    isPositive: true,
+  },
+  {
+    id: 'qs_team_boost',
+    title: '团队士气高涨',
+    description: '团队成员士气高昂，工作效率提升。',
+    probability: 0.2,
+    effects: { quality: 5 },
+    isPositive: true,
+  },
+  {
+    id: 'qs_relationship',
+    title: '关系融洽',
+    description: '与各方关系维护得当，工作开展顺利。',
+    probability: 0.25,
+    effects: { reputation: 3, cash: -1000 },
+    isPositive: true,
+  },
+
+  // 负面事件
+  {
+    id: 'qs_market_down',
+    title: '市场低迷',
+    description: '受市场环境影响，本季度项目收益可能下降。',
+    probability: 0.25,
+    effects: { cash: -3000, reputation: -2 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_health_issue',
+    title: '身体不适',
+    description: '换季时节，你感到身体有些不适。',
+    probability: 0.25,
+    effects: { health: -8 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_pressure',
+    title: '工期压力',
+    description: '项目工期紧张，工作压力增大。',
+    probability: 0.3,
+    effects: { health: -5, progress: 3 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_complaint',
+    title: '甲方投诉',
+    description: '甲方对某些工作提出了不满。',
+    probability: 0.2,
+    effects: { reputation: -5, cash: -2000 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_material_rise',
+    title: '材料涨价',
+    description: '主要材料价格上涨，成本增加。',
+    probability: 0.25,
+    effects: { cash: -4000 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_quality_issue',
+    title: '质量问题',
+    description: '发现部分工程质量问题，需要返工。',
+    probability: 0.2,
+    effects: { quality: -5, progress: -3, cash: -2000 },
+    isPositive: false,
+  },
+  {
+    id: 'qs_labor_issue',
+    title: '劳务纠纷',
+    description: '劳务队对工资待遇有意见，需要协调。',
+    probability: 0.15,
+    effects: { cash: -3000, reputation: -2 },
+    isPositive: false,
+  },
+];
+
 // ==================== 行动系统配置 ====================
 
 // 行动配置
@@ -486,6 +606,9 @@ export const ACTIONS: Record<ActionType, ActionConfig> = {
 
 // 每季度最大行动次数
 export const MAX_ACTIONS_PER_QUARTER = 8;
+
+// 每季度最大材料交易次数
+export const MAX_MATERIAL_TRADES_PER_QUARTER = 3;
 
 // 每季度开始自动恢复的健康值
 export const QUARTER_HEALTH_REGEN = 2;

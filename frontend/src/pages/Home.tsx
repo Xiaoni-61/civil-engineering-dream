@@ -32,26 +32,29 @@ const Home = () => {
 
           {/* 卡片容器 */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {/* 开始游戏卡片 */}
+            {/* 开始游戏卡片 - 新游戏系统 */}
             <button
-              onClick={() => navigate('/game')}
-              className="group relative bg-white rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-[0.98]"
+              onClick={() => {
+                // 导航到新游戏系统并初始化
+                navigate('/game-new/actions');
+              }}
+              className="group relative bg-gradient-to-br from-brand-50 to-engineering-50 border-2 border-brand-200 rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:scale-[0.98]"
               style={{ animationDelay: '0.1s' }}
             >
               {/* 背景装饰 */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-50 to-transparent rounded-bl-full opacity-50 group-hover:scale-110 transition-transform duration-300"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-100 to-transparent rounded-bl-full opacity-30 group-hover:scale-110 transition-transform duration-300"></div>
 
               <div className="relative">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-brand-500 rounded-feishu flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300">
+                    <div className="w-12 h-12 bg-gradient-to-br from-brand-500 to-engineering-500 rounded-feishu flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
                       🎮
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold text-slate-800 group-hover:text-brand-600 transition-colors">
                         开始游戏
                       </h2>
-                      <p className="text-sm text-slate-500">Start New Game</p>
+                      <p className="text-sm text-brand-600 font-medium">New Game System</p>
                     </div>
                   </div>
                   <div className="text-brand-500 group-hover:translate-x-1 transition-transform">
@@ -59,21 +62,53 @@ const Home = () => {
                   </div>
                 </div>
 
-                <p className="text-slate-600 text-sm leading-relaxed mb-4">
-                  开启一段 20 回合的工程之旅，每个决策都将影响你的职业生涯
+                <p className="text-slate-700 text-sm leading-relaxed mb-4">
+                  <strong>新玩法体验：</strong>行动点制、团队管理、策略深化
+                  <br />
+                  <span className="text-slate-500">从实习生晋升到合伙人的职业之旅</span>
                 </p>
 
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-3 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-medium">
-                    20 回合
+                  <span className="px-3 py-1 bg-brand-100 text-brand-700 rounded-full text-xs font-medium border border-brand-200">
+                    ⚡ 行动点
                   </span>
-                  <span className="px-3 py-1 bg-engineering-safety/10 text-engineering-safety rounded-full text-xs font-medium">
-                    多重结局
+                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium border border-purple-200">
+                    👥 团队管理
                   </span>
-                  <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                    策略经营
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
+                    📈 职业晋升
                   </span>
                 </div>
+              </div>
+            </button>
+
+            {/* 旧版入口 */}
+            <button
+              onClick={() => navigate('/game')}
+              className="group relative bg-white/60 rounded-feishu-lg p-6 shadow-feishu hover:shadow-feishu-md transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 active:scale-[0.98] opacity-70 hover:opacity-100"
+              style={{ animationDelay: '0.15s' }}
+            >
+              <div className="relative">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-feishu flex items-center justify-center text-xl">
+                      📜
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-600 group-hover:text-slate-800 transition-colors">
+                        经典版
+                      </h2>
+                      <p className="text-xs text-slate-400">Classic</p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-slate-500 text-xs leading-relaxed mb-2">
+                  20回合事件制游戏体验
+                </p>
+                <p className="text-slate-400 text-xs">
+                  （保留用于兼容）
+                </p>
               </div>
             </button>
 
@@ -170,8 +205,11 @@ const Home = () => {
 
           {/* 底部说明 */}
           <div className="mt-8 text-center">
-            <p className="text-sm text-slate-400">
-              游戏目标：在 20 回合内完成项目，同时保持各项指标平衡
+            <p className="text-sm text-slate-500 mb-2">
+              <strong>新玩法目标：</strong>从实习生晋升到合伙人，平衡资源、健康和声誉
+            </p>
+            <p className="text-xs text-slate-400">
+              <strong>经典版目标：</strong>在 20 回合内完成项目，同时保持各项指标平衡
             </p>
           </div>
         </div>

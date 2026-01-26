@@ -1,12 +1,12 @@
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { RANK_CONFIGS } from '@shared/types';
 
 export function TopStatusBar() {
-  const stats = useGameStore((state) => state.stats);
-  const rank = useGameStore((state) => state.rank);
-  const actualSalary = useGameStore((state) => state.actualSalary);
-  const actionPoints = useGameStore((state) => state.actionPoints);
-  const maxActionPoints = useGameStore((state) => state.maxActionPoints);
+  const stats = useGameStoreNew((state) => state.stats);
+  const rank = useGameStoreNew((state) => state.rank);
+  const actualSalary = useGameStoreNew((state) => state.actualSalary);
+  const actionPoints = useGameStoreNew((state) => state.actionPoints);
+  const maxActionPoints = useGameStoreNew((state) => state.maxActionPoints);
 
   const rankConfig = RANK_CONFIGS[rank];
   const hasRaise = actualSalary > rankConfig.minQuarterlySalary;
@@ -88,8 +88,8 @@ export function TopStatusBar() {
         <div className="mt-2 flex items-center gap-2">
           <div className="flex-1 bg-gradient-to-r from-brand-500 to-brand-600 rounded-lg p-2 text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium">⚡ 行动点</span>
-              <span className="text-lg font-bold">
+              <span className="text-xs font-medium text-slate-800">⚡ 行动点</span>
+              <span className="text-lg font-bold text-slate-800">
                 {actionPoints} / {maxActionPoints}
               </span>
             </div>

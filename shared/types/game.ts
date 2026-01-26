@@ -2,7 +2,7 @@
  * 游戏状态类型定义
  */
 
-import { PlayerStats } from './player';
+import { PlayerStats, Effects } from './player';
 import { EventCard } from './event';
 import { TeamState } from './team';
 
@@ -180,6 +180,7 @@ export interface QuarterSettlement {
   income: number;
   expenses: {
     salary: number;
+    livingCosts: number;
     storage: number;
     total: number;
   };
@@ -190,6 +191,13 @@ export interface QuarterSettlement {
     nextRank?: Rank;
     missingRequirements?: string[];
   };
+  quarterStartEvents?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    effects: Effects;
+    isPositive: boolean;
+  }>;
 }
 
 /**

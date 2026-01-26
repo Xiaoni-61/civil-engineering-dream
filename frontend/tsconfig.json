@@ -28,5 +28,6 @@
     }
   },
   "include": ["src"],
+  "exclude": ["src/pages/Game.tsx", "src/pages/QuarterlySettlement.tsx", "src/pages/Result.tsx", "src/pages/StrategyPhase.tsx", "src/store/gameStore.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
