@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/gameStore';
-import { RANK_DISPLAY } from '@/data/constants';
+import { RANK_DISPLAY, RELATIONSHIP_DISPLAY } from '@/data/constants';
 
 const QuarterlySettlement = () => {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ const QuarterlySettlement = () => {
   const bonusEvent = extendedSettlement.bonusEvent;
   const disasterEvent = extendedSettlement.disasterEvent;
   const livingCost = extendedSettlement.livingCost || 0;
+  const negativeEvents = extendedSettlement.negativeEvents || [];
 
   const handlePromotion = () => {
     if (promotionCheck.canPromote && promotionCheck.nextRank) {
@@ -152,6 +153,58 @@ const QuarterlySettlement = () => {
                   ))}
                 </div>
               </div>
+
+              {/* 关系危机事件 */}
+              {negativeEvents.length > 0 && (
+                <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-feishu p-5 mb-6 border-2 border-red-200">
+                  <h3 className="text-sm font-bold text-red-800 mb-4 flex items-center">
+                    <span className="mr-2">⚠️</span>
+                    关系危机事件
+                  </h3>
+                  <div className="space-y-3">
+                    {negativeEvents.map((event: any, index: number) => {
+                      const relationshipDisplay = RELATIONSHIP_DISPLAY[event.relationshipType as keyof typeof RELATIONSHIP_DISPLAY];
+                      return (
+                        <div
+                          key={event.id || index}
+                          className="p-4 bg-white rounded-feishu border-2 border-red-300"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="text-base font-bold text-red-800 mb-1">
+                                {event.title}
+                              </h4>
+                              <p className="text-sm text-red-700 leading-relaxed">
+                                {event.description}
+                              </p>
+                            </div>
+                            <div className="ml-3 text-3xl">
+                              {event.isGameEnding ? '💀' : '🚨'}
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-red-200">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-slate-600">
+                                触发关系：{relationshipDisplay?.label || event.relationshipType}
+                              </span>
+                              <span className="font-bold text-red-600">
+                                当前值：{event.relationshipValue}
+                              </span>
+                            </div>
+                          </div>
+                          {event.isGameEnding && (
+                            <div className="mt-3 p-2 bg-red-100 rounded-feishu border border-red-300">
+                              <p className="text-xs text-red-800 font-medium">
+                                ⚠️ 此事件将导致游戏结束！
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* 晋升检查 */}
               {promotionCheck.canPromote ? (
