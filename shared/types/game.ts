@@ -36,7 +36,8 @@ export enum GamePhase {
  */
 export enum ActionType {
   DO_PROJECT = 'do_project',
-  TRAINING = 'training',
+  FREELANCE = 'freelance',
+  CUT_CORNERS = 'cut_corners',
   REST = 'rest',
   RECRUIT = 'recruit',
   TEAM_PROJECT = 'team_project',
@@ -103,6 +104,14 @@ export enum Rank {
 }
 
 /**
+ * 关系要求
+ */
+export interface RelationshipRequirement {
+  type: RelationshipType;
+  requiredValue: number;
+}
+
+/**
  * 职级配置
  */
 export interface RankConfig {
@@ -114,6 +123,10 @@ export interface RankConfig {
   specialRequirement?: string; // 特殊要求
   minQuarterlySalary: number; // 最低季度工资
   raiseRange: [number, number]; // 涨薪幅度范围 [百分比下限, 百分比上限]，如 [5, 15] 表示 5%-15%
+  relationshipRequirements?: {
+    requirements: RelationshipRequirement[];
+    requirementType?: 'all' | 'any';
+  }; // 关系要求：晋升时需要达到的关系值
 }
 
 /**
