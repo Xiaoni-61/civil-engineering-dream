@@ -203,6 +203,39 @@ export interface RelationshipState {
 }
 
 /**
+ * 关系负面事件触发条件
+ */
+export interface RelationshipNegativeEventTrigger {
+  relationshipType: RelationshipType;
+  maxValue: number; // 触发该事件的关系值上限
+}
+
+/**
+ * 关系负面事件效果
+ */
+export interface RelationshipNegativeEventEffects {
+  cash?: number;
+  health?: number;
+  reputation?: number;
+  progress?: number;
+  quality?: number;
+  relationshipChanges?: Partial<Record<RelationshipType, number>>;
+}
+
+/**
+ * 关系负面事件
+ */
+export interface RelationshipNegativeEvent {
+  id: string;
+  title: string;
+  description: string;
+  triggerCondition: RelationshipNegativeEventTrigger;
+  effects: RelationshipNegativeEventEffects;
+  isGameEnding?: boolean; // 是否为游戏结束事件
+  gameEndingReason?: EndReason; // 如果是游戏结束事件，指定结束原因
+}
+
+/**
  * 季度结算数据
  */
 export interface QuarterSettlement {
