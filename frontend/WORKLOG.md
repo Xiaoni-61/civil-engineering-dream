@@ -211,3 +211,81 @@
   - `frontend/src/data/relationshipNegativeEvents.ts`: 事件数据
 - TypeScript 编译通过，无错误
 - Review: 待进行
+
+### 关系负面事件触发 (Task 9)
+
+**季度结算添加负面事件触发** ✅ - b2b529f
+- 在 `finishQuarter()` 函数的关系衰减后添加负面事件触发逻辑
+- 导入负面事件工具函数：`getMostSevereNegativeEvent`, `getGameEndingNegativeEvent`, `RelationshipNegativeEvent`
+- 实现触发机制：
+  1. 遍历所有已解锁的关系类型（实习生只解锁甲方和劳务队）
+  2. 关系值 ≥ 50 不触发负面事件
+  3. 根据关系值范围计算触发概率：
+     - 40-49: 25%
+     - 30-39: 40%
+     - 20-29: 60%
+     - 10-19: 80%
+     - 0-9: 100%
+  4. 优先检查游戏结束级别负面事件，如存在则立即触发
+  5. 否则获取最严重的可触发负面事件
+- 应用事件效果：
+  - 现金（cash）：Math.max(0, 当前 + 变化)
+  - 健康（health）：Math.max(0, Math.min(100, 当前 + 变化))
+  - 声誉（reputation）：Math.max(0, Math.min(100, 当前 + 变化))
+  - 项目进度（projectProgress）：Math.max(0, Math.min(100, 当前 + 变化))
+  - 项目质量（projectQuality）：Math.max(0, Math.min(100, 当前 + 变化))
+  - 关系变化（relationshipChanges）：更新相关关系值
+- 记录到结算数据：
+  - 添加 `negativeEvents` 字段到 `settlement`
+  - 包含事件ID、标题、描述、关系类型、关系值、是否游戏结束、游戏结束原因
+- 游戏结束处理：
+  - 如果触发游戏结束事件，设置状态为 `GameStatus.FAILED`
+  - 计算并设置最终分数
+  - 设置游戏结束原因
+  - 直接返回，不进入正常结算流程
+- 涉及文件：`frontend/src/store/gameStore.ts`
+- TypeScript 编译通过，无错误
+- Review: 待进行
+
+### 关系维护加成和风险机制 (Task 7)
+
+**实现关系维护方式加成和风险机制** ✅ - e9ab466
+- 完全重写 `handleMaintain` 函数，实现完整的维护逻辑
+- 加成机制：
+  - 检查玩家属性是否满足加成条件（workAbility、reputation、luck）
+  - 应用倍率加成（multiplier）：如 workAbility≥50 时收益×1.2
+  - 应用额外加成（extraChange）：如 reputation≥50 时额外+2
+  - 风险概率降低（probabilityReduction）：如 luck≥50 时风险概率降低 20%
+- 风险机制：
+  - 计算最终风险概率（基础概率 - 幸运降低）
+  - 掷骰子判定是否触发风险
+  - 应用风险惩罚（额外现金、健康、声誉、关系损失）
+  - 风险描述显示在反馈消息中
+- 特殊效果：
+  - 根据概率掷骰子判定是否触发
+  - 应用特殊效果（质量、进度加成）
+  - 特殊效果描述显示在反馈消息中
+  - TODO：storageDiscount 需要在季度结算时处理
+- 状态更新：
+  - 直接更新 stats（现金、健康、声誉、质量、进度）
+  - 更新 relationships（关系值）
+  - 更新 maintenanceCount（维护次数）
+  - 更新 maintainedRelationships（已维护关系集合）
+- 反馈消息系统：
+  - 基础收益：关系值变化
+  - 消耗：现金、健康
+  - 基础效果：工作能力、质量、进度
+  - 加成提示：🔥 加成效果触发！收益×N / 额外+N
+  - 风险提示：⚠️ 风险描述 + 惩罚
+  - 特殊效果：✨ 特殊效果描述
+  - 使用 | 分隔不同类型的信息
+- 临时属性映射：
+  - workAbility → stats.quality（作为临时替代）
+  - luck → stats.progress（作为临时替代）
+  - TODO：待正式属性添加后需移除此映射
+- 更新 `hasBonus` 和 `getBonusDescription` 函数：
+  - 保持一致的临时属性映射逻辑
+  - 添加 TODO 注释说明临时映射
+- 涉及文件：`frontend/src/pages/StrategyPhase.tsx`
+- 构建测试：✓ built in 673ms
+- Review: 待进行
