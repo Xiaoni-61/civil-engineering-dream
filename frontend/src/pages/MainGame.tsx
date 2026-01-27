@@ -31,10 +31,19 @@ export function MainGame() {
 
   // 如果有待处理事件且不在事件页面，自动跳转
   useEffect(() => {
+    // 调试日志
+    console.log('[MainGame] 事件状态检查:', {
+      hasPendingEvents,
+      currentPath: location.pathname,
+      quarterEventsLength: quarterEvents.length,
+      isAllEventsCompleted: isAllEventsCompleted()
+    });
+
     if (hasPendingEvents && location.pathname !== '/game-new/events') {
+      console.log('[MainGame] 强制跳转到事件页面');
       navigate('/game-new/events', { replace: true });
     }
-  }, [hasPendingEvents, location.pathname, navigate]);
+  }, [hasPendingEvents, location.pathname, navigate, quarterEvents.length, isAllEventsCompleted]);
 
   if (!isInGame) {
     return <Navigate to="/game-new/actions" replace />;
