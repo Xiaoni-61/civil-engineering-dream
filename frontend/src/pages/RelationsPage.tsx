@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { RelationshipType } from '@shared/types';
-import { RELATIONSHIP_DISPLAY, MAINTENANCE_OPTIONS } from '@/data/constants';
+import { RELATIONSHIP_DISPLAY } from '@/data/constants';
+import { ACTIONS_BY_RELATIONSHIP, RelationshipAction } from '@/data/relationshipActions';
 
 type SelectedRelation = { type: RelationshipType; name: string; icon: string } | null;
 
@@ -29,10 +30,15 @@ export function RelationsPage() {
     setSelectedRelation({ type, name: display.label, icon: display.icon });
   };
 
-  const handleMaintain = (method: 'dinner' | 'gift' | 'favor' | 'solidarity') => {
+  const handleMaintain = (action: RelationshipAction) => {
     if (!selectedRelation) return;
 
-    const result = maintainRelationship(selectedRelation.type, method);
+    // 检查 action 是否属于选中的关系类型
+    if (action.relationshipType !== selectedRelation.type) return;
+
+    // TODO: 调用新的维护逻辑
+    // 目前先使用旧的方式
+    const result = maintainRelationship(selectedRelation.type, 'dinner');
     alert(result.message);
 
     setSelectedRelation(null);
@@ -185,47 +191,80 @@ export function RelationsPage() {
             </div>
 
             {/* 弹窗内容 */}
-            <div className="p-4 space-y-2">
-              {Object.entries(MAINTENANCE_OPTIONS).map(([key, option]) => {
-                const canAfford = stats.cash >= option.cost;
+            <div className="p-4 space-y-3">
+              {(() => {
+                const actions = ACTIONS_BY_RELATIONSHIP[selectedRelation.type];
 
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleMaintain(key as any)}
-                    disabled={!canAfford}
-                    className={`
-                      w-full p-4 rounded-xl text-left transition-all
-                      ${canAfford
-                        ? 'bg-white border-2 border-slate-200 hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98]'
-                        : 'bg-slate-50 border border-slate-200 opacity-50 cursor-not-allowed'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{option.icon}</span>
-                        <div>
-                          <div className={`font-bold text-lg ${
-                            canAfford ? 'text-slate-900' : 'text-slate-400'
-                          }`}>
-                            {option.name}
-                          </div>
-                          <div className="text-sm text-slate-600">
-                            关系 +{option.relationshipGain}
-                            {'healthCost' in option && option.healthCost && ` | 健康 -${option.healthCost}`}
+                return actions.map((action) => {
+                  const canAffordCash = !action.cost.cash || stats.cash >= action.cost.cash;
+                  const canAffordHealth = !action.cost.health || stats.health >= action.cost.health;
+                  const canAfford = canAffordCash && canAffordHealth;
+
+                  return (
+                    <button
+                      key={action.id}
+                      onClick={() => handleMaintain(action)}
+                      disabled={!canAfford}
+                      className={`
+                        w-full p-4 rounded-xl text-left transition-all
+                        ${canAfford
+                          ? 'bg-white border-2 border-slate-200 hover:border-brand-300 hover:bg-brand-50 active:scale-[0.98]'
+                          : 'bg-slate-50 border border-slate-200 opacity-50 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      {/* 标题和图标 */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{action.icon}</span>
+                          <span className="font-bold text-base text-slate-900">{action.name}</span>
+                        </div>
+                        {canAfford || (
+                          <span className="text-lg font-bold text-slate-700">
+                            {action.cost.cash && `💰${action.cost.cash.toLocaleString()}`}
+                            {action.cost.health && ` ❤️-${action.cost.health}`}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 描述 */}
+                      <div className="text-xs text-slate-600 mb-2">{action.description}</div>
+
+                      {/* 收益 */}
+                      <div className="text-xs text-slate-700 mb-2">
+                        🤝 关系 +{action.baseEffects.relationshipChange[0]}~{action.baseEffects.relationshipChange[1]}
+                      </div>
+
+                      {/* 风险提示 */}
+                      {action.risks && (
+                        <div className="bg-orange-50 border border-orange-200 rounded px-2 py-1 mb-2">
+                          <div className="flex items-center text-xs">
+                            <span className="mr-1">⚠️</span>
+                            <span className="text-orange-800">
+                              {Math.round(action.risks.probability * 100)}% {action.risks.description}
+                            </span>
                           </div>
                         </div>
-                      </div>
-                      <div className={`text-lg font-bold ${
-                        canAfford ? 'text-slate-700' : 'text-red-400'
-                      }`}>
-                        💰 {option.cost.toLocaleString()}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                      )}
+
+                                  {/* 加成提示 */}
+                      {action.bonuses?.ability && (
+                        <div className="bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                          <div className="flex items-center text-xs">
+                            <span className="mr-1">🔥</span>
+                            <span className="text-blue-800">
+                              需要 {Object.entries(action.bonuses.ability)[0]?.[0] === 'workAbility' ? '质量' :
+                                     Object.entries(action.bonuses.ability)[0]?.[0] === 'luck' ? '进度' :
+                                     Object.entries(action.bonuses.ability)[0]?.[0] === 'reputation' ? '声誉' :
+                                     Object.entries(action.bonuses.ability)[0]?.[0]} ≥ {Object.values(action.bonuses.ability)[0]}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* 弹窗底部 */}
