@@ -167,19 +167,67 @@ const QuarterlySettlement = () => {
                   </div>
                 </div>
               ) : promotionCheck.missingRequirements && promotionCheck.missingRequirements.length > 0 ? (
-                <div className="bg-slate-50 rounded-feishu p-5 mb-6 border border-slate-200">
-                  <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-feishu p-5 mb-6 border-2 border-orange-200">
+                  <h3 className="text-sm font-bold text-orange-800 mb-4 flex items-center">
                     <span className="mr-2">📋</span>
-                    晋升进度
+                    晋升条件未满足
                   </h3>
-                  <div className="space-y-2">
-                    {promotionCheck.missingRequirements.map((req, idx) => (
-                      <div key={idx} className="flex items-center p-2 bg-white rounded-feishu">
-                        <span className="text-amber-500 mr-2">⏳</span>
-                        <span className="text-sm text-slate-600">{req}</span>
-                      </div>
-                    ))}
+                  <p className="text-xs text-orange-700 mb-4">
+                    继续努力，你离晋升只有一步之遥！
+                  </p>
+                  <div className="space-y-3">
+                    {promotionCheck.missingRequirements.map((req, idx) => {
+                      // 判断是否是关系相关的失败原因
+                      const isRelationshipIssue = req.includes('甲方') || req.includes('监理') ||
+                                                 req.includes('设计院') || req.includes('劳务队') ||
+                                                 req.includes('政府部门') || req.includes('关系需要加强');
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-feishu border ${
+                            isRelationshipIssue
+                              ? 'bg-red-50 border-red-200'
+                              : 'bg-white border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-start">
+                            <span className="mr-2 text-lg">
+                              {isRelationshipIssue ? '⚠️' : '⏳'}
+                            </span>
+                            <div className="flex-1">
+                              <p className={`text-sm font-medium ${isRelationshipIssue ? 'text-red-800' : 'text-slate-700'}`}>
+                                {req}
+                              </p>
+                              {isRelationshipIssue && (
+                                <p className="text-xs text-red-600 mt-2">
+                                  💡 建议：在策略阶段多维护关系，可以避免衰减并提升关系值
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+                  {/* 关系不达标时的额外提示 */}
+                  {promotionCheck.missingRequirements.some(req =>
+                    req.includes('甲方') || req.includes('监理') ||
+                    req.includes('设计院') || req.includes('劳务队') ||
+                    req.includes('政府部门') || req.includes('关系需要加强')
+                  ) && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-feishu border border-blue-200">
+                      <p className="text-xs text-blue-700 font-medium mb-2">
+                        🔍 如何维护关系？
+                      </p>
+                      <ul className="text-xs text-blue-600 space-y-1 ml-4">
+                        <li>• 在策略阶段选择"维护关系"标签</li>
+                        <li>• 选择合适的方式：请客吃饭、送礼、帮忙办事</li>
+                        <li>• 维护后可以避免季度衰减</li>
+                        <li>• 关系值越高，晋升越容易</li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ) : null}
 
