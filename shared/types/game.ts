@@ -337,6 +337,12 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     reputationRequired: 40,
     minQuarterlySalary: 15000,
     raiseRange: [3, 8],  // 3%-8% 涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.SUPERVISION, requiredValue: 60 },
+      ],
+      requirementType: 'all',
+    },
   },
   [Rank.ENGINEER]: {
     rank: Rank.ENGINEER,
@@ -346,6 +352,12 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     reputationRequired: 60,
     minQuarterlySalary: 36000,
     raiseRange: [5, 12],  // 5%-12% 涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.DESIGN, requiredValue: 65 },
+      ],
+      requirementType: 'all',
+    },
   },
   [Rank.SENIOR_ENGINEER]: {
     rank: Rank.SENIOR_ENGINEER,
@@ -356,6 +368,12 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     specialRequirement: '完成过1个优质项目(质量≥90)',
     minQuarterlySalary: 60000,
     raiseRange: [8, 15],  // 8%-15% 涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.LABOR, requiredValue: 70 },
+      ],
+      requirementType: 'all',
+    },
   },
   [Rank.PROJECT_MANAGER]: {
     rank: Rank.PROJECT_MANAGER,
@@ -366,6 +384,13 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     specialRequirement: '完成过3个项目',
     minQuarterlySalary: 100000,
     raiseRange: [10, 20],  // 10%-20% 涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.CLIENT, requiredValue: 75 },
+        { type: RelationshipType.SUPERVISION, requiredValue: 70 },
+      ],
+      requirementType: 'all',
+    },
   },
   [Rank.PROJECT_DIRECTOR]: {
     rank: Rank.PROJECT_DIRECTOR,
@@ -376,6 +401,13 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     specialRequirement: '完成过5个优质项目',
     minQuarterlySalary: 165000,
     raiseRange: [12, 25],  // 12%-25% 涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.CLIENT, requiredValue: 80 },
+        { type: RelationshipType.GOVERNMENT, requiredValue: 70 },
+      ],
+      requirementType: 'all',
+    },
   },
   [Rank.PARTNER]: {
     rank: Rank.PARTNER,
@@ -386,6 +418,16 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     specialRequirement: '完成过10个优质项目',
     minQuarterlySalary: 300000,
     raiseRange: [0, 0],  // 合伙人分红制，不涨薪
+    relationshipRequirements: {
+      requirements: [
+        { type: RelationshipType.CLIENT, requiredValue: 75 },
+        { type: RelationshipType.SUPERVISION, requiredValue: 75 },
+        { type: RelationshipType.DESIGN, requiredValue: 75 },
+        { type: RelationshipType.LABOR, requiredValue: 75 },
+        { type: RelationshipType.GOVERNMENT, requiredValue: 75 },
+      ],
+      requirementType: 'all',
+    },
   },
 };
 
