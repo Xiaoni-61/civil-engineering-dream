@@ -6,7 +6,8 @@ import {
   MATERIAL_CONFIGS,
   RelationshipType,
 } from '@shared/types';
-import { MATERIAL_DISPLAY, RELATIONSHIP_DISPLAY, MAINTENANCE_OPTIONS } from '@/data/constants';
+import { MATERIAL_DISPLAY, RELATIONSHIP_DISPLAY } from '@/data/constants';
+import { ACTIONS_BY_RELATIONSHIP, RelationshipAction } from '@/data/relationshipActions';
 import PriceChartModal from '@/components/PriceChartModal';
 
 const StrategyPhase = () => {
@@ -46,8 +47,10 @@ const StrategyPhase = () => {
     setTimeout(() => setTradeMessage(''), 3000);
   };
 
-  const handleMaintain = (method: 'dinner' | 'gift' | 'favor' | 'solidarity') => {
-    const result = maintainRelationship(selectedRelationship, method);
+  const handleMaintain = (action: RelationshipAction) => {
+    // TODO: Task 7 会实现完整的维护逻辑
+    // 现在先使用简化的逻辑，只检查基础条件
+    const result = maintainRelationship(selectedRelationship, 'dinner'); // 临时使用 dinner
     setMaintenanceMessage(result.message);
     setTimeout(() => setMaintenanceMessage(''), 3000);
   };
@@ -66,6 +69,102 @@ const StrategyPhase = () => {
       return (amount / 10000).toFixed(1) + '万';
     }
     return amount.toString();
+  };
+
+  // 检查维护方式是否可用
+  const canUseAction = (action: RelationshipAction): { canUse: boolean; reason?: string } => {
+    // 检查维护次数
+    if (maintenanceCount >= getMaxMaintenanceCount()) {
+      return { canUse: false, reason: '本季度维护次数已达上限' };
+    }
+
+    // 检查现金
+    if (action.cost.cash && stats.cash < action.cost.cash) {
+      return { canUse: false, reason: '现金不足' };
+    }
+
+    // 检查健康
+    if (action.cost.health && stats.health < action.cost.health) {
+      return { canUse: false, reason: '健康不足' };
+    }
+
+    // 检查关系值条件
+    if (action.conditions) {
+      const currentRelationship = relationships[action.relationshipType];
+
+      if (action.conditions.minRelationship && currentRelationship < action.conditions.minRelationship) {
+        return { canUse: false, reason: `关系值需达到 ${action.conditions.minRelationship}` };
+      }
+
+      if (action.conditions.maxRelationship && currentRelationship > action.conditions.maxRelationship) {
+        return { canUse: false, reason: `关系值需低于 ${action.conditions.maxRelationship}` };
+      }
+
+      if (action.conditions.minHealth && stats.health < action.conditions.minHealth) {
+        return { canUse: false, reason: `健康需达到 ${action.conditions.minHealth}` };
+      }
+
+      // 检查项目进度条件
+      if (action.conditions.minProgress && stats.progress < action.conditions.minProgress) {
+        return { canUse: false, reason: `项目进度需达到 ${action.conditions.minProgress}%` };
+      }
+    }
+
+    return { canUse: true };
+  };
+
+  // 检查是否有加成
+  const hasBonus = (action: RelationshipAction): boolean => {
+    if (!action.bonuses?.ability) return false;
+
+    const { workAbility, reputation, luck } = action.bonuses.ability;
+
+    // 检查工作能力（使用项目质量作为替代）
+    if (workAbility && stats.quality < workAbility) return false;
+
+    // 检查声誉
+    if (reputation && stats.reputation < reputation) return false;
+
+    // 检查幸运（使用项目进度作为替代）
+    if (luck && stats.progress < luck) return false;
+
+    return true;
+  };
+
+  // 获取加成描述
+  const getBonusDescription = (action: RelationshipAction): string | null => {
+    if (!action.bonuses) return null;
+
+    const parts: string[] = [];
+
+    if (action.bonuses.ability) {
+      const { workAbility, reputation, luck } = action.bonuses.ability;
+
+      if (workAbility) {
+        parts.push(`🔧 质量≥${workAbility}`);
+      }
+      if (reputation) {
+        parts.push(`⭐ 声誉≥${reputation}`);
+      }
+      if (luck) {
+        parts.push(`🍀 进度≥${luck}`);
+      }
+    }
+
+    if (action.bonuses.effect) {
+      if (action.bonuses.effect.multiplier) {
+        parts.push(`收益×${action.bonuses.effect.multiplier}`);
+      }
+      if (action.bonuses.effect.extraChange) {
+        parts.push(`额外+${action.bonuses.effect.extraChange}`);
+      }
+      if (action.bonuses.effect.probabilityReduction) {
+        const reducedProb = action.risks ? Math.round((action.risks.probability - action.bonuses.effect.probabilityReduction) * 100) : 0;
+        parts.push(`风险降至${reducedProb}%`);
+      }
+    }
+
+    return parts.length > 0 ? parts.join(' ') : null;
   };
 
   return (
@@ -325,52 +424,161 @@ const StrategyPhase = () => {
                 <div className="text-xs text-orange-600 mt-1">下季度将根据您的职级获得新的维护次数</div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Object.entries(MAINTENANCE_OPTIONS).map(([key, option]) => {
-                  const canAfford = stats.cash >= option.cost;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleMaintain(key as 'dinner' | 'gift' | 'favor' | 'solidarity')}
-                      disabled={!canAfford}
-                      className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed active:scale-95 ${
-                        canAfford
-                          ? 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
-                          : 'bg-slate-100 border-slate-200 opacity-60'
-                      }`}
-                  >
-                    <div className="text-2xl mb-2">{option.icon}</div>
-                    <div className="text-sm font-bold mb-2 text-slate-800">{option.name}</div>
+              <div className="space-y-6">
+                {/* 获取当前选中关系的维护方式 */}
+                {(() => {
+                  const actions = ACTIONS_BY_RELATIONSHIP[selectedRelationship];
+                  const display = RELATIONSHIP_DISPLAY[selectedRelationship];
 
-                    {/* 花费和收获 */}
-                    <div className="space-y-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-700">💰花费</span>
-                        <span className={`font-bold ${canAfford ? 'text-red-600' : 'text-red-400'}`}>
-                          -{formatAmount(option.cost)}
-                        </span>
+                  return (
+                    <div key={selectedRelationship}>
+                      <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                        <span className="mr-2">{display.icon}</span>
+                        {display.label}维护方式
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {actions.map((action) => {
+                          const { canUse, reason } = canUseAction(action);
+                          const hasBonusEffect = hasBonus(action);
+                          const bonusDesc = getBonusDescription(action);
+                          const [minChange, maxChange] = action.baseEffects.relationshipChange;
+
+                          return (
+                            <button
+                              key={action.id}
+                              onClick={() => canUse && handleMaintain(action)}
+                              disabled={!canUse}
+                              className={`p-4 rounded-feishu border-2 transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed active:scale-95 text-left ${
+                                canUse
+                                  ? 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300'
+                                  : 'bg-slate-50 border-slate-200 opacity-60'
+                              }`}
+                            >
+                              {/* 标题和图标 */}
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center">
+                                  <span className="text-2xl mr-2">{action.icon}</span>
+                                  <span className="text-base font-bold text-slate-800">{action.name}</span>
+                                </div>
+                                {!canUse && reason && (
+                                  <span className="text-xs font-medium text-red-500 bg-red-50 px-2 py-1 rounded">
+                                    {reason}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* 描述 */}
+                              <div className="text-xs text-slate-600 mb-3">{action.description}</div>
+
+                              {/* 消耗 */}
+                              <div className="space-y-1 mb-3">
+                                {(action.cost.cash || action.cost.health) && (
+                                  <div className="text-xs font-semibold text-slate-700 mb-1">消耗：</div>
+                                )}
+                                {action.cost.cash && (
+                                  <div className="flex items-center text-xs">
+                                    <span className="mr-2">💰</span>
+                                    <span className={`font-bold ${stats.cash >= action.cost.cash ? 'text-red-600' : 'text-red-400'}`}>
+                                      -{formatAmount(action.cost.cash)}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.cost.health && (
+                                  <div className="flex items-center text-xs">
+                                    <span className="mr-2">❤️</span>
+                                    <span className={`font-bold ${stats.health >= action.cost.health ? 'text-red-500' : 'text-red-300'}`}>
+                                      -{action.cost.health}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 收益 */}
+                              <div className="space-y-1 mb-3">
+                                <div className="text-xs font-semibold text-slate-700 mb-1">收益：</div>
+                                <div className="flex items-center text-xs">
+                                  <span className="mr-2">🤝</span>
+                                  <span className="font-bold text-green-600">
+                                    +{minChange}~{maxChange}
+                                  </span>
+                                </div>
+                                {action.baseEffects.workAbility && (
+                                  <div className="flex items-center text-xs">
+                                    <span className="mr-2">🔧</span>
+                                    <span className="font-bold text-blue-600">
+                                      质量+{action.baseEffects.workAbility}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.baseEffects.quality && (
+                                  <div className="flex items-center text-xs">
+                                    <span className="mr-2">⭐</span>
+                                    <span className="font-bold text-purple-600">
+                                      质量+{action.baseEffects.quality}
+                                    </span>
+                                  </div>
+                                )}
+                                {action.baseEffects.progress && (
+                                  <div className="flex items-center text-xs">
+                                    <span className="mr-2">📈</span>
+                                    <span className="font-bold text-emerald-600">
+                                      进度+{action.baseEffects.progress}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* 风险提示 */}
+                              {action.risks && (
+                                <div className="bg-orange-50 border border-orange-200 rounded px-2 py-1.5 mb-2">
+                                  <div className="flex items-start text-xs">
+                                    <span className="mr-1">⚠️</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-orange-800">
+                                        {Math.round(action.risks.probability * 100)}% 概率
+                                      </span>
+                                      <span className="text-orange-700 ml-1">{action.risks.description}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* 加成提示 */}
+                              {bonusDesc && (
+                                <div className={`flex items-start text-xs px-2 py-1.5 rounded ${
+                                  hasBonusEffect ? 'bg-green-50 border border-green-200' : 'bg-slate-100 border border-slate-200'
+                                }`}>
+                                  <span className="mr-1">{hasBonusEffect ? '🔥' : '🔒'}</span>
+                                  <span className={hasBonusEffect ? 'text-green-700' : 'text-slate-600'}>
+                                    {bonusDesc}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* 特殊效果 */}
+                              {action.specialEffects && (
+                                <div className="mt-2 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                  <div className="flex items-start text-xs">
+                                    <span className="mr-1">✨</span>
+                                    <div className="flex-1">
+                                      <span className="font-semibold text-blue-800">
+                                        {Math.round(action.specialEffects.probability * 100)}% 概率
+                                      </span>
+                                      <span className="text-blue-700 ml-1">{action.specialEffects.description}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-700">🤝关系</span>
-                        <span className="font-bold text-green-600">
-                          +{option.relationshipGain}
-                        </span>
-                      </div>
-                      {'healthCost' in option && option.healthCost && (
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-700">❤️健康</span>
-                          <span className="font-bold text-red-500">
-                            -{option.healthCost}
-                          </span>
-                        </div>
-                      )}
                     </div>
-                  </button>
-                );
-              })}
+                  );
+                })()}
               </div>
             )}
-
             {maintenanceMessage && (
               <div className="mt-4 text-center text-sm text-slate-600 bg-slate-50 p-3 rounded-feishu">
                 {maintenanceMessage}
