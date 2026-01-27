@@ -59,13 +59,13 @@ const StrategyPhase = () => {
       return;
     }
 
-    // 应用消耗（从 baseEffects 中获取关系变化范围）
+    // 计算基础关系变化
     const [minChange, maxChange] = action.baseEffects.relationshipChange;
-    const relationshipChange = Math.floor(Math.random() * (maxChange - minChange + 1)) + minChange;
+    let relationshipChange = Math.floor(Math.random() * (maxChange - minChange + 1)) + minChange;
 
-    // 计算总消耗
-    const cashCost = action.cost.cash || 0;
-    const healthCost = action.cost.health || 0;
+    // 计算消耗
+    let cashCost = action.cost.cash || 0;
+    let healthCost = action.cost.health || 0;
 
     // 检查资源是否足够（再次检查，防止并发问题）
     if (stats.cash < cashCost) {
@@ -79,27 +79,178 @@ const StrategyPhase = () => {
       return;
     }
 
-    // 使用旧的 maintainRelationship 函数来处理核心逻辑
-    // 注意：这里我们传入一个近似的方法，实际的关系变化由我们手动计算
-    // TODO: Task 7 会实现完整的维护逻辑，包括风险、加成和特殊效果
-    const result = maintainRelationship(selectedRelationship, 'dinner');
+    // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
+    // 当前使用临时映射：
+    // - workAbility → stats.quality（作为临时替代）
+    // - luck → stats.progress（作为临时替代）
+    // 待这些属性正式添加后，需要移除此映射
+    const tempWorkAbility = stats.quality; // 临时使用 quality 替代 workAbility
+    const tempLuck = stats.progress; // 临时使用 progress 替代 luck
 
-    // 构建反馈消息
-    const messageParts = [];
-    if (result.success) {
-      messageParts.push(`关系值 +${relationshipChange}`);
-      if (cashCost > 0) messageParts.push(`现金 -${cashCost}`);
-      if (healthCost > 0) messageParts.push(`健康 -${healthCost}`);
+    // ========== 1. 检查并应用加成效果 ==========
+    let hasBonus = false;
+    let bonusMultiplier = 1;
+    let bonusExtraChange = 0;
+    let riskProbabilityReduction = 0;
 
-      // 添加基础效果提示
-      if (action.baseEffects.workAbility) messageParts.push(`工作能力 +${action.baseEffects.workAbility}`);
-      if (action.baseEffects.quality) messageParts.push(`质量 +${action.baseEffects.quality}`);
-      if (action.baseEffects.progress) messageParts.push(`进度 +${action.baseEffects.progress}`);
-    } else {
-      messageParts.push(result.message);
+    if (action.bonuses?.ability && action.bonuses.effect) {
+      const { ability, effect } = action.bonuses;
+
+      // 检查是否满足加成条件
+      const meetsWorkAbility = !ability.workAbility || tempWorkAbility >= ability.workAbility;
+      const meetsReputation = !ability.reputation || stats.reputation >= ability.reputation;
+      const meetsLuck = !ability.luck || tempLuck >= ability.luck;
+
+      hasBonus = meetsWorkAbility && meetsReputation && meetsLuck;
+
+      if (hasBonus) {
+        // 应用加成效果
+        if (effect.multiplier) {
+          bonusMultiplier = effect.multiplier;
+          relationshipChange = Math.floor(relationshipChange * bonusMultiplier);
+        }
+        if (effect.extraChange) {
+          bonusExtraChange = effect.extraChange;
+          relationshipChange += bonusExtraChange;
+        }
+        if (effect.probabilityReduction) {
+          riskProbabilityReduction = effect.probabilityReduction;
+        }
+      }
     }
 
-    setMaintenanceMessage(result.success ? messageParts.join('，') : result.message);
+    // ========== 2. 风险判定 ==========
+    let riskTriggered = false;
+    let riskConsequences: { cash?: number; health?: number; reputation?: number; relationship?: number; } = {};
+    let riskDescription = '';
+
+    if (action.risks) {
+      // 计算最终风险概率（基础概率 - 幸运降低）
+      let finalRiskProbability = action.risks.probability - riskProbabilityReduction;
+      finalRiskProbability = Math.max(0, Math.min(1, finalRiskProbability)); // 限制在 0-1 之间
+
+      // 掷骰子判定是否触发风险
+      if (Math.random() < finalRiskProbability) {
+        riskTriggered = true;
+        riskDescription = action.risks.description;
+        riskConsequences = action.risks.consequences;
+
+        // 应用风险惩罚
+        if (riskConsequences.cash) cashCost += riskConsequences.cash;
+        if (riskConsequences.health) healthCost += riskConsequences.health;
+      }
+    }
+
+    // ========== 3. 特殊效果判定 ==========
+    let specialEffectTriggered = false;
+    let specialEffectDescription = '';
+    let specialEffectEffects: { quality?: number; progress?: number; } = {};
+
+    if (action.specialEffects) {
+      // 特殊效果概率（workAbility 高时可能有加成，这里暂不实现）
+      const specialEffectProbability = action.specialEffects.probability;
+
+      if (Math.random() < specialEffectProbability) {
+        specialEffectTriggered = true;
+        specialEffectDescription = action.specialEffects.description;
+        specialEffectEffects = action.specialEffects.effects || {};
+      }
+    }
+
+    // ========== 4. 应用所有变化到游戏状态 ==========
+    // 扣除消耗
+    const newStats = { ...stats };
+    newStats.cash = Math.max(0, stats.cash - cashCost);
+    newStats.health = Math.max(0, stats.health - healthCost);
+
+    // 更新关系值
+    const newRelationships = { ...relationships };
+    const finalRelationshipChange = riskTriggered && riskConsequences.relationship
+      ? relationshipChange - riskConsequences.relationship
+      : relationshipChange;
+    newRelationships[selectedRelationship] = Math.max(0, Math.min(100, relationships[selectedRelationship] + finalRelationshipChange));
+
+    // 应用基础效果（workAbility, quality, progress）
+    if (action.baseEffects.workAbility) {
+      newStats.quality = Math.min(100, stats.quality + action.baseEffects.workAbility);
+    }
+    if (action.baseEffects.quality) {
+      newStats.quality = Math.min(100, stats.quality + action.baseEffects.quality);
+    }
+    if (action.baseEffects.progress) {
+      newStats.progress = Math.min(100, stats.progress + action.baseEffects.progress);
+    }
+
+    // 应用特殊效果
+    if (specialEffectTriggered) {
+      if (specialEffectEffects.quality) {
+        newStats.quality = Math.min(100, newStats.quality + specialEffectEffects.quality);
+      }
+      if (specialEffectEffects.progress) {
+        newStats.progress = Math.min(100, newStats.progress + specialEffectEffects.progress);
+      }
+      // TODO: storageDiscount 需要在季度结算时处理
+    }
+
+    // 应用风险惩罚（除了现金和健康）
+    if (riskTriggered) {
+      if (riskConsequences.reputation) {
+        newStats.reputation = Math.max(0, stats.reputation - riskConsequences.reputation);
+      }
+    }
+
+    // 更新状态（通过 maintainRelationship 函数）
+    // 我们需要手动更新状态，因为 maintainRelationship 函数使用的是旧的维护方式
+    // 所以我们直接使用 set 方法更新状态
+    const {
+      maintainRelationship: _maintainRelationship,
+      ...storeWithoutMaintain
+    } = useGameStore.getState();
+
+    // 记录已维护的关系
+    const newMaintained = new Set(storeWithoutMaintain.maintainedRelationships);
+    newMaintained.add(selectedRelationship);
+
+    useGameStore.setState({
+      stats: newStats,
+      relationships: newRelationships,
+      maintenanceCount: storeWithoutMaintain.maintenanceCount + 1,
+      maintainedRelationships: newMaintained,
+    });
+
+    // ========== 5. 构建综合反馈消息 ==========
+    const messageParts: string[] = [];
+
+    // 基础收益
+    messageParts.push(`关系值 +${finalRelationshipChange}`);
+
+    // 消耗
+    if (cashCost > 0) messageParts.push(`现金 -${cashCost}`);
+    if (healthCost > 0) messageParts.push(`健康 -${healthCost}`);
+
+    // 基础效果
+    if (action.baseEffects.workAbility) messageParts.push(`工作能力 +${action.baseEffects.workAbility}`);
+    if (action.baseEffects.quality) messageParts.push(`质量 +${action.baseEffects.quality}`);
+    if (action.baseEffects.progress) messageParts.push(`进度 +${action.baseEffects.progress}`);
+
+    // 加成提示
+    if (hasBonus) {
+      if (bonusMultiplier > 1) messageParts.push(`🔥 加成效果触发！收益×${bonusMultiplier}`);
+      if (bonusExtraChange > 0) messageParts.push(`🔥 额外+${bonusExtraChange}`);
+    }
+
+    // 风险提示
+    if (riskTriggered) {
+      messageParts.push(`⚠️ ${riskDescription}`);
+      if (riskConsequences.reputation) messageParts.push(`声誉-${riskConsequences.reputation}`);
+    }
+
+    // 特殊效果提示
+    if (specialEffectTriggered) {
+      messageParts.push(`✨ ${specialEffectDescription}`);
+    }
+
+    setMaintenanceMessage(messageParts.join(' | '));
     setTimeout(() => setMaintenanceMessage(''), MESSAGE_DURATION);
   };
 
@@ -167,10 +318,8 @@ const StrategyPhase = () => {
 
     const { workAbility, reputation, luck } = action.bonuses.ability;
 
-    // 临时属性映射：workAbility 和 luck 属性尚未添加到游戏状态中
-    // TODO: 待 workAbility 和 luck 属性添加到 stats 后，需要移除此映射
-    // 当前使用 stats.quality 作为 workAbility 的替代
-    // 当前使用 stats.progress 作为 luck 的替代
+    // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
+    // 当前使用临时映射：workAbility → stats.quality，luck → stats.progress
     if (workAbility && stats.quality < workAbility) return false;
 
     // 检查声誉
@@ -191,6 +340,8 @@ const StrategyPhase = () => {
     if (action.bonuses.ability) {
       const { workAbility, reputation, luck } = action.bonuses.ability;
 
+      // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
+      // 当前使用临时映射：workAbility → 质量，luck → 进度
       if (workAbility) {
         parts.push(`🔧 质量≥${workAbility}`);
       }
