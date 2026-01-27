@@ -786,3 +786,121 @@ export interface RankConfig {
 - 自动识别关系问题并提供针对性建议
 - 教育性帮助玩家理解游戏机制
 - 视觉层次清晰，关系问题一目了然
+
+### Task 9: 添加关系危机事件 UI 显示
+
+**背景**：
+- 后端逻辑已正确计算并存储关系危机事件到 `settlement.negativeEvents`
+- 但 `QuarterlySettlement.tsx` 组件未显示这些事件
+- 需要在季度结算页面添加"关系危机事件"section
+
+**改动点**：
+1. **导入 RELATIONSHIP_DISPLAY 配置**
+   - 从 `@/data/constants` 导入关系显示配置
+   - 用于获取关系的中文显示名称
+
+2. **提取 negativeEvents 数据**
+   - 从 `extendedSettlement` 中提取 `negativeEvents` 数组
+   - 默认为空数组，确保安全访问
+
+3. **添加"关系危机事件"section**（第157-207行）
+   - 仅在 `negativeEvents.length > 0` 时显示
+   - 使用红色/橙色渐变背景（from-red-50 to-orange-50）
+   - 红色边框（border-2 border-red-200）突出显示
+   - 标题带警告图标（⚠️）
+
+4. **单个事件卡片设计**：
+   - 白色背景，红色粗边框（border-2 border-red-300）
+   - 显示事件标题（text-base font-bold text-red-800）
+   - 显示事件描述（text-sm text-red-700）
+   - 右上角显示骷髅图标（💀）或警报图标（🚨），根据是否为游戏结束事件
+   - 底部分隔线显示触发关系和当前关系值
+   - 游戏结束事件额外显示警告提示
+
+5. **位置安排**：
+   - 放置在"关系衰减"和"晋升检查"之间
+   - 符合逻辑顺序：自然衰减 → 危机事件 → 晋升判定
+
+**UI 样式特点**：
+- 使用红色系配色方案（red-50, red-200, red-300, red-600, red-700, red-800）
+- 圆角卡片设计（rounded-feishu）
+- 清晰的视觉层次和信息组织
+- 游戏结束事件有特殊高亮提示
+
+**涉及文件**：
+- `frontend/src/pages/QuarterlySettlement.tsx:4` - 导入 RELATIONSHIP_DISPLAY
+- `frontend/src/pages/QuarterlySettlement.tsx:32` - 提取 negativeEvents
+- `frontend/src/pages/QuarterlySettlement.tsx:157-207` - 添加关系危机事件 UI section
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- ⏳ 需要手动测试关系危机事件触发和显示
+
+**Review 状态**：✅ 实现完成
+
+**提交**: `eec0b43` - fix: add negative events display to quarterly settlement UI
+
+### Task 22: 更新游戏策划文档
+
+**背景**：
+- 关系系统重构已基本完成（Task 1-9, 22）
+- 需要更新 GAME_DESIGN_DOCUMENT.md，添加关系系统的完整说明
+
+**更新内容**：
+
+1. **第3章：职级系统**
+   - 添加"关系要求表"，说明每个职级晋升所需的关系值
+   - 实习生 → 助理工程师：监理 ≥ 60
+   - 助理工程师 → 工程师：设计院 ≥ 65
+   - 工程师 → 高级工程师：劳务队 ≥ 70
+   - 高级工程师 → 项目经理：甲方 ≥ 75 + 监理 ≥ 70
+   - 项目经理 → 项目总监：甲方 ≥ 80 + 政府 ≥ 70
+   - 项目总监 → 合伙人：所有关系 ≥ 75
+
+2. **第7章：关系系统（大幅扩展）**
+   - **7.1 关系类型**：添加解锁职级列
+   - **7.2 维护方式**：详细说明10种维护方式（每种关系2种）
+     * 甲方：应酬宴请、项目汇报
+     * 设计院：技术交流、图纸会审
+     * 劳务队：现场慰问、解决纠纷
+     * 监理：礼品赠送、配合验收
+     * 政府：公关拜访、政策学习
+   - **7.3 关系维护限制**：各职级维护次数
+   - **7.4 负面事件触发机制**：
+     * 触发概率表（5个级别）
+     * 25个负面事件详细说明（每种关系5个）
+   - **7.5 功能限制**：关系 ≤15 时的功能限制
+   - **7.6 预警系统**：3级预警机制
+   - **7.7 经济收益解锁**：5个赚钱机会事件
+   - **7.8 特殊事件解锁**：15个特殊事件（每种关系3个）
+   - **7.9 属性加成**：工作能力和幸运的加成效果
+
+3. **附录 C：关系系统速查表**
+   - **C.1 维护方式一览表**：10种维护方式完整参数
+   - **C.2 负面事件一览表**：25个负面事件完整列表
+   - **C.3 赚钱机会事件**：5个经济收益事件
+   - **C.4 特殊事件解锁**：15个特殊事件配置
+   - **C.5 功能限制表**：关系极低时的功能限制
+   - **C.6 预警系统**：3级预警配置
+
+**文档特点**：
+- 详细数值：所有阈值、概率、范围都有明确数值
+- 表格展示：复杂数据用表格清晰呈现
+- 完整覆盖：涵盖关系系统所有机制
+- 便于查阅：附录提供速查表
+
+**涉及文件**：
+- `docs/GAME_DESIGN_DOCUMENT.md` - 大幅更新（+1128行）
+
+**测试验证**：
+- ✅ 文档内容与代码实现一致
+- ✅ 所有数据来自实际代码文件
+  - `shared/types/game.ts` - RANK_CONFIGS
+  - `frontend/src/data/relationshipActions.ts` - 10种维护方式
+  - `frontend/src/data/relationshipNegativeEvents.ts` - 25个负面事件
+- ✅ 文档结构清晰，易于查阅
+
+**Review 状态**：✅ 完成并通过验证
+
+**提交**: `f0ed76f` - docs: update GAME_DESIGN_DOCUMENT.md with relationship system details
