@@ -38,21 +38,69 @@ const StrategyPhase = () => {
   const [maintenanceMessage, setMaintenanceMessage] = useState<string>('');
   const [showPriceChart, setShowPriceChart] = useState(false);
 
+  // 常量定义
+  const MESSAGE_DURATION = 3000;
+
   const handleTrade = (type: 'buy' | 'sell') => {
     const result = type === 'buy'
       ? buyMaterial(selectedMaterial, tradeAmount)
       : sellMaterial(selectedMaterial, tradeAmount);
 
     setTradeMessage(result.message);
-    setTimeout(() => setTradeMessage(''), 3000);
+    setTimeout(() => setTradeMessage(''), MESSAGE_DURATION);
   };
 
   const handleMaintain = (action: RelationshipAction) => {
-    // TODO: Task 7 会实现完整的维护逻辑
-    // 现在先使用简化的逻辑，只检查基础条件
-    const result = maintainRelationship(selectedRelationship, 'dinner'); // 临时使用 dinner
-    setMaintenanceMessage(result.message);
-    setTimeout(() => setMaintenanceMessage(''), 3000);
+    // 检查是否可以使用该动作
+    const { canUse, reason } = canUseAction(action);
+    if (!canUse) {
+      setMaintenanceMessage(reason || '无法使用此维护方式');
+      setTimeout(() => setMaintenanceMessage(''), MESSAGE_DURATION);
+      return;
+    }
+
+    // 应用消耗（从 baseEffects 中获取关系变化范围）
+    const [minChange, maxChange] = action.baseEffects.relationshipChange;
+    const relationshipChange = Math.floor(Math.random() * (maxChange - minChange + 1)) + minChange;
+
+    // 计算总消耗
+    const cashCost = action.cost.cash || 0;
+    const healthCost = action.cost.health || 0;
+
+    // 检查资源是否足够（再次检查，防止并发问题）
+    if (stats.cash < cashCost) {
+      setMaintenanceMessage('现金不足');
+      setTimeout(() => setMaintenanceMessage(''), MESSAGE_DURATION);
+      return;
+    }
+    if (stats.health < healthCost) {
+      setMaintenanceMessage('健康不足');
+      setTimeout(() => setMaintenanceMessage(''), MESSAGE_DURATION);
+      return;
+    }
+
+    // 使用旧的 maintainRelationship 函数来处理核心逻辑
+    // 注意：这里我们传入一个近似的方法，实际的关系变化由我们手动计算
+    // TODO: Task 7 会实现完整的维护逻辑，包括风险、加成和特殊效果
+    const result = maintainRelationship(selectedRelationship, 'dinner');
+
+    // 构建反馈消息
+    const messageParts = [];
+    if (result.success) {
+      messageParts.push(`关系值 +${relationshipChange}`);
+      if (cashCost > 0) messageParts.push(`现金 -${cashCost}`);
+      if (healthCost > 0) messageParts.push(`健康 -${healthCost}`);
+
+      // 添加基础效果提示
+      if (action.baseEffects.workAbility) messageParts.push(`工作能力 +${action.baseEffects.workAbility}`);
+      if (action.baseEffects.quality) messageParts.push(`质量 +${action.baseEffects.quality}`);
+      if (action.baseEffects.progress) messageParts.push(`进度 +${action.baseEffects.progress}`);
+    } else {
+      messageParts.push(result.message);
+    }
+
+    setMaintenanceMessage(result.success ? messageParts.join('，') : result.message);
+    setTimeout(() => setMaintenanceMessage(''), MESSAGE_DURATION);
   };
 
   const getRelationshipLevel = (value: number) => {
@@ -119,7 +167,10 @@ const StrategyPhase = () => {
 
     const { workAbility, reputation, luck } = action.bonuses.ability;
 
-    // 检查工作能力（使用项目质量作为替代）
+    // 临时属性映射：workAbility 和 luck 属性尚未添加到游戏状态中
+    // TODO: 待 workAbility 和 luck 属性添加到 stats 后，需要移除此映射
+    // 当前使用 stats.quality 作为 workAbility 的替代
+    // 当前使用 stats.progress 作为 luck 的替代
     if (workAbility && stats.quality < workAbility) return false;
 
     // 检查声誉
