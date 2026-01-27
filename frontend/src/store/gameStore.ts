@@ -36,6 +36,7 @@ import {
 } from '@/data/constants';
 import { startGame as apiStartGame, finishGame as apiFinishGame } from '@/api';
 import { enhanceDescription, generateSpecialEvent } from '@/api';
+import { getMostSevereNegativeEvent, getGameEndingNegativeEvent, RelationshipNegativeEvent } from '@/data/relationshipNegativeEvents';
 
 // 材料市场交易限制
 const MAX_MATERIAL_TRADES_PER_QUARTER = 3; // 每季度最多交易3次
@@ -438,6 +439,112 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
     set({ relationships: newRelationships });
 
+    // 关系负面事件触发
+    const triggeredNegativeEvents: Array<{
+      event: RelationshipNegativeEvent;
+      relationshipType: RelationshipType;
+      relationshipValue: number;
+    }> = [];
+
+    // 遍历所有关系类型，检查是否触发负面事件
+    Object.values(RelationshipType).forEach((type) => {
+      // 检查关系是否已解锁
+      const isUnlocked = isRelationshipUnlocked(state.rank, type);
+      if (!isUnlocked) {
+        return; // 未解锁的关系不触发负面事件
+      }
+
+      const currentValue = newRelationships[type];
+
+      // 关系值 >= 50 不触发负面事件
+      if (currentValue >= 50) {
+        return;
+      }
+
+      // 根据关系值范围计算触发概率
+      let triggerProbability = 0;
+      if (currentValue >= 40 && currentValue <= 49) {
+        triggerProbability = 0.25; // 25%
+      } else if (currentValue >= 30 && currentValue <= 39) {
+        triggerProbability = 0.40; // 40%
+      } else if (currentValue >= 20 && currentValue <= 29) {
+        triggerProbability = 0.60; // 60%
+      } else if (currentValue >= 10 && currentValue <= 19) {
+        triggerProbability = 0.80; // 80%
+      } else if (currentValue >= 0 && currentValue <= 9) {
+        triggerProbability = 1.00; // 100%
+      }
+
+      // 检查是否触发
+      if (Math.random() < triggerProbability) {
+        // 首先检查是否有游戏结束级别的负面事件
+        const gameEndingEvent = getGameEndingNegativeEvent(type, currentValue);
+        if (gameEndingEvent) {
+          triggeredNegativeEvents.push({
+            event: gameEndingEvent,
+            relationshipType: type,
+            relationshipValue: currentValue,
+          });
+          // 游戏结束事件会立即结束游戏，不需要继续检查其他关系
+          return;
+        }
+
+        // 如果不是游戏结束事件，获取最严重的可触发负面事件
+        const negativeEvent = getMostSevereNegativeEvent(type, currentValue);
+        if (negativeEvent) {
+          triggeredNegativeEvents.push({
+            event: negativeEvent,
+            relationshipType: type,
+            relationshipValue: currentValue,
+          });
+        }
+      }
+    });
+
+    // 应用负面事件效果
+    const newStatsAfterEvents = { ...get().stats };
+    let hasGameEndingEvent = false;
+    let gameEndingReason: EndReason | undefined;
+
+    triggeredNegativeEvents.forEach(({ event, relationshipType, relationshipValue }) => {
+      // 应用事件效果
+      if (event.effects.cash) {
+        newStatsAfterEvents.cash = Math.max(0, newStatsAfterEvents.cash + event.effects.cash);
+      }
+      if (event.effects.health) {
+        newStatsAfterEvents.health = Math.max(0, Math.min(100, newStatsAfterEvents.health + event.effects.health));
+      }
+      if (event.effects.reputation) {
+        newStatsAfterEvents.reputation = Math.max(0, Math.min(100, newStatsAfterEvents.reputation + event.effects.reputation));
+      }
+      if (event.effects.progress) {
+        set((prev) => ({
+          projectProgress: Math.max(0, Math.min(100, prev.projectProgress + event.effects.progress!))
+        }));
+      }
+      if (event.effects.quality) {
+        set((prev) => ({
+          projectQuality: Math.max(0, Math.min(100, prev.projectQuality + event.effects.quality!))
+        }));
+      }
+      if (event.effects.relationshipChanges) {
+        const updatedRelationships = { ...get().relationships };
+        Object.entries(event.effects.relationshipChanges).forEach(([relType, change]) => {
+          updatedRelationships[relType as RelationshipType] = Math.max(0, Math.min(100, updatedRelationships[relType as RelationshipType] + change));
+        });
+        set({ relationships: updatedRelationships });
+      }
+
+      // 检查是否为游戏结束事件
+      if (event.isGameEnding) {
+        hasGameEndingEvent = true;
+        gameEndingReason = event.gameEndingReason;
+      }
+    });
+
+    // 更新状态
+    set({ stats: newStatsAfterEvents });
+
     // 更新材料价格
     get().updateMaterialPrices();
 
@@ -517,7 +624,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       promotionCheck,
     } as QuarterSettlement;
 
-    // 添加额外的结算信息（奖金/天灾事件）
+    // 添加额外的结算信息（奖金/天灾事件/负面事件）
     if (bonusEvent) {
       (settlement as any).bonusEvent = bonusEvent;
     }
@@ -525,6 +632,31 @@ export const useGameStore = create<GameStore>((set, get) => ({
       (settlement as any).disasterEvent = disasterEvent;
     }
     (settlement as any).livingCost = livingCost;
+
+    // 添加触发的负面事件
+    if (triggeredNegativeEvents.length > 0) {
+      (settlement as any).negativeEvents = triggeredNegativeEvents.map(({ event, relationshipType, relationshipValue }) => ({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        relationshipType,
+        relationshipValue,
+        isGameEnding: event.isGameEnding,
+        gameEndingReason: event.gameEndingReason,
+      }));
+    }
+
+    // 检查是否触发了游戏结束事件
+    if (hasGameEndingEvent && gameEndingReason) {
+      const score = get().calculateNetAssets();
+      set({
+        status: GameStatus.FAILED,
+        score,
+        endReason: gameEndingReason,
+        currentSettlement: settlement,
+      });
+      return;
+    }
 
     set({
       currentSettlement: settlement,
