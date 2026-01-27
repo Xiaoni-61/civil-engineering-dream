@@ -49,6 +49,8 @@ export function EventResultCard({ result, onContinue }: EventResultCardProps) {
         {renderEffectItem('⭐ 声誉', effects.reputation)}
         {renderEffectItem('📈 进度', effects.progress)}
         {renderEffectItem('📊 质量', effects.quality)}
+        {renderEffectItem('📚 工作能力', effects.workAbility)}
+        {renderEffectItem('🎲 幸运', effects.luck)}
 
         {/* 关系影响 */}
         {effects.relationships?.map((rel: RelationshipEffect) => {

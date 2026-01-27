@@ -20,6 +20,7 @@ export function MarketPage() {
   const buyMaterial = useGameStoreNew((state) => state.buyMaterial);
   const sellMaterial = useGameStoreNew((state) => state.sellMaterial);
   const finishQuarter = useGameStoreNew((state) => state.finishQuarter);
+  const generatePricePrediction = useGameStoreNew((state) => state.generatePricePrediction);
 
   const currentMaterial = selectedTab;
   const display = MATERIAL_DISPLAY[currentMaterial];
@@ -189,6 +190,25 @@ export function MarketPage() {
               </div>
             </div>
           </div>
+
+          {/* 价格预测 */}
+          {(() => {
+            const prediction = generatePricePrediction(currentMaterial);
+            return (
+              <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                <div className="text-xs text-slate-500 mb-2">📊 价格预测（准确率：{prediction.accuracy}%）</div>
+                <div className="text-sm font-medium mb-1">
+                  预测：{prediction.trend === 'up' ? '上涨 📈' : prediction.trend === 'down' ? '下跌 📉' : '持平 ➡️'}
+                </div>
+                <div className="text-xs text-slate-600">
+                  预测价格区间：{prediction.minPrice} - {prediction.maxPrice} 元/吨
+                </div>
+                <div className="text-xs text-slate-500 mt-2">
+                  ⚡ 特殊事件概率：+{prediction.eventChance}%（幸运加成）
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* 价格走势图 */}

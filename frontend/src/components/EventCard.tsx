@@ -1,4 +1,5 @@
 import { DecisionEvent } from '@/data/events/eventTypes';
+import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 
 interface EventCardProps {
   event: DecisionEvent;
@@ -6,6 +7,22 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, onSelectOption }: EventCardProps) {
+  const stats = useGameStoreNew((state) => state.stats);
+
+  // 过滤出当前属性可以使用的选项
+  const availableOptions = event.options.filter(option => {
+    if (!option.hidden) return true; // 非隐藏选项始终显示
+
+    // 检查属性要求
+    if (option.requiredAbility?.workAbility && stats.workAbility < option.requiredAbility.workAbility) {
+      return false;
+    }
+    if (option.requiredAbility?.luck && stats.luck < option.requiredAbility.luck) {
+      return false;
+    }
+
+    return true;
+  });
   const categoryConfig = {
     professional: {
       label: '🔧 专业问题',
@@ -37,15 +54,22 @@ export function EventCard({ event, onSelectOption }: EventCardProps) {
         <p className="text-xs text-slate-500 italic mb-4">{event.flavorText}</p>
       )}
 
-      {/* 三个选项 */}
+      {/* 选项列表 */}
       <div className="space-y-2">
-        {event.options.map((option) => (
+        {availableOptions.map((option) => (
           <button
             key={option.id}
             onClick={() => onSelectOption(option.id)}
-            className="w-full py-3 px-4 bg-white border-2 border-slate-200 rounded-lg hover:border-brand-400 hover:bg-brand-50 active:scale-[0.98] transition-all text-left"
+            className={`
+              w-full py-3 px-4 bg-white border-2 rounded-lg
+              ${option.hidden ? 'border-purple-400 bg-purple-50' : 'border-slate-200'}
+              hover:bg-brand-50 active:scale-[0.98] transition-all text-left
+            `}
           >
             <div className="font-medium text-slate-900">{option.text}</div>
+            {option.hidden && (
+              <div className="text-xs text-purple-600">✨ 特殊选项</div>
+            )}
           </button>
         ))}
       </div>

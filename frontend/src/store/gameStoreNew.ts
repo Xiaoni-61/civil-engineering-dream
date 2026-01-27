@@ -47,6 +47,7 @@ import {
   BONUS_EVENTS,
   DISASTER_EVENTS,
   MAINTENANCE_OPTIONS,
+  RELATIONSHIP_DISPLAY,
   LIVING_COSTS_CONFIG,
   PROJECT_COMPLETION,
   QUARTER_START_EVENT_POOL,
@@ -259,6 +260,13 @@ interface GameStore extends GameState {
     success: boolean;
     message: string;
   };
+  generatePricePrediction: (material: MaterialType) => {
+    trend: 'up' | 'down' | 'stable';
+    minPrice: number;
+    maxPrice: number;
+    accuracy: number;
+    eventChance: number;
+  };
   startGame: () => Promise<void>;
   resetGame: () => void;
   uploadScore: () => Promise<void>;
@@ -339,6 +347,52 @@ const initializeMaterialPrices = (): Record<MaterialType, MaterialPrice> => {
     };
   });
   return prices;
+};
+
+// ==================== 价格生成函数（支持属性影响）====================
+
+const generateNextQuarterPrices = (
+  currentPrices: Record<MaterialType, MaterialPrice>,
+  _workAbility: number,
+  luck: number
+): Record<MaterialType, MaterialPrice> => {
+  const newPrices: Record<MaterialType, MaterialPrice> = {} as any;
+
+  Object.values(MaterialType).forEach(material => {
+    const currentPrice = currentPrices[material].currentPrice;
+
+    // 1. 基础价格波动（±15%）
+    let newPrice = currentPrice * (1 + (Math.random() - 0.5) * 0.3);
+
+    // 2. 幸运特殊事件（暴涨/暴跌）
+    const eventChance = 2 + luck / 20; // 2-7%
+    const eventRoll = Math.random() * 100;
+
+    if (eventRoll < eventChance) {
+      const isGoodLuck = Math.random() < 0.6; // 60%是好事件
+      const multiplier = isGoodLuck ? 1.5 : 0.7;
+      newPrice = newPrice * multiplier;
+
+      console.log(`[幸运事件触发] ${material}: ${isGoodLuck ? '暴涨+50%' : '暴跌-30%'}`);
+    }
+
+    // 3. 价格边界检查
+    newPrice = Math.max(100, Math.min(newPrice, 10000));
+
+    // 4. 生成趋势
+    const trend = newPrice > currentPrice ? 'up' :
+                  newPrice < currentPrice ? 'down' : 'stable';
+    const priceChange = Math.abs((newPrice - currentPrice) / currentPrice * 100);
+
+    newPrices[material] = {
+      type: material,
+      currentPrice: Math.round(newPrice),
+      priceChange: Math.round(priceChange * 10) / 10,
+      trend
+    };
+  });
+
+  return newPrices;
 };
 
 // ==================== Store 定义 ====================
@@ -501,6 +555,37 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return {
       success: true,
       message: `训练成功！${abilityType === 'workAbility' ? '工作能力' : '幸运'}+${effect[abilityType]}`
+    };
+  },
+
+  generatePricePrediction: (material: MaterialType) => {
+    const state = get();
+    const workAbility = state.stats.workAbility;
+    const luck = state.stats.luck;
+    const currentPrice = state.materialPrices[material].currentPrice;
+
+    // 计算准确率
+    const accuracy = 50 + workAbility / 2;
+
+    // 生成预测（随机生成趋势）
+    const predictionBase = (Math.random() - 0.5) * 0.2; // ±10%
+    const trend = predictionBase > 0.02 ? 'up' :
+                  predictionBase < -0.02 ? 'down' : 'stable';
+
+    // 预测区间宽度（准确率越高，区间越窄）
+    const range = (100 - accuracy) / 100 * 0.2; // 0-20%
+    const minPrice = Math.round(currentPrice * (1 + predictionBase - range));
+    const maxPrice = Math.round(currentPrice * (1 + predictionBase + range));
+
+    // 特殊事件概率
+    const eventChance = 2 + luck / 20; // 2-7%
+
+    return {
+      trend,
+      minPrice,
+      maxPrice,
+      accuracy: Math.round(accuracy),
+      eventChance: Math.round(eventChance * 10) / 10
     };
   },
 
@@ -823,6 +908,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const newQuarter = state.currentQuarter + 1;
 
+    // 生成下季度价格（包含属性影响）
+    const newPrices = generateNextQuarterPrices(
+      state.materialPrices,
+      state.stats.workAbility,
+      state.stats.luck
+    );
+
     // 初始化本季度事件
     get().initializeQuarterEvents();
 
@@ -885,6 +977,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         progress: newProgress,
         quality: newQuality,
       },
+      materialPrices: newPrices,
       actionPoints: newActionPoints,
       maxActionPoints: newActionPoints,
       phase: newPhase,
@@ -1446,8 +1539,65 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const option = MAINTENANCE_OPTIONS[method];
     const cost = option.cost;
-    const relationshipGain = option.relationshipGain;
+    let relationshipGain = option.relationshipGain;
     const healthCost = 'healthCost' in option ? (option.healthCost || 0) : 0;
+
+    // 属性影响：工作能力加成（专业性关系）
+    if ((relationshipType === RelationshipType.DESIGN || relationshipType === RelationshipType.SUPERVISION) &&
+        state.stats.workAbility >= 60) {
+      relationshipGain = Math.round(relationshipGain * 1.2); // +20%
+    }
+
+    // 属性影响：幸运加成（贵人相助）
+    const luck = state.stats.luck;
+    const hasMentor = luck >= 60 && Math.random() * 100 < 15;
+
+    if (hasMentor) {
+      // 贵人相助：效果翻倍或免费维护
+      if (Math.random() < 0.5) {
+        // 免费维护
+        set((state) => ({
+          ...state,
+          relationships: {
+            ...state.relationships,
+            [relationshipType]: Math.min(100, state.relationships[relationshipType] + 10)
+          },
+          maintenanceCount: state.maintenanceCount + 1,
+          maintainedRelationships: new Set([...state.maintainedRelationships, relationshipType]),
+        }));
+
+        return {
+          success: true,
+          relationshipChange: 10,
+          cashChange: 0,
+          healthChange: 0,
+          message: `✨ 贵人相助：幸运让你遇到了贵人，${RELATIONSHIP_DISPLAY[relationshipType].label}关系+10！`,
+        };
+      } else {
+        // 效果翻倍
+        const newRelationships = { ...state.relationships };
+        newRelationships[relationshipType] = Math.min(100, state.relationships[relationshipType] + relationshipGain * 2);
+
+        const newStats = { ...state.stats };
+        newStats.cash = Math.max(0, state.stats.cash - cost);
+        newStats.health = Math.max(0, state.stats.health - healthCost);
+
+        set({
+          stats: newStats,
+          relationships: newRelationships,
+          maintenanceCount: state.maintenanceCount + 1,
+          maintainedRelationships: new Set([...state.maintainedRelationships, relationshipType]),
+        });
+
+        return {
+          success: true,
+          relationshipChange: relationshipGain * 2,
+          cashChange: -cost,
+          healthChange: healthCost || undefined,
+          message: `✨ 贵人相助：关系提升双倍！+${relationshipGain * 2}`,
+        };
+      }
+    }
 
     if (state.stats.cash < cost) {
       return {
@@ -1482,7 +1632,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       relationshipChange: relationshipGain,
       cashChange: -cost,
       healthChange: healthCost || undefined,
-      message: `关系维护成功，关系值 +${relationshipGain}`,
+      message: `${RELATIONSHIP_DISPLAY[relationshipType].label}关系+${relationshipGain}`,
     };
   },
 
@@ -1850,7 +2000,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // 创建结果记录
+    // 检查是否为冒险选项
+    if (selectedOption.riskFactor !== undefined) {
+      const luck = state.stats.luck;
+      const successThreshold = 100 - selectedOption.riskFactor * 100 + luck / 2;
+      const roll = Math.random() * 100;
+
+      if (roll > successThreshold) {
+        // 失败，使用失败效果（如果 effects 有 failure 属性）
+        const failureEffects = (selectedOption.effects as any).failure || {};
+        const result: EventResult = {
+          eventId: currentEvent.id,
+          eventTitle: currentEvent.title,
+          selectedOptionId: optionId,
+          selectedOptionText: selectedOption.text,
+          feedback: selectedOption.feedback + '（失败）',
+          effects: failureEffects,
+          timestamp: Date.now(),
+        };
+
+        set({
+          pendingEventResult: result,
+          showEventResult: true,
+        });
+        return;
+      }
+    }
+
+    // 正常流程
     const result: EventResult = {
       eventId: currentEvent.id,
       eventTitle: currentEvent.title,
