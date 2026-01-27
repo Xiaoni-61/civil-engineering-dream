@@ -37,6 +37,19 @@ import { managerEvents } from './managerEvents';
 import { directorEvents } from './directorEvents';
 import { partnerEvents } from './partnerEvents';
 
+// 导出关系福利和特殊事件
+export {
+  checkRelationshipBenefitTrigger,
+  getRelationshipBenefitEvent,
+  getAllRelationshipBenefitEvents,
+} from './relationshipBenefitEvents';
+
+export {
+  checkRelationshipSpecialEventTrigger,
+  getRelationshipSpecialEvents,
+  getAllRelationshipSpecialEvents,
+} from './relationshipSpecialEvents';
+
 /**
  * 获取指定职级可用的所有事件
  */

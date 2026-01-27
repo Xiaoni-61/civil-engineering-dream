@@ -37,6 +37,8 @@ import {
 import { startGame as apiStartGame, finishGame as apiFinishGame } from '@/api';
 import { enhanceDescription, generateSpecialEvent } from '@/api';
 import { getMostSevereNegativeEvent, getGameEndingNegativeEvent, RelationshipNegativeEvent } from '@/data/relationshipNegativeEvents';
+import { checkRelationshipBenefitTrigger } from '@/data/events/relationshipBenefitEvents';
+import { checkRelationshipSpecialEventTrigger } from '@/data/events/relationshipSpecialEvents';
 
 // 材料市场交易限制
 const MAX_MATERIAL_TRADES_PER_QUARTER = 3; // 每季度最多交易3次
@@ -329,7 +331,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // 检查是否触发特殊事件
+    // 优先检查关系福利事件（15% 概率）
+    if (Math.random() < 0.15) {
+      const benefitEvent = checkRelationshipBenefitTrigger(state.relationships);
+      if (benefitEvent) {
+        set({
+          currentEvent: benefitEvent,
+          eventsInQuarter: state.eventsInQuarter + 1,
+          gameStats: {
+            ...state.gameStats,
+            totalEvents: state.gameStats.totalEvents + 1,
+          },
+        });
+        return;
+      }
+    }
+
+    // 检查关系特殊剧情事件（10% 概率）
+    if (Math.random() < 0.10) {
+      const relationshipTypes = Object.values(RelationshipType);
+      const randomType = relationshipTypes[Math.floor(Math.random() * relationshipTypes.length)];
+      const relationshipValue = state.relationships[randomType];
+
+      const specialEvent = checkRelationshipSpecialEventTrigger(randomType, relationshipValue);
+      if (specialEvent) {
+        set({
+          currentEvent: specialEvent,
+          eventsInQuarter: state.eventsInQuarter + 1,
+          gameStats: {
+            ...state.gameStats,
+            totalEvents: state.gameStats.totalEvents + 1,
+          },
+        });
+        return;
+      }
+    }
+
+    // 检查是否触发 LLM 特殊事件
     if (get().shouldTriggerSpecialEvent(quarter, stats)) {
       const specialEvent = await get().generateLLMSpecialEvent();
       if (specialEvent) {
