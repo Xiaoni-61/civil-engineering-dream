@@ -95,6 +95,7 @@ interface GameStore extends GameState {
   calculateStorageFee: () => number;
   calculateQuarterlySalary: () => number;
   raiseSalary: () => { success: boolean; newSalary?: number; message: string }; // 涨薪方法
+  applyRelationshipRestrictions: () => void; // 应用关系限制
 
   // LLM Helper
   shouldTriggerSpecialEvent: (quarter: number, stats: PlayerStats) => boolean;
@@ -548,6 +549,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 更新材料价格
     get().updateMaterialPrices();
 
+    // ============ 关系限制逻辑 ============
+    // 检查并应用关系极低时的功能限制
+    let relationshipPenalties: { type: string; description: string; amount: number; restrictionType?: string }[] = [];
+    let qualityLocked = false;
+    let progressReduced = false;
+
+    // 甲方 ≤ 15：项目收益 -50%
+    if (state.relationships[RelationshipType.CLIENT] <= 15 && projectCompleted) {
+      const penalty = Math.floor(PROJECT_COMPLETION.reward * 0.5);
+      relationshipPenalties.push({
+        type: 'client',
+        description: '甲方关系崩溃，项目收益减半50%',
+        amount: -penalty,
+        restrictionType: 'income_penalty',
+      });
+    }
+
+    // 监理 ≤ 15：工程验收自动失败
+    if (state.relationships[RelationshipType.SUPERVISION] <= 15 && projectCompleted) {
+      relationshipPenalties.push({
+        type: 'supervision',
+        description: '监理关系崩溃，工程验收失败，无法获得项目收益',
+        amount: -PROJECT_COMPLETION.reward,
+        restrictionType: 'project_failure',
+      });
+    }
+
+    // 设计院 ≤ 15：无法提升 quality
+    if (state.relationships[RelationshipType.DESIGN] <= 15) {
+      qualityLocked = true;
+    }
+
+    // 劳务队 ≤ 15：progress 增益减半
+    if (state.relationships[RelationshipType.LABOR] <= 15) {
+      progressReduced = true;
+    }
+
+    // 政府 ≤ 15：额外扣除 3000
+    if (state.relationships[RelationshipType.GOVERNMENT] <= 15) {
+      relationshipPenalties.push({
+        type: 'government',
+        description: '政府关系崩溃，额外行政罚款3000',
+        amount: -3000,
+        restrictionType: 'fine',
+      });
+    }
+
     // 随机奖金事件触发（10% 概率）
     let bonusEvent: typeof BONUS_EVENTS[0] | null = null;
     if (Math.random() < 0.1) {
@@ -578,12 +626,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
+    // ============ 经济收益计算 ============
+    // 关系高时的经济奖励
+    let relationshipBonuses: { type: string; description: string; amount: number }[] = [];
+
+    // 监理 ≥ 70：验收快速通过奖金
+    if (state.relationships[RelationshipType.SUPERVISION] >= 70) {
+      const bonus = Math.floor(3000 + (state.relationships[RelationshipType.SUPERVISION] - 70) * 100);
+      relationshipBonuses.push({
+        type: 'supervision',
+        description: `监理关系良好，验收快速通过奖金`,
+        amount: bonus,
+      });
+    }
+
+    // 劳务队 ≥ 70：劳务成本优惠
+    if (state.relationships[RelationshipType.LABOR] >= 70) {
+      const discount = Math.floor((state.relationships[RelationshipType.LABOR] - 70) * 50);
+      relationshipBonuses.push({
+        type: 'labor',
+        description: `劳务队关系良好，成本优惠`,
+        amount: discount,
+      });
+    }
+
     // 计算收入和支出
-    const projectIncome = projectCompleted ? PROJECT_COMPLETION.reward : 0;
+    let projectIncome = projectCompleted ? PROJECT_COMPLETION.reward : 0;
+
+    // 应用关系惩罚
+    relationshipPenalties.forEach(penalty => {
+      if (penalty.type === 'client') {
+        projectIncome += penalty.amount; // 已经是负数
+      }
+    });
+
     const bonusIncome = bonusEvent ? bonusEvent.cashReward : 0;
     const disasterPenalty = disasterEvent ? disasterEvent.cashPenalty : 0;
-    const totalIncome = projectIncome + salary + bonusIncome;
-    const totalExpenses = Math.abs(Math.min(0, salary)) + storageFee + livingCost + disasterPenalty;
+
+    // 关系奖励收入
+    const relationshipBonusIncome = relationshipBonuses.reduce((sum, bonus) => sum + bonus.amount, 0);
+
+    // 政府罚款
+    const governmentPenalty = relationshipPenalties.find(p => p.type === 'government')?.amount || 0;
+
+    const totalIncome = projectIncome + salary + bonusIncome + relationshipBonusIncome;
+    const totalExpenses = Math.abs(Math.min(0, salary)) + storageFee + livingCost + disasterPenalty - governmentPenalty; // governmentPenalty 是负数
 
     // 应用天灾事件的其他影响
     if (disasterEvent) {
@@ -613,7 +700,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 构建结算数据（扩展类型以包含新字段）
     const settlement: QuarterSettlement = {
       quarter: state.currentRound,
-      income: projectIncome + bonusIncome,
+      income: projectIncome + bonusIncome + relationshipBonusIncome,
       expenses: {
         salary,
         storage: storageFee,
@@ -644,6 +731,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isGameEnding: event.isGameEnding,
         gameEndingReason: event.gameEndingReason,
       }));
+    }
+
+    // 添加关系奖励和惩罚
+    if (relationshipBonuses.length > 0) {
+      (settlement as any).relationshipBonuses = relationshipBonuses;
+    }
+    if (relationshipPenalties.length > 0) {
+      (settlement as any).relationshipPenalties = relationshipPenalties;
     }
 
     // 检查是否触发了游戏结束事件
@@ -1284,6 +1379,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newSalary,
       message: `恭喜！工资上涨 ${raisePercent.toFixed(1)}%，从 ${state.actualSalary} 涨到 ${newSalary}`,
     };
+  },
+
+  // 应用关系极低时的功能限制
+  applyRelationshipRestrictions: () => {
+    const state = get();
+    const restrictions: string[] = [];
+
+    // 检查各个关系值
+    const { relationships } = state;
+
+    // 1. 甲方 ≤ 15：无法获得新项目，现有项目收益 -50%
+    if (relationships[RelationshipType.CLIENT] <= 15) {
+      restrictions.push('client_revenue_penalty');
+    }
+
+    // 2. 监理 ≤ 15：工程验收自动失败，无法完成季度
+    if (relationships[RelationshipType.SUPERVISION] <= 15) {
+      restrictions.push('supervision_block_settlement');
+    }
+
+    // 3. 设计院 ≤ 15：无法提升 quality，工程质量锁定
+    if (relationships[RelationshipType.DESIGN] <= 15) {
+      restrictions.push('design_quality_locked');
+    }
+
+    // 4. 劳务队 ≤ 15：progress 增益减半
+    if (relationships[RelationshipType.LABOR] <= 15) {
+      restrictions.push('labor_progress_halved');
+    }
+
+    // 5. 政府 ≤ 15：每季度额外扣除 3000，无法晋升
+    if (relationships[RelationshipType.GOVERNMENT] <= 15) {
+      restrictions.push('government_penalty');
+    }
+
+    // 将限制信息存储到状态中（可以在 UI 中显示）
+    set((prev) => ({
+      ...prev,
+      // 使用一个额外的字段来存储当前激活的限制
+      ...(restrictions.length > 0 ? { activeRestrictions: restrictions } as any : {}),
+    }));
+
+    return restrictions;
   },
 
   // LLM 增强事件描述

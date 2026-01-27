@@ -612,6 +612,30 @@ const StrategyPhase = () => {
                         ></div>
                       </div>
                       <div className={`text-xs font-medium mt-1 ${selectedRelationship === type ? 'text-brand-700' : 'text-slate-600'}`}>关系值: {value}/100</div>
+
+                      {/* 关系预警提示系统 */}
+                      {isUnlocked && value < 50 && (
+                        <div className={`mt-2 px-2 py-1.5 rounded text-xs ${
+                          value <= 15
+                            ? 'bg-red-100 border border-red-300 text-red-800'
+                            : value <= 30
+                            ? 'bg-orange-100 border border-orange-300 text-orange-800'
+                            : 'bg-yellow-100 border border-yellow-300 text-yellow-800'
+                        }`}>
+                          <div className="flex items-start">
+                            <span className="mr-1">
+                              {value <= 15 ? '🚨' : value <= 30 ? '⚠️' : '⚡'}
+                            </span>
+                            <span className="flex-1">
+                              {value <= 15
+                                ? `关系崩溃！功能已受限`
+                                : value <= 30
+                                ? `关系危急，可能触发负面事件`
+                                : `关系紧张，建议维护`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </button>
                   );
                 })}
