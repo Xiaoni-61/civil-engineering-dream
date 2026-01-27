@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { MaterialType } from '@shared/types';
 import { MATERIAL_DISPLAY } from '@/data/constants';
+import { StockChart } from '@/components/StockChart';
 
 type TabType = MaterialType;
 
@@ -64,31 +65,8 @@ export function MarketPage() {
   const profitPerUnit = price.currentPrice - avgPrice;
   const totalProfit = profitPerUnit * currentInventory;
 
-  // 折线图颜色：比前一天高用红色，低用绿色
-  const getLineColor = () => {
-    if (priceHistory.length < 2) return '#94a3b8';
-    const first = priceHistory[0];
-    const last = priceHistory[priceHistory.length - 1];
-    return last > first ? '#ef4444' : last < first ? '#22c55e' : '#94a3b8';
-  };
-
-  const getPointColor = (index: number) => {
-    if (index === 0) return '#94a3b8';
-    const prev = priceHistory[index - 1];
-    const curr = priceHistory[index];
-    return curr > prev ? '#ef4444' : curr < prev ? '#22c55e' : '#94a3b8';
-  };
-
-  // 计算Y轴刻度
-  const yTicks = 5;
-  const yAxisRange = maxPrice - minPrice || 1;
-  const yAxisSteps = Array.from({ length: yTicks }, (_, i) => {
-    const value = maxPrice - (i * yAxisRange / (yTicks - 1));
-    return Math.round(value);
-  });
-
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-40">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
       <div className="max-w-md mx-auto px-4">
         {/* 返回按钮 */}
         <button
@@ -212,61 +190,14 @@ export function MarketPage() {
         </div>
 
         {/* 价格走势图 */}
-        {priceHistory.length > 0 && (
-          <div className="bg-white rounded-xl p-4 mb-4 border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-700 mb-3">价格走势</h3>
-            <div className="h-36 relative">
-              <svg className="w-full h-full" viewBox={`0 0 ${Math.max(priceHistory.length - 1, 1) * 50} 100`} preserveAspectRatio="none">
-                {/* Y轴刻度线和标签 */}
-                {yAxisSteps.map((value, i) => {
-                  const y = (i / (yTicks - 1)) * 80 + 10;
-                  return (
-                    <g key={i}>
-                      <line x1="0" y1={y} x2="100%" y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4"/>
-                      <text x="0" y={y + 3} fill="#94a3b8" fontSize="8" className="text-[8px]">
-                        {value}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* 折线 */}
-                {priceHistory.length > 1 && (
-                  <polyline
-                    fill="none"
-                    stroke={getLineColor()}
-                    strokeWidth="2"
-                    points={priceHistory.map((priceVal, i) => {
-                      const x = i * 50;
-                      const range = maxPrice - minPrice || 1;
-                      const y = 100 - ((priceVal - minPrice) / range) * 80 - 10;
-                      return `${x},${y}`;
-                    }).join(' ')}
-                  />
-                )}
-
-                {/* 数据点 */}
-                {priceHistory.map((priceVal, i) => {
-                  const x = i * 50;
-                  const range = maxPrice - minPrice || 1;
-                  const y = 100 - ((priceVal - minPrice) / range) * 80 - 10;
-                  const isLast = i === priceHistory.length - 1;
-                  return (
-                    <circle
-                      key={i}
-                      cx={x}
-                      cy={y}
-                      r={isLast ? 4 : 2}
-                      fill={isLast ? '#1f2937' : getPointColor(i)}
-                      stroke={isLast ? '#fff' : undefined}
-                      strokeWidth={isLast ? 2 : undefined}
-                    />
-                  );
-                })}
-              </svg>
-            </div>
-          </div>
-        )}
+        <StockChart
+          priceHistory={priceHistory}
+          currentPrice={price.currentPrice}
+          costBasis={avgPrice}
+          hasInventory={currentInventory > 0}
+          materialType={currentMaterial}
+          materialName={display.label}
+        />
 
         {/* 交易操作 */}
         <div className="bg-white rounded-xl p-4 mb-4 border border-slate-200 shadow-sm">

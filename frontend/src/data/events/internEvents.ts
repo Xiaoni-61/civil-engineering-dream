@@ -98,6 +98,20 @@ export const internEvents: DecisionEvent[] = [
           ],
         },
       },
+      {
+        id: 'int_002_opt4',
+        text: '🔧 独立研究分析（需工作能力≥20）',
+        feedback: '你凭借扎实的专业基础，仔细分析了两张图纸的矛盾点，独立提出了合理的解决方案。设计师对你的专业能力印象深刻！',
+        requiredAbility: { workAbility: 20 },
+        hidden: true,
+        effects: {
+          reputation: 5,
+          workAbility: 2,
+          relationships: [
+            { type: RelationshipType.DESIGN, change: 5 },
+          ],
+        },
+      },
     ],
   },
 
@@ -140,6 +154,21 @@ export const internEvents: DecisionEvent[] = [
           cash: -500,
           relationships: [
             { type: RelationshipType.LABOR, change: -3 },
+          ],
+        },
+      },
+      {
+        id: 'int_003_opt4',
+        text: '🔧 专业快速检测（需工作能力≥20）',
+        feedback: '你运用专业知识，通过观察水泥颜色和凝结时间快速判断出水泥已受潮变质，果断拒绝使用。避免了质量事故！',
+        requiredAbility: { workAbility: 20 },
+        hidden: true,
+        effects: {
+          reputation: 5,
+          quality: 2,
+          workAbility: 2,
+          relationships: [
+            { type: RelationshipType.LABOR, change: 3 },
           ],
         },
       },
@@ -229,6 +258,28 @@ export const internEvents: DecisionEvent[] = [
         effects: {
           reputation: -2,
           health: -2,
+        },
+      },
+      {
+        id: 'int_005_opt4',
+        text: '🎲 豪赌不会出事（需幸运≥25）',
+        feedback: '你赌这次不会出事，没有制止工人。运气不错，工人安全完成了工作，但你也捏了一把汗。',
+        requiredAbility: { luck: 25 },
+        riskFactor: 0.4,
+        hidden: true,
+        failureFeedback: '很不幸，工人真的出事了！被掉落的材料砸伤，需要住院治疗。你因为知情不报受到严厉批评。',
+        effects: {
+          reputation: 1,
+          relationships: [
+            { type: RelationshipType.LABOR, change: 3 },
+          ],
+          failure: {
+            reputation: -8,
+            cash: -2000,
+            relationships: [
+              { type: RelationshipType.LABOR, change: -10 },
+            ],
+          },
         },
       },
     ],

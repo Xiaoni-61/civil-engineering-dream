@@ -10,8 +10,6 @@ export const GAME_CONFIG: GameConfig = {
     cash: 50000,  // 从 50 提高到 50000
     health: 100,
     reputation: 50,
-    progress: 0,
-    quality: 50,
     workAbility: 0,  // 将通过人物创建设置
     luck: 0,         // 将通过人物创建设置
   },
@@ -85,18 +83,6 @@ export const STAT_DISPLAY = {
     icon: '⭐',
     color: '#F59E0B', // yellow
     dangerThreshold: 30,
-  },
-  progress: {
-    label: '进度',
-    icon: '📈',
-    color: '#3B82F6', // blue
-    dangerThreshold: 0,
-  },
-  quality: {
-    label: '质量',
-    icon: '🏆',
-    color: '#8B5CF6', // purple
-    dangerThreshold: 40,
   },
   workAbility: {
     label: '工作能力',
@@ -569,16 +555,31 @@ export const ACTIONS: Record<ActionType, ActionConfig> = {
       health: -5,
     },
   },
-  [ActionType.TRAINING]: {
-    type: ActionType.TRAINING,
-    name: '培训学习',
-    icon: '📚',
-    description: '消耗资金，提升技能或健康',
+  [ActionType.FREELANCE]: {
+    type: ActionType.FREELANCE,
+    name: '承接私活',
+    icon: '💼',
+    description: '私下接活赚钱，但有健康和声誉风险',
     costAP: 1,
     phase: 'both',
-    costCash: 8000,
     effects: {
-      health: 8,
+      cash: 15000,
+      health: -8,
+      reputation: -5,
+    },
+  },
+  [ActionType.CUT_CORNERS]: {
+    type: ActionType.CUT_CORNERS,
+    name: '偷工减料',
+    icon: '⚠️',
+    description: '大幅推进进度，但质量和声誉会下降',
+    costAP: 1,
+    phase: 'both',
+    effects: {
+      progress: 18,
+      quality: -12,
+      reputation: -3,
+      health: -3,
     },
   },
   [ActionType.REST]: {

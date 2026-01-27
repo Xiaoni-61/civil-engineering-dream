@@ -151,8 +151,6 @@ const createInitialState = (): GameState => ({
     cash: GAME_CONFIG.initialStats.cash,
     health: GAME_CONFIG.initialStats.health,
     reputation: GAME_CONFIG.initialStats.reputation,
-    progress: GAME_CONFIG.initialStats.progress,
-    quality: GAME_CONFIG.initialStats.quality,
     workAbility: GAME_CONFIG.initialStats.workAbility,
     luck: GAME_CONFIG.initialStats.luck,
   },
@@ -181,7 +179,7 @@ const createInitialState = (): GameState => ({
 
   // 项目进度
   projectProgress: 0,
-  projectQuality: GAME_CONFIG.initialStats.quality,
+  projectQuality: 50,  // 初始质量值
 
   // 新增：游戏阶段
   phase: GamePhase.EARLY,
@@ -738,11 +736,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         newStats.health = clampStat(newStats.health + actionConfig.effects.health);
       }
       if (actionConfig.effects.progress) {
-        newStats.progress = clampStat(newStats.progress + actionConfig.effects.progress);
         state.projectProgress = clampStat(state.projectProgress + actionConfig.effects.progress);
       }
       if (actionConfig.effects.quality) {
-        newStats.quality = clampStat(newStats.quality + actionConfig.effects.quality);
         state.projectQuality = clampStat(state.projectQuality + actionConfig.effects.quality);
       }
       if (actionConfig.effects.cash) {
@@ -805,7 +801,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       relationshipDecay[type] = decay;
       newRelationships[type] = Math.max(0, currentValue - decay);
     });
-    set({ relationships: newRelationships });
 
     // 更新材料价格
     get().updateMaterialPrices();
@@ -845,31 +840,101 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const totalIncome = projectIncome + salary + bonusIncome;
     const totalExpenses = Math.abs(Math.min(0, salary)) + storageFee + livingCost + disasterPenalty;
 
+    // 计算净变化
+    const netChange = totalIncome - totalExpenses;
+
+    // 调试日志
+    console.log('=== finishQuarter 现金计算 ===');
+    console.log('当前现金:', state.stats.cash);
+    console.log('项目收入:', projectIncome);
+    console.log('工资:', salary);
+    console.log('奖金收入:', bonusIncome);
+    console.log('生活费:', livingCost);
+    console.log('仓储费:', storageFee);
+    console.log('天灾惩罚:', disasterPenalty);
+    console.log('总收入:', totalIncome);
+    console.log('总支出:', totalExpenses);
+    console.log('净变化:', netChange);
+    console.log('预期现金:', state.stats.cash + netChange);
+
+    // 季度涨薪机制
+    let salaryRaise = 0;
+    const rankConfig = RANK_CONFIGS[state.rank];
+    if (state.rank !== Rank.INTERN && state.rank !== Rank.PARTNER) {
+      const [minRaise, maxRaise] = rankConfig.raiseRange;
+      if (minRaise > 0 || maxRaise > 0) {
+        // 60% 概率涨薪
+        if (Math.random() < 0.6) {
+          const raisePercent = Math.random() * (maxRaise - minRaise) + minRaise;
+          const raiseAmount = Math.round(state.actualSalary * (raisePercent / 100));
+          salaryRaise = raiseAmount;
+        }
+      }
+    }
+
+    // 一次性更新所有状态
+    const newStats = { ...state.stats };
+    newStats.cash = Math.max(0, newStats.cash + netChange);
+
     // 应用天灾事件的其他影响
     if (disasterEvent) {
-      const newStats = { ...get().stats };
       if (disasterEvent.healthPenalty) {
         newStats.health = Math.max(0, newStats.health - disasterEvent.healthPenalty);
       }
       if (disasterEvent.reputationPenalty) {
         newStats.reputation = Math.max(0, newStats.reputation - disasterEvent.reputationPenalty);
       }
-      if (disasterEvent.progressPenalty) {
-        const currentProjectProgress = state.projectProgress;
-        newStats.progress = Math.max(0, currentProjectProgress - disasterEvent.progressPenalty);
-        set({ projectProgress: Math.max(0, currentProjectProgress - disasterEvent.progressPenalty) });
-      }
-      set({ stats: newStats });
     }
 
-    // 更新现金
-    const netChange = totalIncome - totalExpenses;
-    const newStats = { ...get().stats };
-    newStats.cash = Math.max(0, newStats.cash + netChange);
-    set({ stats: newStats });
+    // 计算项目进度（天灾事件可能影响）
+    let newProjectProgress = state.projectProgress;
+    if (disasterEvent && disasterEvent.progressPenalty) {
+      newProjectProgress = Math.max(0, state.projectProgress - disasterEvent.progressPenalty);
+    }
+
+    // 一次性更新所有状态
+    set({
+      stats: newStats,
+      actualSalary: salaryRaise > 0 ? state.actualSalary + salaryRaise : state.actualSalary,
+      projectProgress: newProjectProgress,
+      relationships: newRelationships,
+    });
 
     // 检查晋升
     const promotionCheck = get().checkPromotion();
+
+    // 生成下季度开始事件（预告，不立即应用）
+    const eventCount = Math.floor(Math.random() * 2) + 2; // 2-3个事件
+    const nextQuarterStartEvents: typeof QUARTER_START_EVENT_POOL = [];
+    const shuffled = [...QUARTER_START_EVENT_POOL].sort(() => Math.random() - 0.5);
+    let attempts = 0;
+    while (nextQuarterStartEvents.length < eventCount && attempts < shuffled.length * 2) {
+      const event = shuffled[attempts % shuffled.length];
+      if (!nextQuarterStartEvents.includes(event) && Math.random() < event.probability) {
+        nextQuarterStartEvents.push(event);
+      }
+      attempts++;
+    }
+
+    // 计算下季度开始事件的影响（用于预告显示）
+    let nextQuarterCashChange = 0;
+    let nextQuarterHealthChange = 0;
+    let nextQuarterReputationChange = 0;
+    let nextQuarterProgressChange = 0;
+    let nextQuarterQualityChange = 0;
+    let nextQuarterWorkAbilityChange = 0;
+    let nextQuarterLuckChange = 0;
+
+    nextQuarterStartEvents.forEach(event => {
+      const effects = event.effects as Effects;
+      if (effects.cash) nextQuarterCashChange += effects.cash;
+      if (effects.health) nextQuarterHealthChange += effects.health;
+      if (effects.reputation) nextQuarterReputationChange += effects.reputation;
+      if (effects.progress) nextQuarterProgressChange += effects.progress;
+      if (effects.quality) nextQuarterQualityChange += effects.quality;
+      if (effects.workAbility) nextQuarterWorkAbilityChange += effects.workAbility;
+      if (effects.luck) nextQuarterLuckChange += effects.luck;
+    });
 
     // 构建结算数据
     const settlement: QuarterSettlement = {
@@ -893,6 +958,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (disasterEvent) {
       (settlement as any).disasterEvent = disasterEvent;
     }
+    if (salaryRaise > 0) {
+      (settlement as any).salaryRaise = salaryRaise;
+      (settlement as any).newSalary = state.actualSalary + salaryRaise;
+    }
+
+    // 添加下季度开始事件预告
+    (settlement as any).nextQuarterStartEvents = nextQuarterStartEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      description: e.description,
+      effects: e.effects,
+      isPositive: e.isPositive,
+    }));
+    // 添加下季度开始事件的总影响
+    (settlement as any).nextQuarterTotalEffects = {
+      cash: nextQuarterCashChange,
+      health: nextQuarterHealthChange,
+      reputation: nextQuarterReputationChange,
+      progress: nextQuarterProgressChange,
+      quality: nextQuarterQualityChange,
+      workAbility: nextQuarterWorkAbilityChange,
+      luck: nextQuarterLuckChange,
+    };
 
     set({
       currentSettlement: settlement,
@@ -905,94 +993,97 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   nextQuarter: () => {
-    const state = get();
-    const newQuarter = state.currentQuarter + 1;
-
-    // 生成下季度价格（包含属性影响）
-    const newPrices = generateNextQuarterPrices(
-      state.materialPrices,
-      state.stats.workAbility,
-      state.stats.luck
-    );
-
-    // 初始化本季度事件
+    // 初始化本季度事件（必须在状态更新前调用）
     get().initializeQuarterEvents();
 
-    // 季度开始：自动恢复健康
-    let newHealth = Math.min(100, state.stats.health + QUARTER_HEALTH_REGEN);
-    let newCash = state.stats.cash;
-    let newReputation = state.stats.reputation;
-    let newProgress = state.stats.progress;
-    let newQuality = state.stats.quality;
+    // 使用 set 的函数形式，确保读取到最新的状态（包括 finishQuarter 刚更新的现金）
+    set((prev) => {
+      const newQuarter = prev.currentQuarter + 1;
 
-    // 随机抽取2-3个季度开始事件
-    const eventCount = Math.floor(Math.random() * 2) + 2; // 2-3个事件
-    const selectedEvents: typeof QUARTER_START_EVENT_POOL = [];
+      // 生成下季度价格（包含属性影响）
+      const newPrices = generateNextQuarterPrices(
+        prev.materialPrices,
+        prev.stats.workAbility,
+        prev.stats.luck
+      );
 
-    // 过滤并选择事件
-    const shuffled = [...QUARTER_START_EVENT_POOL].sort(() => Math.random() - 0.5);
-    let attempts = 0;
-    while (selectedEvents.length < eventCount && attempts < shuffled.length * 2) {
-      const event = shuffled[attempts % shuffled.length];
-      if (!selectedEvents.includes(event) && Math.random() < event.probability) {
-        selectedEvents.push(event);
-      }
-      attempts++;
-    }
+      // 季度开始：自动恢复健康
+      let newHealth = Math.min(100, prev.stats.health + QUARTER_HEALTH_REGEN);
+      let newCash = prev.stats.cash; // ← 使用 prev.stats.cash 确保获取最新值
+      let newReputation = prev.stats.reputation;
+      let newWorkAbility = prev.stats.workAbility;
+      let newLuck = prev.stats.luck;
 
-    // 应用事件效果
-    selectedEvents.forEach(event => {
-      if (event.effects.cash) newCash += event.effects.cash;
-      if (event.effects.health) newHealth = Math.max(0, Math.min(100, newHealth + event.effects.health));
-      if (event.effects.reputation) newReputation = Math.max(0, Math.min(100, newReputation + event.effects.reputation));
-      if (event.effects.progress) newProgress = Math.max(0, Math.min(100, newProgress + event.effects.progress));
-      if (event.effects.quality) newQuality = Math.max(0, Math.min(100, newQuality + event.effects.quality));
+      // 从 settlement 中读取已生成的季度开始事件（在结算页面已展示）
+      const nextQuarterEvents = (prev.currentSettlement as any)?.nextQuarterStartEvents || [];
+
+      // 应用事件效果（包括 workAbility 和 luck）
+      // 注意：progress 和 quality 效果应用到项目状态，不是人物属性
+      let progressEffect = 0;
+      let qualityEffect = 0;
+      let quarterEventCashChange = 0;
+
+      nextQuarterEvents.forEach((event: any) => {
+        const effects = event.effects as Effects;
+        if (effects.cash) {
+          newCash += effects.cash;
+          quarterEventCashChange += effects.cash;
+        }
+        if (effects.health) newHealth = Math.max(0, Math.min(100, newHealth + effects.health));
+        if (effects.reputation) newReputation = Math.max(0, Math.min(100, newReputation + effects.reputation));
+        if (effects.progress) progressEffect += effects.progress;
+        if (effects.quality) qualityEffect += effects.quality;
+        if (effects.workAbility) newWorkAbility = Math.max(0, Math.min(100, newWorkAbility + effects.workAbility));
+        if (effects.luck) newLuck = Math.max(0, Math.min(100, newLuck + effects.luck));
+      });
+
+      console.log('=== nextQuarter 季度开始事件 ===');
+      console.log('进入时现金:', prev.stats.cash);
+      console.log('季度事件现金变化:', quarterEventCashChange);
+      console.log('应用后现金:', newCash);
+
+      // 计算新的行动点
+      const newActionPoints = calculateActionPoints(newHealth);
+
+      // 检查是否进入后期阶段
+      const newPhase = PHASE_CONFIG.lateGameRanks.includes(prev.rank)
+        ? GamePhase.LATE
+        : GamePhase.EARLY;
+
+      // 季度开始事件记录（用于下一次结算页面显示）
+      const quarterStartEventsRecord = nextQuarterEvents;
+
+      return {
+        status: GameStatus.PLAYING,
+        currentQuarter: newQuarter,
+        stats: {
+          ...prev.stats,
+          health: newHealth,
+          cash: newCash,
+          reputation: newReputation,
+          workAbility: newWorkAbility,
+          luck: newLuck,
+        },
+        // 应用项目状态效果
+        projectProgress: clampStat(prev.projectProgress + progressEffect),
+        projectQuality: clampStat(prev.projectQuality + qualityEffect),
+        materialPrices: newPrices,
+        actionPoints: newActionPoints,
+        maxActionPoints: newActionPoints,
+        phase: newPhase,
+        currentSettlement: {
+          ...prev.currentSettlement,
+          quarterStartEvents: quarterStartEventsRecord,
+        } as QuarterSettlement,
+        currentEvent: null,
+        gameStats: {
+          ...prev.gameStats,
+          totalQuarters: prev.gameStats.totalQuarters + 1,
+        },
+        actionsThisQuarter: 0,
+        actionsSinceLastEventCheck: 0,
+      };
     });
-
-    // 计算新的行动点
-    const newActionPoints = calculateActionPoints(newHealth);
-
-    // 检查是否进入后期阶段
-    const newPhase = PHASE_CONFIG.lateGameRanks.includes(state.rank)
-      ? GamePhase.LATE
-      : GamePhase.EARLY;
-
-    // 季度开始事件记录（用于显示）
-    const quarterStartEventsRecord = selectedEvents.map(e => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      effects: e.effects,
-      isPositive: e.isPositive,
-    }));
-
-    set((prev) => ({
-      status: GameStatus.PLAYING,
-      currentQuarter: newQuarter,
-      stats: {
-        ...prev.stats,
-        health: newHealth,
-        cash: newCash,
-        reputation: newReputation,
-        progress: newProgress,
-        quality: newQuality,
-      },
-      materialPrices: newPrices,
-      actionPoints: newActionPoints,
-      maxActionPoints: newActionPoints,
-      phase: newPhase,
-      currentSettlement: {
-        ...prev.currentSettlement,
-        quarterStartEvents: quarterStartEventsRecord,
-      } as QuarterSettlement,
-      currentEvent: null,
-      gameStats: {
-        ...prev.gameStats,
-        totalQuarters: prev.gameStats.totalQuarters + 1,
-      },
-      actionsThisQuarter: 0,
-      actionsSinceLastEventCheck: 0,
-    }));
   },
 
   // ==================== 团队系统 ====================
@@ -1543,9 +1634,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const healthCost = 'healthCost' in option ? (option.healthCost || 0) : 0;
 
     // 属性影响：工作能力加成（专业性关系）
+    let hasWorkAbilityBonus = false;
     if ((relationshipType === RelationshipType.DESIGN || relationshipType === RelationshipType.SUPERVISION) &&
         state.stats.workAbility >= 60) {
+      const originalGain = relationshipGain;
       relationshipGain = Math.round(relationshipGain * 1.2); // +20%
+      hasWorkAbilityBonus = relationshipGain > originalGain;
     }
 
     // 属性影响：幸运加成（贵人相助）
@@ -1575,8 +1669,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         };
       } else {
         // 效果翻倍
+        const finalGain = relationshipGain * 2;
         const newRelationships = { ...state.relationships };
-        newRelationships[relationshipType] = Math.min(100, state.relationships[relationshipType] + relationshipGain * 2);
+        newRelationships[relationshipType] = Math.min(100, state.relationships[relationshipType] + finalGain);
 
         const newStats = { ...state.stats };
         newStats.cash = Math.max(0, state.stats.cash - cost);
@@ -1591,10 +1686,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         return {
           success: true,
-          relationshipChange: relationshipGain * 2,
+          relationshipChange: finalGain,
           cashChange: -cost,
           healthChange: healthCost || undefined,
-          message: `✨ 贵人相助：关系提升双倍！+${relationshipGain * 2}`,
+          message: `✨ 贵人相助：关系提升双倍！+${finalGain}${hasWorkAbilityBonus ? ' (🔧工作能力+20%)' : ''}`,
         };
       }
     }
@@ -1632,7 +1727,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       relationshipChange: relationshipGain,
       cashChange: -cost,
       healthChange: healthCost || undefined,
-      message: `${RELATIONSHIP_DISPLAY[relationshipType].label}关系+${relationshipGain}`,
+      message: `${RELATIONSHIP_DISPLAY[relationshipType].label}关系+${relationshipGain}${hasWorkAbilityBonus ? ' (🔧工作能力+20%)' : ''}`,
     };
   },
 
@@ -1673,8 +1768,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cash: Math.max(0, currentStats.cash + (effects.cash || 0)),
       health: clampStat(currentStats.health + (effects.health || 0)),
       reputation: clampStat(currentStats.reputation + (effects.reputation || 0)),
-      progress: clampStat(currentStats.progress + (effects.progress || 0)),
-      quality: clampStat(currentStats.quality + (effects.quality || 0)),
       workAbility: clampStat(currentStats.workAbility + (effects.workAbility || 0)),
       luck: clampStat(currentStats.luck + (effects.luck || 0)),
     };
@@ -1740,7 +1833,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
             : state.gameStats.qualityProjects,
         },
         projectProgress: 0,
-        projectQuality: GAME_CONFIG.initialStats.quality,
+        projectQuality: 50,  // 重置为新项目的初始质量
       });
 
       return true;
@@ -2007,14 +2100,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const roll = Math.random() * 100;
 
       if (roll > successThreshold) {
-        // 失败，使用失败效果（如果 effects 有 failure 属性）
-        const failureEffects = (selectedOption.effects as any).failure || {};
+        // 失败，使用失败效果
+        const failureEffects = selectedOption.effects.failure || {};
+        const failureFeedback = selectedOption.failureFeedback || '（失败）';
         const result: EventResult = {
           eventId: currentEvent.id,
           eventTitle: currentEvent.title,
           selectedOptionId: optionId,
           selectedOptionText: selectedOption.text,
-          feedback: selectedOption.feedback + '（失败）',
+          feedback: selectedOption.feedback + failureFeedback,
           effects: failureEffects,
           timestamp: Date.now(),
         };
@@ -2115,11 +2209,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newStats.reputation = clampStat(newStats.reputation + effects.reputation);
     }
     if (effects.progress) {
-      newStats.progress = clampStat(newStats.progress + effects.progress);
       set({ projectProgress: clampStat(state.projectProgress + effects.progress) });
     }
     if (effects.quality) {
-      newStats.quality = clampStat(newStats.quality + effects.quality);
       set({ projectQuality: clampStat(state.projectQuality + effects.quality) });
     }
 

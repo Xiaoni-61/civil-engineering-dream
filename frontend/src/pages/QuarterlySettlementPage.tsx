@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { RANK_CONFIGS } from '@shared/types';
+import { QUARTER_HEALTH_REGEN } from '@/data/constants';
 
 export function QuarterlySettlementPage() {
   const navigate = useNavigate();
@@ -18,6 +19,52 @@ export function QuarterlySettlementPage() {
   const extendedSettlement = currentSettlement as any;
   const bonusEvent = extendedSettlement.bonusEvent;
   const disasterEvent = extendedSettlement.disasterEvent;
+  const salaryRaise = extendedSettlement.salaryRaise;
+  const nextQuarterStartEvents = extendedSettlement.nextQuarterStartEvents || [];
+  const nextQuarterTotalEffects = extendedSettlement.nextQuarterTotalEffects || {};
+
+  // 计算本季度所有属性的变化
+  const calculateAttributeChanges = () => {
+    const changes: { label: string; value: number; color: string; section?: string }[] = [];
+
+    // 第一部分：本季度开始时的事件（已经应用）
+    if (quarterStartEvents && quarterStartEvents.length > 0) {
+      changes.push({ label: '【本季度开始事件】(已生效)', value: 0, color: 'text-slate-500', section: 'header' } as any);
+      quarterStartEvents.forEach(event => {
+        const effects = event.effects;
+        if (effects.cash) changes.push({ label: `  ${event.title}(现金)`, value: effects.cash, color: effects.cash > 0 ? 'text-emerald-600' : 'text-red-600' });
+        if (effects.health) changes.push({ label: `  ${event.title}(健康)`, value: effects.health, color: effects.health > 0 ? 'text-emerald-600' : 'text-red-600' });
+        if (effects.reputation) changes.push({ label: `  ${event.title}(声誉)`, value: effects.reputation, color: effects.reputation > 0 ? 'text-emerald-600' : 'text-red-600' });
+        if (effects.workAbility) changes.push({ label: `  ${event.title}(工作能力)`, value: effects.workAbility, color: effects.workAbility > 0 ? 'text-brand-600' : 'text-red-600' });
+        if (effects.luck) changes.push({ label: `  ${event.title}(幸运)`, value: effects.luck, color: effects.luck > 0 ? 'text-purple-600' : 'text-red-600' });
+      });
+    }
+
+    // 第二部分：本季度结算变化
+    changes.push({ label: '【本季度收支结算】', value: 0, color: 'text-slate-500', section: 'header' } as any);
+
+    // 季度自然恢复健康
+    changes.push({ label: '  季度自然恢复(健康)', value: QUARTER_HEALTH_REGEN, color: 'text-emerald-600' });
+
+    // 季度涨薪
+    if (salaryRaise && salaryRaise > 0) {
+      changes.push({ label: '  季度涨薪(下季度生效)', value: salaryRaise, color: 'text-emerald-600' });
+    }
+
+    // 收支净变化（这是本季度的实际财务变化）
+    changes.push({ label: '  收支净变化(工资+生活费+项目等)', value: currentSettlement.netChange, color: currentSettlement.netChange > 0 ? 'text-emerald-600' : 'text-red-600' });
+
+    // 天灾事件的非现金效果（现金效果已包含在净变化中）
+    if (disasterEvent) {
+      if (disasterEvent.healthPenalty) changes.push({ label: `  ${disasterEvent.name}(健康)`, value: -disasterEvent.healthPenalty, color: 'text-red-600' });
+      if (disasterEvent.reputationPenalty) changes.push({ label: `  ${disasterEvent.name}(声誉)`, value: -disasterEvent.reputationPenalty, color: 'text-red-600' });
+      if (disasterEvent.progressPenalty) changes.push({ label: `  ${disasterEvent.name}(进度)`, value: -disasterEvent.progressPenalty, color: 'text-red-600' });
+    }
+
+    return changes;
+  };
+
+  const attributeChanges = calculateAttributeChanges();
 
   const handleNextQuarter = () => {
     // 如果可以晋升，自动晋升
@@ -45,7 +92,7 @@ export function QuarterlySettlementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 pt-40">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 pt-44">
       {/* 顶部装饰条 */}
       <div className={`h-1.5 ${
         canPromote
@@ -85,35 +132,46 @@ export function QuarterlySettlementPage() {
             <div className="p-4 border-b border-slate-200">
               <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center">
                 <span className="mr-2">🎬</span>
-                季度开始事件
+                本季度开始事件
               </h3>
               <div className="space-y-2">
-                {quarterStartEvents.map((event, index) => (
-                  <div
-                    key={`${event.id}-${index}`}
-                    className={`p-3 rounded-lg border ${
-                      event.isPositive
-                        ? 'bg-emerald-50 border-emerald-200'
-                        : 'bg-red-50 border-red-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-sm font-medium ${
-                        event.isPositive ? 'text-emerald-700' : 'text-red-700'
-                      }`}>
-                        {event.isPositive ? '📈' : '⚠️'} {event.title}
-                      </span>
-                      <span className={`text-xs font-bold ${
-                        event.isPositive ? 'text-emerald-600' : 'text-red-600'
-                      }`}>
-                        {event.isPositive ? '+' : ''}
-                        {event.effects.cash ? event.effects.cash : ''}
-                        {event.effects.health ? (event.effects.health > 0 ? ' +' : '') + event.effects.health + ' 健康' : ''}
-                      </span>
+                {quarterStartEvents.map((event, index) => {
+                  const effects = event.effects;
+                  // 构建效果显示字符串
+                  const effectParts: string[] = [];
+                  if (effects.cash) effectParts.push(`${effects.cash > 0 ? '+' : ''}${effects.cash}现金`);
+                  if (effects.health) effectParts.push(`${effects.health > 0 ? '+' : ''}${effects.health}健康`);
+                  if (effects.reputation) effectParts.push(`${effects.reputation > 0 ? '+' : ''}${effects.reputation}声誉`);
+                  if (effects.workAbility) effectParts.push(`${effects.workAbility > 0 ? '+' : ''}${effects.workAbility}工作能力`);
+                  if (effects.luck) effectParts.push(`${effects.luck > 0 ? '+' : ''}${effects.luck}幸运`);
+                  if (effects.progress) effectParts.push(`${effects.progress > 0 ? '+' : ''}${effects.progress}进度`);
+                  if (effects.quality) effectParts.push(`${effects.quality > 0 ? '+' : ''}${effects.quality}质量`);
+
+                  return (
+                    <div
+                      key={`${event.id}-${index}`}
+                      className={`p-3 rounded-lg border ${
+                        event.isPositive
+                          ? 'bg-emerald-50 border-emerald-200'
+                          : 'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-medium ${
+                          event.isPositive ? 'text-emerald-700' : 'text-red-700'
+                        }`}>
+                          {event.isPositive ? '📈' : '⚠️'} {event.title}
+                        </span>
+                        <span className={`text-xs font-bold ${
+                          event.isPositive ? 'text-emerald-600' : 'text-red-600'
+                        }`}>
+                          {effectParts.join(' · ')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">{event.description}</p>
                     </div>
-                    <p className="text-xs text-slate-600">{event.description}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -169,11 +227,25 @@ export function QuarterlySettlementPage() {
 
                 {/* 天灾事件 */}
                 {disasterEvent && (
-                  <div className="flex justify-between items-center p-2 bg-red-50 rounded-feishu border border-red-200">
-                    <span className="text-sm text-red-700">⚠️ {disasterEvent.name}</span>
-                    <span className="text-sm font-bold text-red-600">
-                      -{disasterEvent.cashPenalty.toLocaleString()}
-                    </span>
+                  <div className="p-2 bg-red-50 rounded-feishu border border-red-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-red-700 font-medium">⚠️ {disasterEvent.name}</span>
+                    </div>
+                    <div className="text-xs text-slate-600 mb-1">{disasterEvent.description}</div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                      {disasterEvent.cashPenalty && (
+                        <span className="text-red-600 font-bold">-{disasterEvent.cashPenalty.toLocaleString()}现金</span>
+                      )}
+                      {disasterEvent.healthPenalty && (
+                        <span className="text-red-600 font-bold">-{disasterEvent.healthPenalty}健康</span>
+                      )}
+                      {disasterEvent.reputationPenalty && (
+                        <span className="text-red-600 font-bold">-{disasterEvent.reputationPenalty}声誉</span>
+                      )}
+                      {disasterEvent.progressPenalty && (
+                        <span className="text-red-600 font-bold">-{disasterEvent.progressPenalty}进度</span>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -185,6 +257,144 @@ export function QuarterlySettlementPage() {
                 </div>
               </div>
             </div>
+
+            {/* 本季度属性变化汇总 */}
+            {attributeChanges.length > 0 && (
+              <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-feishu p-4 mb-4 border border-slate-200">
+                <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center">
+                  <span className="mr-2">📊</span>
+                  本季度属性变化汇总
+                </h3>
+                <div className="space-y-2">
+                  {attributeChanges.map((change, index) => {
+                    if ((change as any).section === 'header') {
+                      return (
+                        <div key={index} className={`text-xs font-bold ${change.color} mt-3 first:mt-0`}>
+                          {change.label}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={index} className="flex justify-between items-center text-sm pl-2">
+                        <span className="text-slate-600">{change.label}</span>
+                        <span className={`font-bold ${change.color}`}>
+                          {change.value > 0 ? '+' : ''}{change.value}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-500">
+                  ✅ 以上所有变化已应用到当前属性值，请查看顶部状态栏
+                </div>
+              </div>
+            )}
+
+            {/* 下季度开始事件预告 */}
+            {nextQuarterStartEvents.length > 0 && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-feishu p-4 mb-4 border-2 border-amber-300">
+                <h3 className="text-sm font-bold text-amber-800 mb-3 flex items-center">
+                  <span className="mr-2">🔮</span>
+                  下季度开始事件预告
+                </h3>
+                <div className="space-y-2 mb-3">
+                  {nextQuarterStartEvents.map((event: any, index: number) => {
+                    const effects = event.effects;
+                    // 构建效果显示字符串
+                    const effectParts: string[] = [];
+                    if (effects.cash) effectParts.push(`${effects.cash > 0 ? '+' : ''}${effects.cash}现金`);
+                    if (effects.health) effectParts.push(`${effects.health > 0 ? '+' : ''}${effects.health}健康`);
+                    if (effects.reputation) effectParts.push(`${effects.reputation > 0 ? '+' : ''}${effects.reputation}声誉`);
+                    if (effects.workAbility) effectParts.push(`${effects.workAbility > 0 ? '+' : ''}${effects.workAbility}工作能力`);
+                    if (effects.luck) effectParts.push(`${effects.luck > 0 ? '+' : ''}${effects.luck}幸运`);
+                    if (effects.progress) effectParts.push(`${effects.progress > 0 ? '+' : ''}${effects.progress}进度`);
+                    if (effects.quality) effectParts.push(`${effects.quality > 0 ? '+' : ''}${effects.quality}质量`);
+
+                    return (
+                      <div
+                        key={`${event.id}-${index}`}
+                        className={`p-3 rounded-lg border ${
+                          event.isPositive
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-sm font-medium ${
+                            event.isPositive ? 'text-emerald-700' : 'text-red-700'
+                          }`}>
+                            {event.isPositive ? '📈' : '⚠️'} {event.title}
+                          </span>
+                          <span className={`text-xs font-bold ${
+                            event.isPositive ? 'text-emerald-600' : 'text-red-600'
+                          }`}>
+                            {effectParts.join(' · ')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">{event.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-amber-200">
+                  <div className="text-xs text-amber-700 mb-2 font-medium">💡 进入下季度后的预期变化：</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {nextQuarterTotalEffects.cash !== 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">💰 现金</span>
+                        <span className={`font-bold ${nextQuarterTotalEffects.cash > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {nextQuarterTotalEffects.cash > 0 ? '+' : ''}{nextQuarterTotalEffects.cash}
+                        </span>
+                      </div>
+                    )}
+                    {nextQuarterTotalEffects.health !== 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">❤️ 健康</span>
+                        <span className={`font-bold ${nextQuarterTotalEffects.health > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {nextQuarterTotalEffects.health > 0 ? '+' : ''}{nextQuarterTotalEffects.health}
+                        </span>
+                      </div>
+                    )}
+                    {nextQuarterTotalEffects.reputation !== 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">⭐ 声誉</span>
+                        <span className={`font-bold ${nextQuarterTotalEffects.reputation > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {nextQuarterTotalEffects.reputation > 0 ? '+' : ''}{nextQuarterTotalEffects.reputation}
+                        </span>
+                      </div>
+                    )}
+                    {nextQuarterTotalEffects.workAbility !== 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">💼 工作能力</span>
+                        <span className={`font-bold ${nextQuarterTotalEffects.workAbility > 0 ? 'text-brand-600' : 'text-red-600'}`}>
+                          {nextQuarterTotalEffects.workAbility > 0 ? '+' : ''}{nextQuarterTotalEffects.workAbility}
+                        </span>
+                      </div>
+                    )}
+                    {nextQuarterTotalEffects.luck !== 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">🍀 幸运</span>
+                        <span className={`font-bold ${nextQuarterTotalEffects.luck > 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                          {nextQuarterTotalEffects.luck > 0 ? '+' : ''}{nextQuarterTotalEffects.luck}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {nextQuarterTotalEffects.cash && (
+                    <div className="mt-2 pt-2 border-t border-amber-200 text-xs">
+                      <span className="text-slate-600">预期进入下季度后现金：</span>
+                      <span className={`font-bold ml-2 ${
+                        (useGameStoreNew.getState().stats.cash + nextQuarterTotalEffects.cash) < 10000
+                          ? 'text-red-600'
+                          : 'text-emerald-600'
+                      }`}>
+                        {((useGameStoreNew.getState().stats.cash + nextQuarterTotalEffects.cash) / 10000).toFixed(1)}万
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 关系衰减 */}
             {Object.keys(currentSettlement.relationshipDecay).length > 0 && (

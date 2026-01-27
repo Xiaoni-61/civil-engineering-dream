@@ -38,6 +38,8 @@ export interface DecisionOption {
   };
   hidden?: boolean;        // 是否为隐藏选项
   riskFactor?: number;     // 冒险选项的失败率 (0-1)
+  // 失败时的反馈文本（会附加在 feedback 后）
+  failureFeedback?: string;
 }
 
 /**
@@ -54,6 +56,9 @@ export interface EventEffects {
   leadership?: number;
   workAbility?: number;  // 工作能力变化
   luck?: number;         // 幸运变化
+
+  // 冒险选项失败时的效果（仅在 riskFactor 存在时有效）
+  failure?: EventEffects;
 }
 
 /**

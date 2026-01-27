@@ -49,6 +49,25 @@ export const commonEvents: DecisionEvent[] = [
             { type: RelationshipType.GOVERNMENT, change: 2 }
           ]
         }
+      },
+      {
+        id: 'com_001_opt_d',
+        text: '🎲 豪赌天气好转（需幸运≥40）',
+        feedback: '你凭借直觉判断天气会好转，决定不采取防雨措施。运气爆棚！雨真的停了，你省下了防雨费用，工程也顺利完成。',
+        requiredAbility: { luck: 40 },
+        riskFactor: 0.3,
+        hidden: true,
+        failureFeedback: '很不幸，暴雨倾盆而下！工地被淹，材料和设备都受损，损失惨重。',
+        effects: {
+          reputation: 3,
+          cash: 500,
+          failure: {
+            reputation: -5,
+            cash: -3000,
+            quality: -3,
+            progress: -3
+          }
+        }
       }
     ]
   },
@@ -89,6 +108,19 @@ export const commonEvents: DecisionEvent[] = [
           cash: -800,
           progress: 1
         }
+      },
+      {
+        id: 'com_002_opt_d',
+        text: '🔧 技术诊断维修（需工作能力≥25）',
+        feedback: '你凭借扎实的机械知识，精准诊断出故障原因并自己动手修理。不仅省了维修费，还提升了团队对你的技术能力的认可。',
+        requiredAbility: { workAbility: 25 },
+        hidden: true,
+        effects: {
+          cash: -100,
+          progress: 1,
+          reputation: 5,
+          workAbility: 2
+        }
       }
     ]
   },
@@ -127,6 +159,18 @@ export const commonEvents: DecisionEvent[] = [
           quality: 1,
           reputation: 2,
           health: -1
+        }
+      },
+      {
+        id: 'com_003_opt_d',
+        text: '🔧 精准市场预测（需工作能力≥30）',
+        feedback: '你凭借对市场的深入研究和分析，精准预测了价格走势。提前低买高卖，为公司节省了大量成本，被誉为"市场分析师"！',
+        requiredAbility: { workAbility: 30 },
+        hidden: true,
+        effects: {
+          cash: 3000,
+          reputation: 6,
+          workAbility: 2
         }
       }
     ]
@@ -173,6 +217,25 @@ export const commonEvents: DecisionEvent[] = [
             { type: RelationshipType.CLIENT, change: 2 },
             { type: RelationshipType.DESIGN, change: 3 }
           ]
+        }
+      },
+      {
+        id: 'com_004_opt_d',
+        text: '🎲 豪赌甲方放弃（需幸运≥30）',
+        feedback: '你赌甲方只是随口一说，故意拖延处理。运气不错！甲方后来真的忘记了这件事，避免了额外工作。',
+        requiredAbility: { luck: 30 },
+        riskFactor: 0.5,
+        hidden: true,
+        failureFeedback: '很不幸，甲方非常重视这个变更，发现你拖延处理大发雷霆！关系严重受损，需要花大量精力弥补。',
+        effects: {
+          reputation: 3,
+          health: 1,
+          failure: {
+            reputation: -8,
+            relationships: [
+              { type: RelationshipType.CLIENT, change: -10 }
+            ]
+          }
         }
       }
     ]

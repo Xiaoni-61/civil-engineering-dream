@@ -134,6 +134,21 @@ export const assistantEngineerEvents: DecisionEvent[] = [
           reputation: 3,
           quality: 2
         }
+      },
+      {
+        id: 'asst_003_opt_d',
+        text: '🔧 深度优化方案（需工作能力≥25）',
+        feedback: '你凭借对规范的深入理解，编制了超越常规要求的高质量方案。监理对你的专业水平非常赞赏，方案成为样板。',
+        requiredAbility: { workAbility: 25 },
+        hidden: true,
+        effects: {
+          health: -3,
+          reputation: 6,
+          quality: 4,
+          relationships: [
+            { type: RelationshipType.SUPERVISION, change: 6 }
+          ]
+        }
       }
     ]
   },
@@ -179,6 +194,27 @@ export const assistantEngineerEvents: DecisionEvent[] = [
             { type: RelationshipType.SUPERVISION, change: -5 }
           ]
         }
+      },
+      {
+        id: 'asst_004_opt_d',
+        text: '🎲 豪赌隐蔽处理（需幸运≥35）',
+        feedback: '你决定冒险对问题部位进行隐蔽处理，赌监理不会发现。幸运的是，监理确实没有发现，项目顺利推进。',
+        requiredAbility: { luck: 35 },
+        riskFactor: 0.35,
+        hidden: true,
+        failureFeedback: '不幸的是，监理在检查中发现了问题。问题被严肃处理，你的声誉受到了严重影响。',
+        effects: {
+          reputation: 3,
+          quality: -1,
+          progress: 2,
+          failure: {
+            reputation: -8,
+            quality: -5,
+            relationships: [
+              { type: RelationshipType.SUPERVISION, change: -8 }
+            ]
+          }
+        }
       }
     ]
   },
@@ -220,6 +256,19 @@ export const assistantEngineerEvents: DecisionEvent[] = [
           cash: -1000,
           reputation: 3,
           quality: 3
+        }
+      },
+      {
+        id: 'asst_005_opt_d',
+        text: '🔧 自主技术攻关（需工作能力≥25）',
+        feedback: '你凭借扎实的技术功底，独立研究了大量资料，提出了创新解决方案。虽然很辛苦，但技术能力得到大幅提升，领导对你的潜力刮目相看。',
+        requiredAbility: { workAbility: 25 },
+        hidden: true,
+        effects: {
+          health: -4,
+          reputation: 6,
+          quality: 4,
+          workAbility: 3
         }
       }
     ]

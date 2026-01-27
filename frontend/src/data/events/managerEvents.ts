@@ -51,6 +51,19 @@ export const managerEvents: DecisionEvent[] = [
           reputation: 2,
           cash: 2000
         }
+      },
+      {
+        id: 'mgr_001_opt_d',
+        text: '🔧 精细化管理扭亏（需工作能力≥45）',
+        feedback: '你凭借丰富的项目管理经验，实施了精细化管理。通过优化方案、控制成本、提升效率，不仅扭亏为盈，还创造了超额利润。',
+        requiredAbility: { workAbility: 45 },
+        hidden: true,
+        effects: {
+          health: -3,
+          reputation: 8,
+          cash: 8000,
+          quality: 1
+        }
       }
     ]
   },
@@ -141,6 +154,30 @@ export const managerEvents: DecisionEvent[] = [
             { type: RelationshipType.CLIENT, change: -5 }
           ]
         }
+      },
+      {
+        id: 'mgr_003_opt_d',
+        text: '🎲 豪赌变更谈判（需幸运≥45）',
+        feedback: '你决定在变更谈判上冒险一搏，要求更高的变更价格。运气不错！甲方最终同意了你的要求。',
+        requiredAbility: { luck: 45 },
+        riskFactor: 0.25,
+        hidden: true,
+        failureFeedback: '很不幸，甲方对你的高价要求非常不满，不仅拒绝了变更，还威胁要终止合作。',
+        effects: {
+          health: -2,
+          reputation: 6,
+          cash: 10000,
+          relationships: [
+            { type: RelationshipType.CLIENT, change: -1 }
+          ],
+          failure: {
+            reputation: -5,
+            cash: -2000,
+            relationships: [
+              { type: RelationshipType.CLIENT, change: -8 }
+            ]
+          }
+        }
       }
     ]
   },
@@ -188,6 +225,22 @@ export const managerEvents: DecisionEvent[] = [
           progress: -2,
           quality: 2,
           reputation: 3
+        }
+      },
+      {
+        id: 'mgr_004_opt_d',
+        text: '🔧 专业帮扶改进（需工作能力≥45）',
+        feedback: '你凭借丰富的分包管理经验，深入分包商现场，指导他们改进管理体系。分包商能力显著提升，质量和进度都得到保障。',
+        requiredAbility: { workAbility: 45 },
+        hidden: true,
+        effects: {
+          health: -3,
+          reputation: 6,
+          quality: 3,
+          progress: 2,
+          relationships: [
+            { type: RelationshipType.LABOR, change: 5 }
+          ]
         }
       }
     ]

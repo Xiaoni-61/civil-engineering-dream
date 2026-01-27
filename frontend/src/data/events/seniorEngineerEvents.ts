@@ -50,6 +50,20 @@ export const seniorEngineerEvents: DecisionEvent[] = [
           reputation: 4,
           quality: 2
         }
+      },
+      {
+        id: 'sen_001_opt_d',
+        text: '🔧 革新技术方案（需工作能力≥50）',
+        feedback: '你凭借深厚的技术功底，提出了革命性的技术方案。虽然实施过程很艰难，但项目取得巨大成功，成为行业标杆！',
+        requiredAbility: { workAbility: 50 },
+        hidden: true,
+        effects: {
+          health: -6,
+          reputation: 10,
+          quality: 5,
+          progress: 3,
+          cash: 12000
+        }
       }
     ]
   },
@@ -92,6 +106,20 @@ export const seniorEngineerEvents: DecisionEvent[] = [
           health: -2,
           reputation: 4,
           quality: 2
+        }
+      },
+      {
+        id: 'sen_002_opt_d',
+        text: '🔧 自主研发突破（需工作能力≥50）',
+        feedback: '你凭借丰富的技术积累，组织团队进行自主研发。经过艰苦攻关，取得了重大技术突破，获得多项专利和奖项！',
+        requiredAbility: { workAbility: 50 },
+        hidden: true,
+        effects: {
+          health: -6,
+          reputation: 10,
+          quality: 5,
+          cash: 5000,
+          workAbility: 3
         }
       }
     ]

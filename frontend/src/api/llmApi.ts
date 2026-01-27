@@ -73,8 +73,8 @@ export async function enhanceDescription(params: {
     cash: number;
     health: number;
     reputation: number;
-    progress: number;
-    quality: number;
+    workAbility: number;
+    luck: number;
   };
   round: number;
 }): Promise<{ description: string } | null> {
@@ -109,8 +109,8 @@ export async function generateSpecialEvent(params: {
     cash: number;
     health: number;
     reputation: number;
-    progress: number;
-    quality: number;
+    workAbility: number;
+    luck: number;
   };
   round: number;
 }): Promise<any | null> {

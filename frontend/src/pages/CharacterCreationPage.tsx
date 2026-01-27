@@ -79,7 +79,7 @@ export function CharacterCreationPage() {
   const evaluation = hasDrawn ? getEvaluation() : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-brand-50 pb-20 pt-40">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-brand-50 pb-20 pt-44">
       <div className="max-w-md mx-auto px-4">
         {/* 头部 */}
         <h1 className="text-3xl font-bold text-slate-900 mb-2">创建你的工程师</h1>

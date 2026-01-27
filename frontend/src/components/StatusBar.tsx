@@ -177,20 +177,6 @@ const StatusBar: React.FC<StatusBarProps> = memo(({ stats, round, maxRounds, ran
           color={STAT_DISPLAY.reputation.color}
           dangerThreshold={STAT_DISPLAY.reputation.dangerThreshold}
         />
-        <StatItem
-          label={STAT_DISPLAY.progress.label}
-          value={stats.progress}
-          icon={STAT_DISPLAY.progress.icon}
-          color={STAT_DISPLAY.progress.color}
-          dangerThreshold={STAT_DISPLAY.progress.dangerThreshold}
-        />
-        <StatItem
-          label={STAT_DISPLAY.quality.label}
-          value={stats.quality}
-          icon={STAT_DISPLAY.quality.icon}
-          color={STAT_DISPLAY.quality.color}
-          dangerThreshold={STAT_DISPLAY.quality.dangerThreshold}
-        />
       </div>
 
       {/* 危险警告 */}

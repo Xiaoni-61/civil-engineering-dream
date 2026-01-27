@@ -59,7 +59,7 @@ export function EventsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-40">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
       <div className="max-w-md mx-auto px-4">
         {/* 返回按钮 */}
         <button

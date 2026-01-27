@@ -114,8 +114,8 @@ export async function finishGame(params: {
     cash: number;
     health: number;
     reputation: number;
-    progress: number;
-    quality: number;
+    workAbility: number;
+    luck: number;
   };
   roundsPlayed: number;
 }) {

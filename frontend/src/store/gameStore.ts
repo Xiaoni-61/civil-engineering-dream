@@ -489,8 +489,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
       if (disasterEvent.progressPenalty) {
         const currentProjectProgress = state.projectProgress;
-        newStats.progress = Math.max(0, currentProjectProgress - disasterEvent.progressPenalty);
-        // 同时更新项目进度
         set({ projectProgress: Math.max(0, currentProjectProgress - disasterEvent.progressPenalty) });
       }
       set({ stats: newStats });
@@ -751,6 +749,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
       } else if (nextRankConfig.rank === Rank.PARTNER) {
         if (gameStats.qualityProjects < 10) {
           missing.push(nextRankConfig.specialRequirement);
+        }
+      }
+    }
+
+    // 检查关系要求
+    if (nextRankConfig.relationshipRequirements) {
+      const { requirements, requirementType } = nextRankConfig.relationshipRequirements;
+      const unsatisfiedRelationships: string[] = [];
+
+      // 关系类型中文映射
+      const relationshipLabels: Record<RelationshipType, string> = {
+        [RelationshipType.CLIENT]: '甲方',
+        [RelationshipType.SUPERVISION]: '监理',
+        [RelationshipType.DESIGN]: '设计院',
+        [RelationshipType.LABOR]: '劳务队',
+        [RelationshipType.GOVERNMENT]: '政府部门',
+      };
+
+      // 检查每个关系要求
+      for (const req of requirements) {
+        const currentValue = state.relationships[req.type];
+        if (currentValue < req.requiredValue) {
+          unsatisfiedRelationships.push(
+            `${relationshipLabels[req.type]}需达到 ${req.requiredValue}（当前 ${currentValue}）`
+          );
+        }
+      }
+
+      // 根据要求类型决定是否阻止晋升
+      if (requirementType === 'all') {
+        // 需要满足所有要求
+        if (unsatisfiedRelationships.length > 0) {
+          if (unsatisfiedRelationships.length === 1) {
+            missing.push(`虽然你的业绩很优秀，但${unsatisfiedRelationships[0]}才能晋升。`);
+          } else {
+            missing.push(`虽然你的业绩很优秀，但以下关系需要加强才能晋升：${unsatisfiedRelationships.join('、')}`);
+          }
+        }
+      } else if (requirementType === 'any') {
+        // 满足任一要求即可（当前配置中没有使用 'any'，但为未来扩展预留）
+        const allUnsatisfied = unsatisfiedRelationships.length === requirements.length;
+        if (allUnsatisfied) {
+          missing.push(`至少需要满足以下关系之一：${unsatisfiedRelationships.join('、')}`);
         }
       }
     }

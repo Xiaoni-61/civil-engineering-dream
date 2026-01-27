@@ -3,6 +3,7 @@ import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { ACTIONS } from '@/data/constants';
 import { ActionType, Rank, GameStatus } from '@shared/types';
 import { TrainingActionCard } from '@/components/TrainingActionCard';
+import { ProjectCard } from '@/components/ProjectCard';
 
 export function ActionsPage() {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export function ActionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-40">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
       <div className="max-w-md mx-auto px-4">
         {/* 季度和状态信息 */}
         <div className="mb-6 text-center">
@@ -77,6 +78,9 @@ export function ActionsPage() {
             <span>❤️ 健康：{stats.health}/100</span>
           </div>
         </div>
+
+        {/* 项目状态卡片 */}
+        <ProjectCard />
 
         {/* 当前事件卡片 */}
         {status === GameStatus.PLAYING && currentEvent && (
@@ -108,7 +112,7 @@ export function ActionsPage() {
           <h2 className="text-lg font-bold text-slate-900 mb-3">基础行动</h2>
           <div className="grid grid-cols-2 gap-3">
             {availableActions
-              .filter(a => [ActionType.DO_PROJECT, ActionType.TRAINING, ActionType.REST].includes(a.type))
+              .filter(a => [ActionType.DO_PROJECT, ActionType.FREELANCE, ActionType.CUT_CORNERS, ActionType.REST].includes(a.type))
               .map((action) => {
                 const affordable = canAfford(action.costCash);
                 const hasEnoughAP = actionPoints > 0;

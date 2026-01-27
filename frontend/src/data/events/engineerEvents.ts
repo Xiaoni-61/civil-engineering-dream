@@ -49,6 +49,19 @@ export const engineerEvents: DecisionEvent[] = [
           quality: 1,
           progress: 2
         }
+      },
+      {
+        id: 'eng_001_opt_d',
+        text: '🔧 技术方案优化（需工作能力≥30）',
+        feedback: '你凭借过硬的技术能力，提出了一个创新的技术方案。虽然需要更多时间准备，但效果显著，既解决了问题又提升了项目质量。',
+        requiredAbility: { workAbility: 30 },
+        hidden: true,
+        effects: {
+          health: -2,
+          reputation: 8,
+          quality: 5,
+          progress: 1
+        }
       }
     ]
   },
@@ -130,6 +143,19 @@ export const engineerEvents: DecisionEvent[] = [
         effects: {
           reputation: 2,
           quality: 1
+        }
+      },
+      {
+        id: 'eng_003_opt_d',
+        text: '🔧 技术攻关突破（需工作能力≥35）',
+        feedback: '你凭借丰富的技术经验，组织团队进行技术攻关。成功攻克技术难关，新技术完美融入项目，创造了行业标杆工程！',
+        requiredAbility: { workAbility: 35 },
+        hidden: true,
+        effects: {
+          health: -3,
+          reputation: 8,
+          quality: 6,
+          progress: 2
         }
       }
     ]
