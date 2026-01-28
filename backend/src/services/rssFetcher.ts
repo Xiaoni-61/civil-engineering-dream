@@ -13,7 +13,7 @@ import { RSS_SOURCES, FILTER_KEYWORDS, BLACKLIST_KEYWORDS, STRONG_KEYWORDS, type
  */
 export interface NewsItem {
   title: string;
-  content: string;
+  description: string; // 新闻内容摘要（与设计文档保持一致）
   pubDate?: Date;
   url: string;
   sourceName: string;
@@ -140,7 +140,7 @@ export class RSSFetcher {
 
         const newsItem: NewsItem = {
           title: item.title,
-          content: item.contentSnippet || item.content || '',
+          description: item.contentSnippet || item.content || '',
           pubDate: item.pubDate ? new Date(item.pubDate) : undefined,
           url: item.link,
           sourceName: source.name,
@@ -168,7 +168,7 @@ export class RSSFetcher {
    * - 不能包含黑名单关键词（除非有强相关关键词）
    */
   private filterByKeywords(item: NewsItem): boolean {
-    const text = `${item.title} ${item.content}`.toLowerCase();
+    const text = `${item.title} ${item.description}`.toLowerCase();
 
     // 检查是否包含强相关关键词
     const hasStrongKeyword = STRONG_KEYWORDS.some((keyword) =>
@@ -306,7 +306,7 @@ export class RSSFetcher {
     return [
       {
         title: '建筑行业迎来政策利好',
-        content: '国家加大基础设施投资力度，建筑行业迎来新一轮发展机遇。',
+        description: '国家加大基础设施投资力度，建筑行业迎来新一轮发展机遇。',
         url: 'fallback://1',
         sourceName: '系统预设',
         sourceCategory: 'professional',
@@ -314,7 +314,7 @@ export class RSSFetcher {
       },
       {
         title: '建材价格波动明显',
-        content: '受原材料供应影响，水泥、钢筋等建材价格出现较大波动。',
+        description: '受原材料供应影响，水泥、钢筋等建材价格出现较大波动。',
         url: 'fallback://2',
         sourceName: '系统预设',
         sourceCategory: 'financial',
@@ -322,7 +322,7 @@ export class RSSFetcher {
       },
       {
         title: '绿色建筑成为新趋势',
-        content: '环保政策推动下，绿色建筑、装配式建筑成为行业发展新方向。',
+        description: '环保政策推动下，绿色建筑、装配式建筑成为行业发展新方向。',
         url: 'fallback://3',
         sourceName: '系统预设',
         sourceCategory: 'professional',
@@ -330,7 +330,7 @@ export class RSSFetcher {
       },
       {
         title: '央行降准释放流动性',
-        content: '央行宣布降准，释放长期资金，有利于降低企业融资成本。',
+        description: '央行宣布降准，释放长期资金，有利于降低企业融资成本。',
         url: 'fallback://4',
         sourceName: '系统预设',
         sourceCategory: 'financial',
@@ -338,7 +338,7 @@ export class RSSFetcher {
       },
       {
         title: '房地产调控政策调整',
-        content: '多地出台房地产调控新政，市场观望情绪浓厚。',
+        description: '多地出台房地产调控新政，市场观望情绪浓厚。',
         url: 'fallback://5',
         sourceName: '系统预设',
         sourceCategory: 'financial',
