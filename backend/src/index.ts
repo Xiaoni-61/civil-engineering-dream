@@ -10,6 +10,7 @@ import {
 import { createRunRouter } from './api/run.js';
 import { createLeaderboardRouter } from './api/leaderboard.js';
 import { createLLMRouter } from './api/llm.js';
+import { startScheduler, stopScheduler } from './services/scheduler.js';
 
 // 加载环境变量
 dotenv.config();
@@ -49,6 +50,14 @@ async function startServer() {
     // 错误处理
     app.use(errorHandler);
 
+    // 启动定时任务调度器
+    try {
+      await startScheduler();
+    } catch (error) {
+      console.error('⚠️  定时任务调度器启动失败:', error);
+      console.log('⚠️  服务器将继续运行，但定时任务不可用');
+    }
+
     // 启动服务器
     app.listen(PORT, () => {
       console.log(`
@@ -68,6 +77,11 @@ async function startServer() {
   - 增强描述: POST /api/llm/enhance
   - 特殊事件: POST /api/llm/special-event
 
+⏰ 定时任务:
+  - 每日新闻生成: 每日凌晨 3:00
+  - 清理过期事件: 每日凌晨 4:00
+  - 补充事件检查: 每 2 小时
+
 ⚙️  环境配置:
   - NODE_ENV: ${process.env.NODE_ENV || 'development'}
   - LLM_PROVIDER: ${process.env.LLM_PROVIDER || 'deepseek'}
@@ -80,6 +94,7 @@ async function startServer() {
     // 优雅关闭
     process.on('SIGINT', async () => {
       console.log('\n📴 正在关闭服务器...');
+      stopScheduler();
       await db.close();
       process.exit(0);
     });
