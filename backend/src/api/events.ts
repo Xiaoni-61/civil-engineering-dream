@@ -172,8 +172,17 @@ export function createEventsRouter(db: Database): Router {
         });
       }
 
-      // 解析 options JSON
-      const options = JSON.parse(drawnEvent.event.options);
+      // 解析 options JSON（带错误处理）
+      let options;
+      try {
+        options = JSON.parse(drawnEvent.event.options);
+      } catch (parseError) {
+        console.error('❌ 事件 options JSON 解析失败:', parseError);
+        return res.status(500).json({
+          code: 'INVALID_EVENT_DATA',
+          message: '事件数据格式错误',
+        });
+      }
 
       res.status(200).json({
         code: 'SUCCESS',
@@ -207,6 +216,14 @@ export function createEventsRouter(db: Database): Router {
     try {
       const { eventId } = req.params;
       const { playerName, playerRank, choiceIndex } = req.body;
+
+      // 参数验证
+      if (choiceIndex !== undefined && (typeof choiceIndex !== 'number' || choiceIndex < 0 || !Number.isInteger(choiceIndex))) {
+        return res.status(400).json({
+          code: 'INVALID_CHOICE_INDEX',
+          message: 'choiceIndex 必须是非负整数',
+        });
+      }
 
       // 验证事件是否存在
       const event = await db.get<DynamicEventRow>(
