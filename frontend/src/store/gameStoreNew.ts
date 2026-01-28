@@ -10,6 +10,7 @@ import {
   GameStatus,
   EndReason,
   EventCard,
+  EventOption,
   PlayerStats,
   Effects,
   Rank,
@@ -351,6 +352,9 @@ interface GameStore extends GameState {
   enhanceEventDescription: (event: EventCard) => Promise<EventCard>;
   generateLLMSpecialEvent: () => Promise<EventCard | null>;
   shouldTriggerSpecialEvent: (quarter: number, stats: PlayerStats) => boolean;
+
+  // 关键决策系统（传记生成）
+  isImportantDecision: (event: EventCard, selectedOption: EventOption) => boolean;
 }
 
 // ==================== 材料价格初始化 ====================
@@ -1642,6 +1646,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().checkGameEnd();
   },
 
+  // ==================== 辅助函数 ====================
+
+  /**
+   * 判断事件是否为重要决策（用于传记生成）
+   * 自动判断规则：
+   * 1. 特殊事件总是重要（isSpecial、isUrgent、llmEnhanced）
+   * 2. 有明显权衡（属性变化幅度超过 10）
+   * 3. 选项数量多（3 个以上说明有选择）
+   */
+  isImportantDecision: (event: EventCard, selectedOption: EventOption): boolean => {
+    // 特殊事件总是重要
+    if (event.isSpecialEvent || event.isUrgent || event.llmEnhanced) {
+      return true;
+    }
+
+    // 检查属性变化幅度（单一属性变化超过 10）
+    const effect = selectedOption.effects;
+    if (effect) {
+      const maxChange = Math.max(
+        Math.abs(effect.cash || 0),
+        Math.abs(effect.health || 0),
+        Math.abs(effect.reputation || 0),
+        Math.abs(effect.workAbility || 0),
+        Math.abs(effect.luck || 0)
+      );
+      if (maxChange >= 10) {
+        return true;
+      }
+    }
+
+    // 检查选项数量（3 个以上说明有权衡）
+    if (event.options.length >= 3) {
+      return true;
+    }
+
+    return false;
+  },
+
   // ==================== 事件处理方法 ====================
 
   selectOption: (optionId: string) => {
@@ -1687,7 +1729,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     // 记录关键决策（用于传记生成）
-    if (state.currentEvent.isImportant) {
+    // 自动判断是否为重要决策
+    const isImportant = state.currentEvent.isImportant ||
+                       state.currentEvent.isSpecialEvent ||
+                       state.currentEvent.llmEnhanced ||
+                       get().isImportantDecision(state.currentEvent, option);
+
+    if (isImportant) {
       const newDecision = {
         event: state.currentEvent.title,
         choice: option.text,
@@ -1695,6 +1743,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         timestamp: new Date(),
       };
       set({ keyDecisions: [...state.keyDecisions, newDecision] });
+      console.log('📝 记录关键决策:', newDecision);
     }
 
     // 添加到历史
