@@ -2,6 +2,12 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSignature } from '../middleware/auth.js';
 import { Database } from '../database/init.js';
+import { callLLM, isLLMAvailable } from '../services/llmService.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * 生成单局游戏 ID
@@ -206,6 +212,177 @@ export function createRunRouter(db: Database): Router {
       });
     } catch (error) {
       console.error('❌ /run/finish 错误：', error);
+      res.status(500).json({
+        code: 'ERROR',
+        message: (error as Error).message || '服务器错误',
+      });
+    }
+  });
+
+  /**
+   * POST /api/run/:gameId/biography
+   * 生成职业传记
+   */
+  router.post('/:gameId/biography', async (req: Request, res: Response) => {
+    console.log('=== /api/run/:gameId/biography 收到请求 ===');
+    console.log('GameId:', req.params.gameId);
+
+    try {
+      const { gameId } = req.params;
+      const biographyInput = req.body;
+
+      // 验证必要字段
+      if (!biographyInput.playerName || !biographyInput.finalRank) {
+        return res.status(400).json({
+          code: 'MISSING_FIELDS',
+          message: '缺少必要字段：playerName、finalRank',
+        });
+      }
+
+      // 检查缓存是否存在
+      const cached = await db.get(
+        'SELECT content FROM career_biographies WHERE game_id = ?',
+        [gameId]
+      );
+
+      if (cached) {
+        console.log('✅ 从缓存返回传记');
+        return res.status(200).json({
+          code: 'SUCCESS',
+          data: {
+            biography: cached.content,
+            cached: true,
+          },
+        });
+      }
+
+      // 检查 LLM 是否可用
+      if (!isLLMAvailable()) {
+        return res.status(503).json({
+          code: 'LLM_UNAVAILABLE',
+          message: 'LLM 服务未配置，无法生成传记',
+        });
+      }
+
+      // 加载 Prompt 模板
+      const promptPath = path.join(__dirname, '../../prompts/narrative/career-biography.md');
+      let promptTemplate: string;
+
+      try {
+        promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+      } catch (error) {
+        console.error('❌ 读取传记模板失败:', error);
+        return res.status(500).json({
+          code: 'TEMPLATE_ERROR',
+          message: '传记模板文件不存在',
+        });
+      }
+
+      // 替换模板变量
+      const prompt = promptTemplate
+        .replace(/\{\{player_name\}\}/g, biographyInput.playerName)
+        .replace(/\{\{final_rank\}\}/g, biographyInput.finalRank)
+        .replace(/\{\{end_reason\}\}/g, biographyInput.endReason || '游戏结束')
+        .replace(/\{\{quarters\}\}/g, String(biographyInput.quartersPlayed || 0))
+        .replace(/\{\{final_stats\}\}/g, JSON.stringify(biographyInput.finalStats || {}, null, 2))
+        .replace(/\{\{key_decisions\}\}/g, JSON.stringify(biographyInput.keyDecisions || [], null, 2));
+
+      // 调用 LLM 生成传记
+      console.log('🤖 调用 LLM 生成传记...');
+      const response = await callLLM({
+        messages: [
+          {
+            role: 'system',
+            content: '你是《还我一个土木梦》游戏的叙事总监，擅长生成生动有趣的职业传记。',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.8,
+        max_tokens: 2000,
+      });
+
+      // 清理返回的内容
+      let biography = response.content.trim();
+      // 移除可能的引号包裹
+      biography = biography.replace(/^["']|["']$/g, '');
+
+      console.log('✅ 传记生成成功，字数:', biography.length);
+
+      // 保存到缓存
+      await db.run(
+        `INSERT INTO career_biographies (game_id, player_name, content, game_data)
+         VALUES (?, ?, ?, ?)`,
+        [
+          gameId,
+          biographyInput.playerName,
+          biography,
+          JSON.stringify(biographyInput),
+        ]
+      );
+
+      res.status(200).json({
+        code: 'SUCCESS',
+        data: {
+          biography,
+          cached: false,
+        },
+      });
+    } catch (error) {
+      console.error('❌ /api/run/:gameId/biography 错误：', error);
+      res.status(500).json({
+        code: 'ERROR',
+        message: (error as Error).message || '服务器错误',
+      });
+    }
+  });
+
+  /**
+   * POST /api/run/:gameId/biography/share
+   * 分享传记（增加分享计数）
+   */
+  router.post('/:gameId/biography/share', async (req: Request, res: Response) => {
+    console.log('=== /api/run/:gameId/biography/share 收到请求 ===');
+    console.log('GameId:', req.params.gameId);
+
+    try {
+      const { gameId } = req.params;
+
+      // 查询传记是否存在
+      const biography = await db.get(
+        'SELECT id, shared_count FROM career_biographies WHERE game_id = ?',
+        [gameId]
+      );
+
+      if (!biography) {
+        return res.status(404).json({
+          code: 'BIOGRAPHY_NOT_FOUND',
+          message: '传记不存在，请先生成传记',
+        });
+      }
+
+      // 更新分享计数
+      await db.run(
+        'UPDATE career_biographies SET shared_count = shared_count + 1 WHERE game_id = ?',
+        [gameId]
+      );
+
+      // 生成分享链接（这里使用前端页面 + gameId 的简单方式）
+      const shareUrl = `${req.protocol}://${req.get('host')}/result?game=${gameId}`;
+
+      res.status(200).json({
+        code: 'SUCCESS',
+        data: {
+          shareUrl,
+          shortCode: gameId,
+          sharedCount: biography.shared_count + 1,
+          message: '分享成功',
+        },
+      });
+    } catch (error) {
+      console.error('❌ /api/run/:gameId/biography/share 错误：', error);
       res.status(500).json({
         code: 'ERROR',
         message: (error as Error).message || '服务器错误',
