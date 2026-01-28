@@ -902,3 +902,206 @@
 
 **下一步**：Task 6 - 实现 LLM 事件生成服务
 
+---
+
+**Task 6: 实现 LLM 事件生成服务** ✅ - 854f9da, 855bcf7 (fix)
+- 创建 `backend/src/services/eventGenerator.ts`（547 行）
+- 实现 `EventGenerator` 类：
+  - `generateFromNews()`：基于新闻生成事件
+  - `generateCreative()`：生成创意事件（4 种类型：daily/emergency/opportunity/challenge）
+  - `batchGenerate()`：批量生成，带并发控制
+  - `callLLMWithRetry()`：带指数退避的重试机制
+  - `parseEventJSON()`：解析 JSON 响应，支持 markdown 代码块清理
+- 实现 `EventValidator` 类：
+  - `validate()`：验证事件结构完整性
+  - `calculateQualityScore()`：计算质量分数（0-1），低于 0.3 自动丢弃
+- 实现 `EventRepository` 类：
+  - `saveEvent()`：保存单个事件到数据库
+  - `saveEvents()`：批量保存事件
+- 辅助函数：
+  - `loadPromptTemplate()`：从文件系统加载模板
+  - `replaceVariables()`：替换 {{variable}} 占位符
+- 工厂函数：
+  - `getEventGenerator()`：获取单例实例
+  - `resetEventGenerator()`：重置单例（用于测试）
+  - `getEventRepository()`：创建仓库实例
+- 配置集成：
+  - 使用 RSS_LLM_CONFIG 控制批量大小、并发数、重试次数
+  - 复用 llmService.callLLM() 进行 LLM 调用
+- **规格审查**：✅ 通过（所有功能完整实现）
+- **代码质量审查**：⚠️ 发现类型安全问题
+- **修复**：
+  - 替换 `any` 为 `Database` 接口（类型安全）
+  - 添加 `resetEventGenerator()` 函数
+  - 修复废弃的 `substr()` 方法为 `slice()`
+
+**自我审查清单**：
+- ✅ 实现了 Prompt 模板加载和变量替换
+- ✅ 复用了现有的 llmService
+- ✅ 实现了批量并发控制（使用 RSS_LLM_CONFIG.concurrency）
+- ✅ 实现了质量验证器（质量分数计算 + 验证）
+- ✅ 实现了数据库保存逻辑
+- ✅ 实现了错误处理和重试机制（指数退避）
+- ✅ 导出了所有必需的接口
+- ✅ 添加了适当的日志输出
+
+**当前进度**：6/15 任务完成（40%）
+
+**下一步**：Task 7 - 实现定时任务调度器
+
+---
+
+**Task 7: 实现定时任务调度器** ✅ - 58065f5
+- 创建 `backend/src/services/scheduler.ts`（449 行）
+- 实现 `TaskScheduler` 类：
+  - `start()`：启动所有定时任务
+  - `stop()`：停止所有定时任务
+  - `dailyNewsGeneration()`：每日新闻生成任务（抓取 → 生成 → 保存）
+  - `cleanupExpiredEvents()`：清理过期事件任务（7 天过期、30 天日志）
+  - `supplementEvents()`：补充事件任务（低于 20 条时补充 10 条）
+  - `getStatus()`：获取调度器状态
+  - `triggerDailyGeneration()` / `triggerCleanup()` / `triggerSupplement()`：手动触发任务（用于测试）
+- Cron 表达式配置：
+  - `0 3 * * *`：每日凌晨 3:00 新闻抓取 + 事件生成
+  - `0 4 * * *`：每日凌晨 4:00 清理过期事件
+  - `0 */2 * * *`：每 2 小时补充事件检查
+- 时区设置：使用 `Asia/Shanghai` 时区
+- 任务状态管理：
+  - `SchedulerStatus` 接口：包含 isRunning 和每个任务的 lastRun/nextRun/status/lastError
+  - 任务状态：idle（空闲）/ running（运行中）/ success（成功）/ error（错误）
+- 错误处理：
+  - 每个任务独立的 try-catch，失败不影响其他任务
+  - 详细的错误日志和耗时统计
+  - 任务失败记录到 taskStatus.lastError
+- 集成到服务器启动流程：
+  - `backend/src/index.ts`：在服务器启动时自动启动调度器
+  - 优雅关闭时停止调度器
+  - 服务器启动信息中显示定时任务配置
+- 工厂函数：
+  - `startScheduler()`：启动并返回调度器实例
+  - `getScheduler()`：获取当前调度器实例
+  - `stopScheduler()`：停止调度器
+- 涉及文件：
+  - `backend/src/services/scheduler.ts` - 调度器实现
+  - `backend/src/index.ts` - 服务器启动集成
+- **规格审查**：✅ 通过（所有功能完整实现）
+- **代码质量审查**：✅ 通过（类型安全、错误处理完善、日志清晰）
+- **TypeScript 编译**：✅ 通过，无错误
+- **自我审查清单**：
+  - ✅ 实现了三个定时任务（每日生成、清理、补充）
+  - ✅ 使用正确的 cron 表达式
+  - ✅ 实现了 start() 和 stop() 方法
+  - ✅ 实现了 getStatus() 方法
+  - ✅ 实现了错误处理
+  - ✅ 复用了现有的服务（RSS 抓取器、事件生成器）
+  - ✅ 添加了日志输出
+  - ✅ 集成到 index.ts 启动流程
+
+**当前进度**：7/15 任务完成（47%）
+
+**下一步**：Task 8 - 实现事件相关 API
+
+---
+
+**Task 8: 实现事件相关 API** ✅ - fbb1930, cbee54b (fix)
+- 创建 `backend/src/api/events.ts`（458 行）
+- 实现 4 个 API 端点：
+  - `GET /api/events/health`：事件系统健康检查（今日生成数、总事件数、调度器状态）
+  - `GET /api/events/news`：今日新闻源列表（显示今天生成的新闻事件）
+  - `GET /api/events`：获取可用的动态事件（支持职级过滤、权重衰减）
+  - `POST /api/events/:eventId/use`：记录事件使用情况（更新使用日志和统计）
+- 事件抽取逻辑：
+  - 三池机制：固定事件(35%)、新闻事件(50%)、创意事件(15%)
+  - 权重衰减：基于事件年龄自动衰减权重（0-7天）
+  - 职级过滤：支持按玩家职级筛选可用事件
+- 核心算法实现：
+  - `selectPoolByWeight()`：按权重随机选择事件池
+  - `calculateDecayWeight()`：计算事件衰减权重
+  - `weightedSelect()`：带权重的随机选择
+  - `drawEvent()`：主事件抽取函数
+- 数据库操作：
+  - 动态事件查询：支持职级范围和创建时间过滤
+  - 使用日志记录：记录玩家选择的事件选项
+  - 统计数据更新：更新事件使用计数和最后使用时间
+- 集成到主应用：
+  - 在 `backend/src/index.ts` 中导入并注册事件路由
+  - 更新 API 文档说明，添加 4 个新端点
+- 涉及文件：
+  - `backend/src/api/events.ts` - 事件 API 路由实现
+  - `backend/src/index.ts` - 路由集成和文档更新
+- **规格审查**：✅ 通过（所有端点和算法完整实现）
+- **代码质量审查**：⚠️ 发现参数验证和 JSON 解析问题
+- **修复**：
+  - 添加 choiceIndex 参数验证（必须是非负整数）
+  - 添加 JSON.parse 错误处理（options 字段）
+  - 改进错误响应信息
+- **TypeScript 编译**：✅ 通过，无错误
+- **自我审查清单**：
+  - ✅ 实现了 /api/events/health 端点
+  - ✅ 实现了 /api/events/news 端点
+  - ✅ 实现了 /api/events 端点（获取事件）
+  - ✅ 实现了 /api/events/:eventId/use 端点
+  - ✅ 实现了权重衰减计算
+  - ✅ 实现了事件抽取逻辑
+  - ✅ 集成到路由系统
+  - ✅ 添加了错误处理
+
+**当前进度**：8/15 任务完成（53%）
+
+**下一步**：Task 9 - 安装前端依赖
+
+---
+
+**Task 9: 安装前端依赖** ✅ - edb7703
+- 安装 `react-markdown`：用于渲染职业传记 Markdown 内容
+- 用途：Result 页面的职业传记展示功能
+- 涉及文件：
+  - `frontend/package.json` - 依赖声明
+  - `frontend/package-lock.json` - 依赖锁定
+
+**当前进度**：9/15 任务完成（60%）
+
+---
+
+**Task 10: 创建前端 API 客户端** ✅ - d0c3c11
+- 创建 `frontend/src/api/eventsApi.ts`（235 行）
+- 实现 6 个 API 函数：
+  - `getEventsHealth()`：获取事件系统健康状态
+  - `getTodayNews()`：获取今日新闻源列表
+  - `getDynamicEvent(playerRank?)`：获取可用的动态事件（支持职级过滤）
+  - `recordEventUsage()`：记录事件使用情况
+  - `generateBiography()`：生成职业传记（占位符，待后端实现）
+  - `shareBiography()`：分享传记（占位符，待后端实现）
+- 类型定义：
+  - `EventsHealthResponse`：事件系统健康状态响应
+  - `TodayNewsResponse`：今日新闻响应（包含 NewsItem 数组）
+  - `DynamicEventResponse`：动态事件响应（包含事件数据和衰减权重）
+  - `BiographyInput`：传记生成输入数据（玩家信息、统计数据、关键决策）
+  - `RecordEventUsageParams`：事件使用记录参数
+- 复用现有基础设施：
+  - 从 `gameApi.ts` 导出 `apiRequest` 函数
+  - 复用 `API_BASE_URL` 配置
+  - 统一的错误处理机制
+- 导出配置：
+  - 在 `api/index.ts` 中添加 `export * from './eventsApi'`
+  - 所有函数和类型都可以通过 `@/api` 统一导入
+- 涉及文件：
+  - `frontend/src/api/eventsApi.ts` - 事件 API 客户端实现
+  - `frontend/src/api/gameApi.ts` - 导出 apiRequest 函数
+  - `frontend/src/api/index.ts` - 统一导出配置
+- **规格审查**：✅ 通过（所有 6 个 API 函数和类型定义完整实现）
+- **代码质量审查**：✅ 通过（类型安全、错误处理完善、复用现有代码）
+- **TypeScript 编译**：✅ 通过，无错误
+- **构建验证**：✅ 通过（`npm run build` 成功，736ms）
+- **自我审查清单**：
+  - ✅ 实现了所有 6 个 API 函数
+  - ✅ 定义了所有必需的类型
+  - ✅ 导出到 api/index.ts
+  - ✅ 实现了错误处理
+  - ✅ 复用了现有的 API_BASE_URL 配置
+  - ✅ 添加了 JSDoc 注释
+
+**当前进度**：10/15 任务完成（67%）
+
+**下一步**：Task 11 - Result 页面添加传记功能
+
