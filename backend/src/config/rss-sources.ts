@@ -141,10 +141,11 @@ export const EVENT_POOL_CONFIG = {
 } as const;
 
 /**
- * LLM 调用配置
+ * RSS 任务 LLM 调用配置
  * 控制批量处理、并发、超时和重试策略
+ * 注意：与前端 LLM_CONFIG 区分，避免命名冲突
  */
-export const LLM_CONFIG = {
+export const RSS_LLM_CONFIG = {
   batchSize: 10,              // 每次处理新闻数量
   concurrency: 3,             // 并发 LLM 调用数
   timeout: 30000,             // 30 秒超时
