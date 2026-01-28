@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore } from '@/store/gameStoreNew';
 import { RANK_DISPLAY, RELATIONSHIP_DISPLAY } from '@/data/constants';
 
 const QuarterlySettlement = () => {

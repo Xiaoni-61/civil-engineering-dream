@@ -289,3 +289,413 @@
 - 涉及文件：`frontend/src/pages/StrategyPhase.tsx`
 - 构建测试：✓ built in 673ms
 - Review: 待进行
+
+### 修复 RelationsPage.tsx 维护方式 UI (Task 6 修正)
+
+**修复 RelationsPage.tsx 使用新维护方式数据** ✅
+- 发现问题：游戏有两个系统，新游戏系统（`/game-new/*`）使用 `RelationsPage.tsx`，旧游戏系统（`/strategy`）使用 `StrategyPhase.tsx`
+- 之前更新了 `StrategyPhase.tsx` 但路由被禁用，实际上 `RelationsPage.tsx` 才是活跃组件
+- 修复内容：
+  - 移除对 `MAINTENANCE_OPTIONS` 的依赖，改用 `ACTIONS_BY_RELATIONSHIP`
+  - 导入并使用 `RelationshipAction` 类型
+  - 更新 UI 显示逻辑：
+    - 每种关系显示 2 个维护按钮
+    - 显示名称、图标、描述
+    - 显示消耗（💰现金、❤️健康）
+    - 显示收益（🤝关系值范围）
+    - 显示风险提示（⚠️概率和描述）
+    - 显示加成提示（🔥属性要求）
+  - 修复 TypeScript 编译错误：
+    - 移除未使用的 `display` 变量
+    - 修复 `bonuses` 类型检查（使用 `Object.entries()` 和 `Object.values()` 正确访问对象属性）
+- 涉及文件：`frontend/src/pages/RelationsPage.tsx`
+- 构建测试：✓ built in 695ms
+- 服务重启：前端（端口 3000）和后端（端口 3001）正常运行
+
+### 系统架构说明
+
+**游戏双系统架构**：
+- **新游戏系统**（活跃）：`/game-new/*` → `MainGame.tsx` → `RelationsPage.tsx` + `gameStoreNew`
+- **旧游戏系统**（禁用）：`/strategy` → `StrategyPhase.tsx` + `gameStore`（路由已注释）
+
+### 更新游戏策划文档 (2026-01-27)
+
+**更新 GAME_DESIGN_DOCUMENT.md** ✅ - v1.1
+- 版本号更新：v1.0 → v1.1
+- 添加更新日志章节，记录关系系统重大更新内容
+- 实现文件列表：
+  - `shared/types/game.ts` - 类型定义扩展
+  - `frontend/src/data/relationshipActions.ts` - 10 种维护方式数据
+  - `frontend/src/data/relationshipNegativeEvents.ts` - 25 个负面事件
+  - `frontend/src/data/specialEvents.ts` - 15 个特殊剧情事件
+  - `frontend/src/pages/RelationsPage.tsx` - 关系维护 UI
+  - `frontend/src/store/gameStore.ts` - 晋升检查、负面事件触发、经济收益
+- 涉及文件：`docs/GAME_DESIGN_DOCUMENT.md`
+- Review: 待进行
+
+## 2026-01-27 策略完善
+
+### 工作能力和幸运系统完善 (任务 #1-3)
+
+**任务 1: 实现工作能力对价格生成的影响** ✅
+- 修改 `generateNextQuarterPrices` 函数，让工作能力真正影响价格波动
+- 实现公式：`baseVolatility = 0.30 * (1 - workAbility / 200)`
+  - workAbility 0 → ±15% 波动（完全随机）
+  - workAbility 50 → ±10% 波动
+  - workAbility 100 → ±5% 波动（高度稳定）
+- 移除未使用的 `_workAbility` 参数下划线，使其真正参与计算
+- 涉及文件：`frontend/src/store/gameStoreNew.ts:352-400`
+
+**任务 2: 统一 Store，移除旧 gameStore.ts 依赖** ✅
+- 迁移所有页面从 `gameStore` 到 `gameStoreNew`：
+  - `Game.tsx` - 事件阶段页面（适配 quarterEvents/currentEventIndex）
+  - `Result.tsx` - 游戏结束结算页面
+  - `QuarterlySettlement.tsx` - 季度结算页面
+  - `StrategyPhase.tsx` - 策略阶段页面（移除临时映射）
+- 移除 StrategyPhase.tsx 中的临时属性映射：
+  - 删除 `tempWorkAbility = stats.quality` 临时映射
+  - 删除 `tempLuck = stats.progress` 临时映射
+  - 直接使用 `stats.workAbility` 和 `stats.luck`
+- 更新基础效果应用逻辑：
+  - `workAbility` 直接加到 `newStats.workAbility`
+  - `luck` 直接加到 `newStats.luck`
+- 更新加成检查函数：
+  - `hasBonus`: 检查 `stats.workAbility` 和 `stats.luck`
+  - `getBonusDescription`: 显示 "🔧 工作能力" 和 "🍀 幸运"
+- 涉及文件：
+  - `frontend/src/pages/Game.tsx`
+  - `frontend/src/pages/Result.tsx`
+  - `frontend/src/pages/QuarterlySettlement.tsx`
+  - `frontend/src/pages/StrategyPhase.tsx`
+
+**任务 3: 完善关系维护的特殊效果** ✅
+- 扩展 `GameState` 类型定义：
+  - 添加 `pricePredictionBonus: number` - 价格预测准确率加成（百分比）
+  - 添加 `storageFeeDiscount: number` - 仓储费折扣（百分比）
+- 更新 `createInitialState` 初始化新状态为 0
+- 更新 `generatePricePrediction` 函数：
+  - 准确率公式：`50 + workAbility / 2 + pricePredictionBonus`
+- 更新 `calculateStorageFee` 函数：
+  - 应用折扣：`totalFee * (1 - storageFeeDiscount / 100)`
+- 在 StrategyPhase.tsx 中实现特殊效果触发：
+  - 技术交流（设计院）：workAbility ≥ 60 时 20% 获得"设计优化方案"（+50% 预测准确率）
+  - 政策学习（政府）：workAbility ≥ 70 时 10% 获得"政策解读"（-50% 仓储费）
+- 在 `nextQuarter` 函数中重置特殊效果：
+  - 季度开始时 `pricePredictionBonus` 和 `storageFeeDiscount` 重置为 0
+- 涉及文件：
+  - `shared/types/game.ts` - 类型定义
+  - `frontend/src/store/gameStoreNew.ts` - 状态初始化、价格预测、仓储费计算、季度重置
+  - `frontend/src/pages/StrategyPhase.tsx` - 特殊效果触发和应用
+
+### 改动总结
+
+**涉及文件**：
+1. `shared/types/game.ts` - 添加 `pricePredictionBonus` 和 `storageFeeDiscount` 状态
+2. `frontend/src/store/gameStoreNew.ts` - 价格生成、价格预测、仓储费计算、季度重置
+3. `frontend/src/pages/Game.tsx` - Store 迁移
+4. `frontend/src/pages/Result.tsx` - Store 迁移
+5. `frontend/src/pages/QuarterlySettlement.tsx` - Store 迁移
+6. `frontend/src/pages/StrategyPhase.tsx` - Store 迁移、特殊效果实现
+
+**功能完善**：
+- ✅ 工作能力现在真正影响市场价格波动（使市场更稳定可预测）
+- ✅ 移除所有临时属性映射，统一使用 `gameStoreNew`
+- ✅ 实现关系维护特殊效果：
+  - 设计优化方案：价格预测准确率 +50%
+  - 政策解读：仓储费 -50%
+  - 特殊效果在季度开始时失效
+
+**TypeScript 编译**：✅ 通过，无错误
+
+**任务 4: TopStatusBar 添加特殊效果显示** ✅
+- 读取 `pricePredictionBonus` 和 `storageFeeDiscount` 状态
+- 在行动点下方添加特殊效果提示区域
+- 只在有加成时显示（条件渲染）
+- 使用渐变背景（紫色到蓝色）+ 动画效果
+- 显示内容：
+  - ✨ 设计优化方案：预测准确率 +50%
+  - 📖 政策解读：仓储费 -50%
+- 涉及文件：`frontend/src/components/TopStatusBar.tsx`
+
+**任务 5: 修复项目完成后状态被季度开始事件覆盖的 Bug** ✅
+- 问题描述：项目完成后重置为 progress=0, quality=50，但下季度的季度开始事件会叠加效果，导致质量变成40等异常
+- 解决方案：添加 `projectCompletedThisQuarter` 标志
+  - 在 `GameStore` 接口中添加 `projectCompletedThisQuarter: boolean`
+  - 在初始状态中初始化为 `false`
+  - 在 `checkProjectCompletion` 完成项目时设置为 `true`
+  - 在 `nextQuarter` 中检查该标志，如果为 `true` 则忽略季度开始事件的项目效果
+  - 在 `nextQuarter` 中重置该标志为 `false`
+- 逻辑流程：
+  1. 本季度完成项目 → `checkProjectCompletion` 设置标志为 `true`，重置项目为 progress=0, quality=50
+  2. 生成下季度开始事件（可能包含 quality=-10 等效果）
+  3. 进入下季度 → `nextQuarter` 检测到标志为 `true`，忽略季度开始事件的项目效果
+  4. 重置标志为 `false`，项目保持初始状态 (0, 50)
+- 涉及文件：`frontend/src/store/gameStoreNew.ts`
+
+**任务 6: 实现晋升关系检查和对齐关系要求** ✅
+- 问题：原配置中实习生→助理工程师需要监理≥60，但实习生没有监理关系，不合理
+- 解决方案：调整各职级的关系要求，只使用已解锁的关系
+- 修改后的关系要求配置：
+  - 实习生 → 助理工程师：甲方≥50 或 劳务队≥50（任一，`any`）
+  - 助理工程师 → 工程师：监理≥60、甲方≥60、劳务队≥60（全部，`all`）
+  - 工程师 → 高级工程师：设计院≥60
+  - 高级工程师 → 项目经理：监理≥65、劳务队≥60
+  - 项目经理 → 项目总监：甲方≥70、政府≥60
+  - 项目总监 → 合伙人：全部≥75
+- 在 gameStoreNew.ts 的 `checkPromotion` 中添加完整的关系检查逻辑：
+  - 检查 relationshipRequirements 配置
+  - 遍历检查每个要求的关系是否达标
+  - 支持 `all` 和 `any` 两种要求类型
+  - 生成清晰的中文失败提示
+- 涉及文件：
+  - `shared/types/game.ts` - 职级配置
+  - `frontend/src/store/gameStoreNew.ts` - checkPromotion 函数
+
+**任务 7: 添加关系预警系统** ✅
+- 在关系卡片中添加预警提示
+- 预警等级：
+  - 关系 ≥ 80：绿色提示"关系良好，享有经济收益加成"
+  - 关系 ≤ 40：红色警告"关系紧张！负面事件风险增加"
+  - 关系 ≤ 30：橙色警告"危险！可能触发严重负面事件"
+- 使用动画效果（animate-pulse）增强警示效果
+- 涉及文件：`frontend/src/pages/RelationsPage.tsx`
+
+**任务 8: 添加项目统计显示和优质项目通知** ✅
+- 在 TopStatusBar 中添加项目统计显示：
+  - 显示已完成项目总数（gameStats.completedProjects）
+  - 显示优质项目数量（gameStats.qualityProjects，有则显示带⭐图标）
+  - 使用绿色渐变背景和边框
+- 添加优质项目完成通知系统：
+  - 在 GameState 中添加 `qualityProjectJustCompleted` 状态
+  - 在 checkProjectCompletion 中设置通知标志（质量≥90时触发）
+  - 添加 dismissQualityProjectNotification 函数关闭通知
+  - 在 Game.tsx 中添加庆祝弹窗：
+    - 🏆 图标 + 动画效果
+    - 显示项目完成统计
+    - 说明优质项目对晋升的帮助
+- 优质项目定义：质量评分 ≥ 90
+- 涉及文件：
+  - `shared/types/game.ts` - 类型定义
+  - `frontend/src/store/gameStoreNew.ts` - 状态管理
+  - `frontend/src/components/TopStatusBar.tsx` - 统计显示
+  - `frontend/src/pages/Game.tsx` - 通知弹窗
+
+### 改动总结 (任务 8)
+
+**涉及文件**：
+1. `shared/types/game.ts` - 添加 `qualityProjectJustCompleted` 状态
+2. `frontend/src/store/gameStoreNew.ts` - 初始化状态、通知逻辑、dismiss 函数
+3. `frontend/src/components/TopStatusBar.tsx` - 项目统计显示
+4. `frontend/src/pages/Game.tsx` - 优质项目完成通知弹窗
+
+**功能实现**：
+- ✅ TopStatusBar 显示已完成项目和优质项目数量
+- ✅ 完成优质项目时弹出庆祝通知
+- ✅ 通知显示当前项目统计
+- ✅ 说明优质项目对晋升的意义
+
+**TypeScript 编译**：✅ 通过，无错误
+**构建测试**：✓ built in 725ms
+
+## 2026-01-28
+
+### 游戏结束检测和结果页面完善
+
+**问题描述**：
+1. 游戏结束条件（健康=0、现金≤0、声誉≤0）触发后没有正确跳转到结果页面
+2. Result 页面显示不完整（属性名称错误）
+3. Result 页面应该全屏显示，不带 TopBar 和 BottomNav
+
+**修复内容**：
+
+1. **添加破产检测到 checkGameEnd()** ✅
+   - 添加 `EndReason.BANKRUPT` 到类型定义
+   - 在 `checkGameEnd()` 中添加现金 ≤ 0 检查
+   - 在多个函数中添加 `checkGameEnd()` 调用：
+     - `finishQuarter()`
+     - `maintainRelationship()` (2处)
+     - `ignoreEvent()`
+     - `buyMaterial()`
+     - `sellMaterial()`
+
+2. **修复 finishQuarter() 覆盖游戏结束状态** ✅
+   - 在设置 `GameStatus.SETTLEMENT` 前检查游戏是否已结束
+   - 如果状态已经是 `FAILED` 或 `COMPLETED`，直接返回
+
+3. **在 MainGame 中集中处理游戏结束导航** ✅
+   - 添加 useEffect 监听 `GameStatus` 变化
+   - 当游戏结束时自动导航到 `/game-new/result`
+   - Result 页面直接返回，不包裹 TopBar 和 BottomNav
+
+4. **修复 Result.tsx 显示问题** ✅
+   - 修正属性名称：`currentRound` → `currentQuarter`
+   - 修正属性名称：`stats.quality` → `stats.workAbility`
+   - 更新显示标签："质量" → "工作能力"，图标 🏆 → 💼
+   - "再玩一次"按钮导航到 `/character-creation`
+
+5. **移除冗余的 useEffect 监听器** ✅
+   - 从 ActionsPage.tsx、EventsPage.tsx、MarketPage.tsx、RelationsPage.tsx、TeamPage.tsx 移除重复的游戏结束状态监听
+   - MainGame.tsx 统一处理所有游戏结束导航
+
+6. **修复 TypeScript 类型错误** ✅
+   - 修复 `generatePricePrediction` 返回值类型
+   - 为 `prediction` 对象添加显式类型注解
+
+**涉及文件**：
+1. `shared/types/game.ts` - 添加 `EndReason.BANKRUPT`
+2. `frontend/src/data/constants.ts` - 添加破产结束消息
+3. `frontend/src/store/gameStoreNew.ts` - 游戏结束检测逻辑、类型修复
+4. `frontend/src/pages/Result.tsx` - 属性名称修复、导航修复
+5. `frontend/src/pages/MainGame.tsx` - 集中处理游戏结束导航、全屏 Result 页面
+6. `frontend/src/pages/ActionsPage.tsx` - 移除冗余 useEffect
+7. `frontend/src/pages/EventsPage.tsx` - 移除冗余 useEffect
+8. `frontend/src/pages/MarketPage.tsx` - 移除冗余 useEffect
+9. `frontend/src/pages/RelationsPage.tsx` - 移除冗余 useEffect
+10. `frontend/src/pages/TeamPage.tsx` - 移除冗余 useEffect
+
+**功能实现**：
+- ✅ 破产条件（cash ≤ 0）正确检测
+- ✅ 过劳条件（health ≤ 0）正确检测
+- ✅ 封杀条件（reputation ≤ 0）正确检测
+- ✅ 游戏结束立即跳转到结果页面
+- ✅ Result 页面全屏显示，无导航栏
+- ✅ "再玩一次"正确跳转到角色创建
+- ✅ 中央化游戏结束状态管理，避免冗余代码
+
+**TypeScript 编译**：✅ 通过，无错误
+**构建测试**：✓ built in 699ms
+
+## 2026-01-28
+
+### 修复排行榜功能
+
+**问题描述**：
+排行榜页面完全不可用，无法加载排行榜数据
+
+**问题原因**：
+`frontend/src/api/index.ts` 中没有导出排行榜相关的 API 函数（`getLeaderboard`、`getMyRank`、`getGlobalStats`），导致 `Leaderboard.tsx` 无法从 `@/api` 导入这些函数
+
+**修复内容**：
+
+1. **修复 API 导出** ✅
+   - 在 `frontend/src/api/index.ts` 中添加排行榜相关函数的导出
+   - `export { getLeaderboard, getMyRank, getGlobalStats } from './gameApi'`
+
+**涉及文件**：
+1. `frontend/src/api/index.ts` - 添加排行榜 API 导出
+
+**功能实现**：
+- ✅ 排行榜 API 函数正确导出
+- ✅ Leaderboard.tsx 可以正常导入和使用 API
+- ✅ 支持三种排行榜类型：综合榜、现金榜、次数榜
+- ✅ 显示玩家自己的排名信息
+- ✅ 分页支持（默认显示前 50 名）
+
+**TypeScript 编译**：✅ 通过，无错误
+**构建测试**：✓ built in 736ms
+
+**注意事项**：
+- 排行榜功能依赖后端服务（端口 3001）正常运行
+- 游戏开始时会调用 `/api/run/start` 创建会话
+- 游戏结束时会调用 `/api/run/finish` 上传成绩到排行榜
+- 需要后端数据库正确初始化（leaderboard 表）
+
+## 2026-01-28
+
+### 修改排行榜系统，使用角色名代替 deviceId
+
+**问题描述**：
+排行榜系统使用 deviceId（设备ID）来标识玩家，显示效果不友好。需要改为使用永久保存的角色名。
+
+**修改内容**：
+
+1. **前端 API 层** ✅
+   - 添加 `getPlayerName()` - 从 localStorage 获取角色名
+   - 添加 `savePlayerName(name)` - 保存角色名到 localStorage
+   - 更新 `finishGame()` 函数 - 添加 `playerName` 参数，在上传成绩时包含角色名
+   - 更新 `getMyRank()` 函数 - 使用角色名查询排名，而不是 deviceId
+   - 涉及文件：`frontend/src/api/gameApi.ts`
+
+2. **前端 Store 层** ✅
+   - 修改 `uploadScore()` 函数 - 获取永久保存的角色名，在上传成绩时包含角色名
+   - 涉及文件：`frontend/src/store/gameStoreNew.ts`
+
+3. **角色创建页面** ✅
+   - 导入 `savePlayerName` 函数
+   - 在开始游戏时保存角色名到 localStorage（永久保存）
+   - 涉及文件：`frontend/src/pages/CharacterCreationPage.tsx`
+
+4. **排行榜页面** ✅
+   - 更新 `LeaderboardEntry` 接口 - 添加 `playerName` 字段
+   - 更新 `MyRankData` 接口 - 在 player 对象中添加 `playerName` 字段
+   - 更新 `loadMyRank()` 函数 - 处理角色名未找到的错误
+   - 更新 UI 显示 - 显示角色名而不是脱敏的 deviceId，没有角色名时显示"匿名玩家"
+   - 涉及文件：`frontend/src/pages/Leaderboard.tsx`
+
+5. **后端数据库** ✅
+   - 更新 `leaderboard` 表结构 - 添加 `playerName TEXT NOT NULL DEFAULT '匿名玩家'` 字段
+   - 添加 ALTER TABLE 语句 - 为已存在的表添加 playerName 字段（如果不存在）
+   - 涉及文件：`backend/src/database/init.ts`
+
+6. **后端 API - 游戏运行** ✅
+   - 更新 `/api/run/finish` 接口 - 接收 `playerName` 参数
+   - 更新排行榜插入逻辑 - 包含 playerName
+   - 更新排行榜更新逻辑 - 每次更新时同步 playerName
+   - 涉及文件：`backend/src/api/run.ts`
+
+7. **后端 API - 排行榜** ✅
+   - 更新 `/api/leaderboard` 查询 - 在所有查询中返回 `playerName` 字段
+   - 更新 `/api/leaderboard/me` 接口 - 使用 `playerName` 查询玩家排名，而不是 `deviceId`
+   - 更新错误提示 - 从"缺少设备ID"改为"缺少角色名"
+   - 涉及文件：`backend/src/api/leaderboard.ts`
+
+**功能实现**：
+- ✅ 排行榜显示玩家角色名，而不是脱敏的 deviceId
+- ✅ 角色名永久保存在 localStorage 中
+- ✅ 后端数据库存储和返回角色名
+- ✅ 支持匿名玩家（默认显示"匿名玩家"）
+- ✅ 向后兼容 - 旧数据没有角色名时显示"匿名玩家"
+
+**TypeScript 编译**：✅ 通过，无错误
+**后端编译**：✅ 通过，无错误
+
+**特殊改动点**：
+- 前端：角色创建时保存到 localStorage，游戏结束时上传角色名
+- 后端：数据库添加 playerName 字段，API 返回角色名
+- 显示：排行榜列表和个人排名都显示角色名
+- 错误处理：角色名未找到时不显示错误提示，静默处理
+
+## 2026-01-28
+
+### 修复排行榜唯一标识符问题
+
+**问题描述**：
+之前修改使用 playerName 查询玩家排名是错误的。角色名可能重复，玩家可能改名，应该使用 deviceId 作为唯一标识符。
+
+**正确的设计**：
+- **存储层**：使用 `deviceId` 作为唯一标识符（PRIMARY KEY）
+- **显示层**：显示 `playerName`（友好给用户看）
+- ** playerName 可以更新，但 deviceId 保持不变，保证历史数据关联**
+
+**修复内容**：
+
+1. **后端 API** ✅
+   - 修复 `/api/leaderboard/me` 接口：使用 `deviceId` 查询而不是 `playerName`
+   - 修复排名计算：使用 `deviceId` 作为次要排序条件
+   - 涉及文件：`backend/src/api/leaderboard.ts`
+
+2. **前端 API** ✅
+   - 修复 `getMyRank()` 函数：传递 `deviceId` 而不是 `playerName`
+   - 移除对 `getPlayerName()` 的依赖
+   - 涉及文件：`frontend/src/api/gameApi.ts`
+
+**功能实现**：
+- ✅ 存储层使用 deviceId 作为唯一标识符（保证数据完整性）
+- ✅ 显示层使用 playerName（友好显示）
+- ✅ 玩家改名后，历史成绩仍然保持关联
+- ✅ 支持多玩家使用相同角色名
+
+**TypeScript 编译**：✅ 通过，无错误
+**后端编译**：✅ 通过，无错误
+**前端构建**：✓ built in 694ms
+

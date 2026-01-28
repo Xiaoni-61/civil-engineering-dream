@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 // 旧游戏系统暂时禁用
 // import Game from './pages/Game';
-// import Result from './pages/Result';
 import Leaderboard from './pages/Leaderboard';
 // import StrategyPhase from './pages/StrategyPhase';
 // import QuarterlySettlement from './pages/QuarterlySettlement';

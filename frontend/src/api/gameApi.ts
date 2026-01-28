@@ -6,7 +6,22 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
- * 生成设备ID（简单的实现，生产环境可以使用更复杂的方案）
+ * 获取角色名（永久保存）
+ */
+export function getPlayerName(): string | null {
+  return localStorage.getItem('civil-engineering-player-name');
+}
+
+/**
+ * 保存角色名到 localStorage（永久保存）
+ */
+export function savePlayerName(name: string): void {
+  localStorage.setItem('civil-engineering-player-name', name);
+}
+
+/**
+ * 生成设备ID（用于唯一标识玩家设备）
+ * 注意：角色名用于排行榜显示，deviceId 用于唯一标识设备
  */
 export function generateDeviceId(): string {
   let deviceId = localStorage.getItem('civil-engineering-device-id');
@@ -118,6 +133,9 @@ export async function finishGame(params: {
     luck: number;
   };
   roundsPlayed: number;
+  playerName?: string;
+  endReason?: string;
+  finalRank?: string;
 }) {
   const deviceId = generateDeviceId();
 
@@ -128,6 +146,9 @@ export async function finishGame(params: {
     score: params.score,
     finalStats: params.finalStats,
     roundsPlayed: params.roundsPlayed,
+    playerName: params.playerName,
+    endReason: params.endReason,
+    finalRank: params.finalRank,
   };
 
   const signature = await generateSignature(dataToSign);
@@ -168,7 +189,7 @@ export async function getLeaderboard(params: {
  */
 export async function getMyRank() {
   const deviceId = generateDeviceId();
-  const response = await apiRequest(`/api/leaderboard/me?deviceId=${deviceId}`);
+  const response = await apiRequest(`/api/leaderboard/me?deviceId=${encodeURIComponent(deviceId)}`);
 
   return response.data;
 }

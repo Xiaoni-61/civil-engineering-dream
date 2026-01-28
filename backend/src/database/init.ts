@@ -50,6 +50,7 @@ export async function initDatabase(): Promise<Database> {
           CREATE TABLE IF NOT EXISTS leaderboard (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             deviceId TEXT UNIQUE NOT NULL,
+            playerName TEXT NOT NULL DEFAULT '匿名玩家',
             bestScore INTEGER NOT NULL DEFAULT 0,
             totalGames INTEGER NOT NULL DEFAULT 0,
             totalCash INTEGER NOT NULL DEFAULT 0,
@@ -57,11 +58,22 @@ export async function initDatabase(): Promise<Database> {
           )
         `);
 
-        // 游戏统计表
+        // 为已存在的表添加 playerName 字段（如果不存在）
+        db.run(`
+          ALTER TABLE leaderboard ADD COLUMN playerName TEXT DEFAULT '匿名玩家'
+        `, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.log('ℹ️ playerName 字段已存在或其他情况:', err.message);
+          }
+        });
+
+        // 游戏统计表（单局游戏排行榜数据源）
         db.run(`
           CREATE TABLE IF NOT EXISTS game_stats (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            runId TEXT UNIQUE NOT NULL,
             deviceId TEXT NOT NULL,
+            playerName TEXT NOT NULL DEFAULT '匿名玩家',
             score INTEGER NOT NULL,
             finalCash INTEGER NOT NULL,
             finalHealth INTEGER NOT NULL,
@@ -69,10 +81,33 @@ export async function initDatabase(): Promise<Database> {
             finalProgress INTEGER NOT NULL,
             finalQuality INTEGER NOT NULL,
             roundsPlayed INTEGER NOT NULL,
-            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (deviceId) REFERENCES leaderboard(deviceId)
+            endReason TEXT,
+            finalRank TEXT,
+            createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
           )
         `);
+
+        // 为已存在的表添加新字段（如果不存在）
+        db.run(`ALTER TABLE game_stats ADD COLUMN runId TEXT`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.log('ℹ️ runId 字段添加:', err.message);
+          }
+        });
+        db.run(`ALTER TABLE game_stats ADD COLUMN playerName TEXT DEFAULT '匿名玩家'`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.log('ℹ️ playerName 字段添加:', err.message);
+          }
+        });
+        db.run(`ALTER TABLE game_stats ADD COLUMN endReason TEXT`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.log('ℹ️ endReason 字段添加:', err.message);
+          }
+        });
+        db.run(`ALTER TABLE game_stats ADD COLUMN finalRank TEXT`, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.log('ℹ️ finalRank 字段添加:', err.message);
+          }
+        });
 
         console.log('✅ 数据库表创建成功');
       });

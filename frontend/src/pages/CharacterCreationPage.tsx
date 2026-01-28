@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RANDOM_NAMES, EVALUATIONS, type CharacterEvaluation } from '@shared/types/character';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
+import { savePlayerName } from '@/api/gameApi';
 
 export function CharacterCreationPage() {
   const navigate = useNavigate();
@@ -45,6 +46,9 @@ export function CharacterCreationPage() {
       return;
     }
 
+    // 保存角色名到 localStorage（永久保存）
+    savePlayerName(name);
+
     initializeGame({
       name,
       gender,
@@ -79,7 +83,7 @@ export function CharacterCreationPage() {
   const evaluation = hasDrawn ? getEvaluation() : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-brand-50 pb-20 pt-44">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-brand-50 pb-20 pt-52">
       <div className="max-w-md mx-auto px-4">
         {/* 头部 */}
         <h1 className="text-3xl font-bold text-slate-900 mb-2">创建你的工程师</h1>

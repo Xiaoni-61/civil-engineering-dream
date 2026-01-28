@@ -256,6 +256,10 @@ export const END_MESSAGES = {
     title: '🎉 晋升合伙人！',
     description: '恭喜你！经过多个季度的努力，你终于成为了公司的合伙人，站在了职业生涯的巅峰！',
   },
+  bankrupt: {
+    title: '💸 资金链断裂',
+    description: '现金流枯竭，你破产了...',
+  },
   out_of_cash: {
     title: '💸 资金链断裂',
     description: '现金流枯竭，公司宣告破产...',

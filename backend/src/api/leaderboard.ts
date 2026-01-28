@@ -6,7 +6,7 @@ export function createLeaderboardRouter(db: Database): Router {
 
   /**
    * GET /api/leaderboard
-   * 查询排行榜
+   * 查询单局游戏排行榜
    * 查询参数:
    *   - type: 'overall' | 'cash' | 'games' (默认: 'overall')
    *   - limit: 数量限制 (默认: 50)
@@ -23,32 +23,40 @@ export function createLeaderboardRouter(db: Database): Router {
 
       switch (type) {
         case 'cash':
-          // 按总现金排行
+          // 按最终现金排行
           query = `
             SELECT
-              ROW_NUMBER() OVER (ORDER BY totalCash DESC) as rank,
-              deviceId,
-              bestScore,
-              totalCash as value,
-              totalGames
-            FROM leaderboard
-            ORDER BY totalCash DESC
+              ROW_NUMBER() OVER (ORDER BY finalCash DESC) as rank,
+              runId,
+              playerName,
+              score,
+              finalCash as value,
+              roundsPlayed,
+              endReason,
+              finalRank,
+              createdAt
+            FROM game_stats
+            ORDER BY finalCash DESC
             LIMIT ? OFFSET ?
           `;
           params = [limit, offset];
           break;
 
         case 'games':
-          // 按游戏次数排行
+          // 按季度数排行
           query = `
             SELECT
-              ROW_NUMBER() OVER (ORDER BY totalGames DESC) as rank,
-              deviceId,
-              bestScore,
-              totalGames as value,
-              totalCash
-            FROM leaderboard
-            ORDER BY totalGames DESC
+              ROW_NUMBER() OVER (ORDER BY roundsPlayed DESC) as rank,
+              runId,
+              playerName,
+              score,
+              roundsPlayed as value,
+              finalCash,
+              endReason,
+              finalRank,
+              createdAt
+            FROM game_stats
+            ORDER BY roundsPlayed DESC
             LIMIT ? OFFSET ?
           `;
           params = [limit, offset];
@@ -56,16 +64,20 @@ export function createLeaderboardRouter(db: Database): Router {
 
         case 'overall':
         default:
-          // 按最佳成绩排行
+          // 按分数排行（默认）
           query = `
             SELECT
-              ROW_NUMBER() OVER (ORDER BY bestScore DESC) as rank,
-              deviceId,
-              bestScore as value,
-              totalGames,
-              totalCash
-            FROM leaderboard
-            ORDER BY bestScore DESC
+              ROW_NUMBER() OVER (ORDER BY score DESC) as rank,
+              runId,
+              playerName,
+              score as value,
+              roundsPlayed,
+              finalCash,
+              endReason,
+              finalRank,
+              createdAt
+            FROM game_stats
+            ORDER BY score DESC
             LIMIT ? OFFSET ?
           `;
           params = [limit, offset];
@@ -73,9 +85,9 @@ export function createLeaderboardRouter(db: Database): Router {
 
       const leaderboard = await db.all(query, params);
 
-      // 获取总数
+      // 获取总游戏局数
       const totalResult = await db.get<{ total: number }>(
-        'SELECT COUNT(*) as total FROM leaderboard'
+        'SELECT COUNT(*) as total FROM game_stats'
       );
       const total = totalResult?.total || 0;
 
@@ -103,7 +115,7 @@ export function createLeaderboardRouter(db: Database): Router {
 
   /**
    * GET /api/leaderboard/me
-   * 查询当前设备的排名
+   * 查询当前设备玩家的最佳记录
    * 查询参数:
    *   - deviceId: 设备ID
    */
@@ -118,46 +130,49 @@ export function createLeaderboardRouter(db: Database): Router {
         });
       }
 
-      // 获取玩家信息
-      const player = await db.get(
-        'SELECT * FROM leaderboard WHERE deviceId = ?',
+      // 获取该设备的最佳记录
+      const bestGame = await db.get(
+        `SELECT * FROM game_stats WHERE deviceId = ? ORDER BY score DESC LIMIT 1`,
         [deviceId]
       );
 
-      if (!player) {
+      if (!bestGame) {
         return res.status(404).json({
           code: 'PLAYER_NOT_FOUND',
-          message: '玩家尚未有成绩记录',
+          message: '尚未有游戏记录',
         });
       }
 
-      // 获取排名
-      const ranking = await db.get<{ rank: number }>(
-        `SELECT COUNT(*) + 1 as rank FROM leaderboard
-         WHERE bestScore > ? OR (bestScore = ? AND deviceId < ?)`,
-        [player.bestScore, player.bestScore, deviceId]
+      // 获取该记录在所有游戏中的排名
+      const allGames = await db.all(
+        'SELECT score FROM game_stats ORDER BY score DESC'
       );
+      const rank = allGames.findIndex((g: any) => g.score < bestGame.score) + 1;
+      const totalGames = allGames.length;
 
-      const rank = ranking?.rank || 1;
+      // 计算超过的百分比
+      const percentile = totalGames > 0
+        ? ((totalGames - rank + 1) / totalGames * 100).toFixed(1)
+        : '0.0';
 
-      // 获取总玩家数
-      const totalResult = await db.get<{ total: number }>(
-        'SELECT COUNT(*) as total FROM leaderboard'
+      // 获取该设备的总局数
+      const playerStats = await db.get(
+        `SELECT COUNT(*) as totalGames, MAX(score) as bestScore, SUM(finalCash) as totalCash
+         FROM game_stats WHERE deviceId = ?`,
+        [deviceId]
       );
-      const total = totalResult?.total || 0;
 
       res.status(200).json({
         code: 'SUCCESS',
         data: {
           rank,
-          total,
-          percentile: ((total - rank + 1) / total * 100).toFixed(1),
-          player: {
-            deviceId: player.deviceId,
-            bestScore: player.bestScore,
-            totalGames: player.totalGames,
-            totalCash: player.totalCash,
-          },
+          total: totalGames,
+          percentile: parseFloat(percentile),
+          runId: bestGame.runId,
+          playerName: bestGame.playerName,
+          bestScore: bestGame.score,
+          totalGames: playerStats?.totalGames || 1,
+          totalCash: playerStats?.totalCash || bestGame.finalCash,
         },
       });
     } catch (error) {
@@ -177,20 +192,20 @@ export function createLeaderboardRouter(db: Database): Router {
     try {
       const stats = await db.get(
         `SELECT
-          COUNT(DISTINCT deviceId) as totalPlayers,
           COUNT(*) as totalGames,
-          AVG(bestScore) as avgScore,
-          MAX(bestScore) as maxScore,
-          MIN(bestScore) as minScore,
-          SUM(totalCash) as totalCash
-         FROM leaderboard`
+          COUNT(DISTINCT deviceId) as totalPlayers,
+          AVG(score) as avgScore,
+          MAX(score) as maxScore,
+          MIN(score) as minScore,
+          SUM(finalCash) as totalCash
+         FROM game_stats`
       );
 
       res.status(200).json({
         code: 'SUCCESS',
         data: stats || {
-          totalPlayers: 0,
           totalGames: 0,
+          totalPlayers: 0,
           avgScore: 0,
           maxScore: 0,
           minScore: 0,

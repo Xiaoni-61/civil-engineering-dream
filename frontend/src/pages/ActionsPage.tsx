@@ -15,8 +15,8 @@ export function ActionsPage() {
   const doAction = useGameStoreNew((state) => state.doAction);
   const finishQuarter = useGameStoreNew((state) => state.finishQuarter);
   const currentEvent = useGameStoreNew((state) => state.currentEvent);
-  const status = useGameStoreNew((state) => state.status);
   const selectOption = useGameStoreNew((state) => state.selectOption);
+  const status = useGameStoreNew((state) => state.status);
 
   const isLateGame = rank === Rank.PROJECT_MANAGER ||
                      rank === Rank.PROJECT_DIRECTOR ||
@@ -66,7 +66,7 @@ export function ActionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-52">
       <div className="max-w-md mx-auto px-4">
         {/* 季度和状态信息 */}
         <div className="mb-6 text-center">

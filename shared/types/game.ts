@@ -86,6 +86,7 @@ export enum GameStatus {
 
 export enum EndReason {
   PROMOTED_TO_PARTNER = 'promoted_to_partner', // 晋升合伙人（胜利）
+  BANKRUPT = 'bankrupt',                       // 破产
   HEALTH_DEPLETED = 'health_depleted',         // 过劳猝死
   REPUTATION_DEPLETED = 'reputation_depleted', // 行业封杀
 }
@@ -316,6 +317,13 @@ export interface GameState {
   // 新增：待处理事件
   pendingEvents: EventCard[];
 
+  // 特殊效果状态（来自关系维护）
+  pricePredictionBonus: number; // 价格预测准确率加成（百分比，如 50 表示 +50%）
+  storageFeeDiscount: number;   // 仓储费折扣（百分比，如 50 表示 -50%）
+
+  // 优质项目完成通知
+  qualityProjectJustCompleted: boolean;
+
   score: number;
   endReason?: EndReason;
 }
@@ -372,9 +380,10 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     raiseRange: [3, 8],  // 3%-8% 涨薪
     relationshipRequirements: {
       requirements: [
-        { type: RelationshipType.SUPERVISION, requiredValue: 60 },
+        { type: RelationshipType.CLIENT, requiredValue: 50 },
+        { type: RelationshipType.LABOR, requiredValue: 50 },
       ],
-      requirementType: 'all',
+      requirementType: 'any', // 满足任一即可
     },
   },
   [Rank.ENGINEER]: {
@@ -387,9 +396,11 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     raiseRange: [5, 12],  // 5%-12% 涨薪
     relationshipRequirements: {
       requirements: [
-        { type: RelationshipType.DESIGN, requiredValue: 65 },
+        { type: RelationshipType.SUPERVISION, requiredValue: 60 },
+        { type: RelationshipType.CLIENT, requiredValue: 60 },
+        { type: RelationshipType.LABOR, requiredValue: 60 },
       ],
-      requirementType: 'all',
+      requirementType: 'all', // 全部满足（助理工程师已解锁监理）
     },
   },
   [Rank.SENIOR_ENGINEER]: {
@@ -403,7 +414,7 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     raiseRange: [8, 15],  // 8%-15% 涨薪
     relationshipRequirements: {
       requirements: [
-        { type: RelationshipType.LABOR, requiredValue: 70 },
+        { type: RelationshipType.DESIGN, requiredValue: 60 },
       ],
       requirementType: 'all',
     },
@@ -419,8 +430,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     raiseRange: [10, 20],  // 10%-20% 涨薪
     relationshipRequirements: {
       requirements: [
-        { type: RelationshipType.CLIENT, requiredValue: 75 },
-        { type: RelationshipType.SUPERVISION, requiredValue: 70 },
+        { type: RelationshipType.SUPERVISION, requiredValue: 65 },
+        { type: RelationshipType.LABOR, requiredValue: 60 },
       ],
       requirementType: 'all',
     },
@@ -436,8 +447,8 @@ export const RANK_CONFIGS: Record<Rank, RankConfig> = {
     raiseRange: [12, 25],  // 12%-25% 涨薪
     relationshipRequirements: {
       requirements: [
-        { type: RelationshipType.CLIENT, requiredValue: 80 },
-        { type: RelationshipType.GOVERNMENT, requiredValue: 70 },
+        { type: RelationshipType.CLIENT, requiredValue: 70 },
+        { type: RelationshipType.GOVERNMENT, requiredValue: 60 },
       ],
       requirementType: 'all',
     },

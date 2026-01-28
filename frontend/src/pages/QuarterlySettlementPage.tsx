@@ -92,7 +92,7 @@ export function QuarterlySettlementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 pt-44">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pb-20 pt-52">
       {/* 顶部装饰条 */}
       <div className={`h-1.5 ${
         canPromote

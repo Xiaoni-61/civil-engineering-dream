@@ -87,6 +87,203 @@ nextQuarter()
 
 **提交**: (待提交)
 
+### Bug修复：价格预测不确定性问题
+
+**问题描述**：
+- 用户报告：在同一季度内多次点击不同材料，每次给出的价格预测都不一样
+- 预期行为：同一季度内对同一材料的预测应该是确定的
+- 预期行为：下季度的实际价格应该匹配预测的趋势和概率
+
+**根因分析**（Root Cause Analysis）：
+1. **随机预测问题**：
+   - `generatePricePrediction()` 每次调用都生成新的随机预测
+   - 没有缓存机制，导致同一季度对同一材料的预测不一致
+
+2. **预测与实际脱节**：
+   - 预测系统完全独立于实际价格生成
+   - `nextQuarter()` 中使用 `generateNextQuarterPrices()` 随机生成新价格
+   - 预测结果无法影响实际价格，导致预测失去意义
+
+**解决方案**：
+
+**方案架构**：预生成 + 缓存模式
+```
+游戏开始 (startGame)
+  ↓
+生成第2季度的真实价格（隐藏）
+存储到 state.nextQuarterRealPrices
+  ↓
+第1季度：玩家请求预测
+  ↓
+generatePricePrediction(水泥)
+  - 检查缓存 → 无缓存
+  - 读取下季度真实价格（水泥: 550）
+  - 当前价格: 500
+  - 真实涨幅: +10%
+  - 根据工作能力计算准确率: 70%
+  - 添加随机偏差: ±4.5%
+  - 预测涨幅: +7% (偏离3%)
+  - 生成预测: {trend: 'up', minPrice: 530, maxPrice: 560, accuracy: 70%}
+  - 缓存预测
+  - 返回预测
+  ↓
+再次点击水泥
+  - 检查缓存 → 有缓存
+  - 直接返回缓存的预测 ✅ (一致性)
+  ↓
+进入第2季度 (nextQuarter)
+  - 读取预生成的真实价格: 550
+  - 应用为当前价格 ✅ (预测有效性)
+  - 生成第3季度的真实价格
+  - 清空预测缓存（新季度重新预测）
+```
+
+**实现细节**：
+
+1. **添加状态字段** (gameStoreNew.ts:244-254, 449-450):
+```typescript
+nextQuarterRealPrices: Record<MaterialType, number> | null;  // 下季度真实价格（隐藏）
+pricePredictions: Record<MaterialType, {...}> | null;       // 本季度预测缓存
+```
+
+2. **重构预测函数** (gameStoreNew.ts:589-662):
+   - 先检查缓存，有缓存直接返回
+   - 读取/生成 `nextQuarterRealPrices`（如果不存在就生成并存储）
+   - 基于真实价格计算预测，添加准确率相关偏差
+   - 将预测结果缓存到 `pricePredictions`
+   - 添加明确类型标注：`const trend: 'up' | 'down' | 'stable'`
+
+3. **修改季度切换** (gameStoreNew.ts:1087-1121, 1207-1209):
+   - 优先使用预生成的 `nextQuarterRealPrices` 作为新价格
+   - 生成下下季度的真实价格存储
+   - 清空预测缓存（`pricePredictions: null`）
+
+4. **初始化逻辑** (gameStoreNew.ts:677-698, 713-734, 748-770):
+   - `startGame()`: 游戏开始时生成第2季度真实价格
+   - `resetGame()`: 重置游戏时也生成第2季度真实价格
+   - 保证系统启动时有预生成价格可用
+
+**涉及文件**：
+- `frontend/src/store/gameStoreNew.ts:244-254, 449-450` - 添加状态字段
+- `frontend/src/store/gameStoreNew.ts:589-662` - 重构 `generatePricePrediction()`
+- `frontend/src/store/gameStoreNew.ts:1087-1121, 1207-1209` - 修改 `nextQuarter()`
+- `frontend/src/store/gameStoreNew.ts:677-698, 713-734, 748-770` - 初始化逻辑
+
+**关键设计决策**：
+1. **为什么预生成？**
+   - 保证预测和实际价格的一致性
+   - 预测不再是"假装"，而是真正有意义的游戏机制
+
+2. **为什么缓存？**
+   - 确保同一季度内预测结果一致
+   - 避免重复计算，提升性能
+
+3. **准确率机制**：
+   - 预测 = 真实价格 + 偏差
+   - 偏差大小与准确率成反比：准确率70% → 最大偏差4.5%
+   - 预测区间宽度也与准确率相关：准确率越高，区间越窄
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- 需要手动测试：
+  1. 同一季度多次点击同一材料 → 预测应该完全一致
+  2. 进入下季度后 → 实际价格应该匹配上季度的预测趋势
+  3. 工作能力变化 → 预测准确率应该相应变化
+
+**提交**: (待提交)
+
+### Bug修复：材料价格显示错误
+
+**问题描述**：
+- 用户报告：砂石现价100元，但显示涨幅1011.1%，最高13/现价11/最低9，数值完全不对
+- 涨幅异常高（1011%），且价格统计（最高/最低）与当前价格（100元）严重不匹配
+- 价格走势图显示"当前价100"，但统计数据基于旧价格
+
+**根因分析**（Root Cause Analysis - Phase 1）：
+
+1. **数据流追踪**：
+   ```
+   startGame() → 初始化 priceHistory = [9]（砂石初始价）
+     ↓
+   nextQuarter() 第2季度 → 更新 currentPrice = 100
+     ↓
+   但没有将新价格添加到 priceHistory！❌
+     ↓
+   MarketPage 计算统计：
+     - max/min/avg 基于 priceHistory = [9, ...旧数据]
+     - currentPrice = 100（新数据）
+     ↓
+   结果：当前价100，但统计基于旧价格（最高13/最低9）
+   ```
+
+2. **涨跌幅异常问题**：
+   - `priceChange = (100 - 9) / 9 * 100 = 1011%`
+   - 问题：计算基于历史最低价（9），而不是上季度价格
+   - 导致显示"涨1011%"，实际应该显示相对于上季度的涨幅
+
+3. **核心问题**：
+   - `nextQuarter()` (gameStoreNew.ts:1129-1254) 更新 `materialPrices` 时
+   - 没有同步更新 `materialPriceHistory`
+   - 导致历史记录缺失所有新季度的价格数据
+
+4. **对比分析**（Phase 2）：
+   - `updateMaterialPrices()` (line 1780) 正确实现：`newHistory[type].push(newPrice)`
+   - 但 `nextQuarter()` 缺少这个逻辑
+   - 导致价格历史只有初始值，从不更新
+
+**解决方案**：
+
+1. **添加价格历史更新** (gameStoreNew.ts:1165-1175):
+   ```typescript
+   // 更新价格历史记录
+   const newHistory: Record<MaterialType, number[]> = {} as any;
+   Object.values(MaterialType).forEach(type => {
+     const history = [...prev.materialPriceHistory[type]];
+     history.push(newPrices[type].currentPrice);  // 添加新价格
+     if (history.length > 50) {  // 保留50个季度历史
+       history.shift();
+     }
+     newHistory[type] = history;
+   });
+   ```
+
+2. **更新状态返回** (gameStoreNew.ts:1242):
+   ```typescript
+   return {
+     ...
+     materialPrices: newPrices,
+     materialPriceHistory: newHistory,  // 添加历史更新
+     ...
+   };
+   ```
+
+3. **修改UI显示** (MarketPage.tsx:149-150):
+   - 将"平均"改为"现价"，直接显示 `price.currentPrice`
+   - 避免用户困惑"平均价"的含义
+
+**修复效果**：
+- ✅ 价格历史包含所有季度的价格数据
+- ✅ 最高/最低价格基于完整历史，包含当前价
+- ✅ 价格统计与当前价格一致
+- ✅ 涨跌幅计算基于连续的季度数据，数值正常
+- ✅ UI 显示"现价"更直观，消除"平均价"的歧义
+
+**涉及文件**：
+- `frontend/src/store/gameStoreNew.ts:1165-1175, 1242` - 添加价格历史更新逻辑
+- `frontend/src/pages/MarketPage.tsx:149-150` - 修改显示为"现价"
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- 需要手动测试：
+  1. 开始游戏 → 进入市场 → 检查价格统计是否包含当前价
+  2. 进入下季度 → 检查价格历史是否正确累积
+  3. 多个季度后 → 检查最高/最低价格是否正确
+  4. 检查涨跌幅百分比是否合理（不再出现1000%+的异常）
+
+**提交**: (待提交)
+
 ---
 
 ## 2026-01-26

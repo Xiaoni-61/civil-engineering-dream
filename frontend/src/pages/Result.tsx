@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
 
@@ -9,7 +9,7 @@ const Result = () => {
 
   const {
     status,
-    currentRound,
+    currentQuarter,
     gameStats,
     stats,
     score,
@@ -42,7 +42,7 @@ const Result = () => {
 
   const handlePlayAgain = () => {
     resetGame();
-    navigate('/game');
+    navigate('/character-creation');
   };
 
   return (
@@ -99,7 +99,7 @@ const Result = () => {
                   <div className="text-2xl mb-1">📅</div>
                   <div className="text-xs text-slate-500 mb-1">经历季度</div>
                   <div className="text-lg font-bold text-slate-800 tabular-nums">
-                    Q{currentRound}
+                    Q{currentQuarter}
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.15s' }}>
@@ -155,10 +155,10 @@ const Result = () => {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-white rounded-feishu">
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg">🏆</span>
-                      <span className="text-sm text-slate-600">质量</span>
+                      <span className="text-lg">💼</span>
+                      <span className="text-sm text-slate-600">工作能力</span>
                     </div>
-                    <span className="text-base font-bold text-purple-500 tabular-nums">{stats.quality}</span>
+                    <span className="text-base font-bold text-blue-500 tabular-nums">{stats.workAbility}</span>
                   </div>
                 </div>
               </div>

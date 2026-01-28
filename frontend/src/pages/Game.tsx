@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore } from '@/store/gameStoreNew';
 import StatusBar from '@/components/StatusBar';
 import EventCard from '@/components/EventCard';
 import { GameStatus } from '@shared/types';
@@ -11,16 +11,19 @@ const Game = () => {
   const {
     status,
     currentRound,
-    eventsInQuarter,
-    maxEventsPerQuarter,
+    quarterEvents,
+    currentEventIndex,
     stats,
     currentEvent,
     rank,
     actualSalary,
+    gameStats,
     startGame,
     selectOption,
     isLLMEnhancing,
     finishQuarter,
+    qualityProjectJustCompleted,
+    dismissQualityProjectNotification,
   } = useGameStore();
 
   // 组件挂载时开始游戏
@@ -99,7 +102,7 @@ const Game = () => {
     );
   }
 
-  const canFinishQuarter = eventsInQuarter >= maxEventsPerQuarter;
+  const canFinishQuarter = quarterEvents.length > 0 && currentEventIndex >= quarterEvents.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -142,7 +145,7 @@ const Game = () => {
               <span className="text-sm font-bold text-brand-600 tabular-nums">
                 Q{currentRound}
               </span>
-              <span className="text-xs text-brand-500">({eventsInQuarter}/{maxEventsPerQuarter})</span>
+              <span className="text-xs text-brand-500">({currentEventIndex}/{quarterEvents.length})</span>
             </div>
           </div>
         </div>
@@ -206,6 +209,40 @@ const Game = () => {
             <div className="flex justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-4 border-brand-500 border-t-transparent"></div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 优质项目完成通知 */}
+      {qualityProjectJustCompleted && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-sm mx-4 text-center shadow-xl animate-scale-in">
+            <div className="text-6xl mb-4 animate-bounce">🏆</div>
+            <h2 className="text-2xl font-bold text-amber-600 mb-2">优质项目完成！</h2>
+            <p className="text-sm text-slate-700 mb-4">
+              恭喜！你完成了一个质量评分≥90的优质项目。
+            </p>
+            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-3 mb-4 border border-amber-200">
+              <div className="text-xs text-amber-800">
+                <div className="flex justify-between mb-1">
+                  <span>已完成项目</span>
+                  <span className="font-bold">{gameStats.completedProjects}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>其中优质项目</span>
+                  <span className="font-bold text-amber-600">{gameStats.qualityProjects} ⭐</span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              优质项目将有助于晋升高级职级，继续加油！
+            </p>
+            <button
+              onClick={dismissQualityProjectNotification}
+              className="w-full py-3 px-6 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-yellow-600 transition-all shadow-lg active:scale-[0.98]"
+            >
+              太棒了！
+            </button>
           </div>
         </div>
       )}

@@ -57,7 +57,7 @@ export function RelationsPage() {
   const canMaintain = maintenanceRemaining > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-52">
       <div className="max-w-md mx-auto px-4">
         {/* 返回按钮 */}
         <button
@@ -132,6 +132,32 @@ export function RelationsPage() {
                     style={{ width: `${value}%` }}
                   />
                 </div>
+
+                {/* 关系预警提示 */}
+                {unlocked && value <= 40 && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-3 animate-pulse">
+                    <div className="flex items-center gap-1 text-xs text-red-700">
+                      <span>⚠️</span>
+                      <span>关系紧张！负面事件风险增加</span>
+                    </div>
+                  </div>
+                )}
+                {unlocked && value <= 30 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 mb-3">
+                    <div className="flex items-center gap-1 text-xs text-orange-700">
+                      <span>🚨</span>
+                      <span>危险！可能触发严重负面事件</span>
+                    </div>
+                  </div>
+                )}
+                {unlocked && value >= 80 && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 mb-3">
+                    <div className="flex items-center gap-1 text-xs text-emerald-700">
+                      <span>✨</span>
+                      <span>关系良好，享有经济收益加成</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* 未解锁提示或维护按钮 */}
                 {!unlocked ? (

@@ -6,23 +6,26 @@ type LeaderboardType = 'overall' | 'cash' | 'games';
 
 interface LeaderboardEntry {
   rank: number;
-  deviceId: string;
-  value: number;
-  bestScore?: number;
-  totalGames?: number;
-  totalCash?: number;
+  runId: string;
+  playerName: string;
+  score: number;
+  value: number; // 根据榜单类型不同，表示不同值
+  roundsPlayed: number;
+  finalCash?: number;
+  endReason?: string;
+  finalRank?: string;
+  createdAt: string;
 }
 
 interface MyRankData {
   rank: number;
   total: number;
-  percentile: string;
-  player: {
-    deviceId: string;
-    bestScore: number;
-    totalGames: number;
-    totalCash: number;
-  };
+  percentile: number;
+  runId: string;
+  playerName: string;
+  bestScore: number;
+  totalGames: number;
+  totalCash: number;
 }
 
 interface LeaderboardData {
@@ -104,6 +107,10 @@ export default function Leaderboard() {
       setMyRankData(data);
     } catch (err) {
       console.error('加载排名失败:', err);
+      // 如果是角色名未找到的错误，不显示错误提示
+      if ((err as Error).message === '未找到角色名') {
+        return;
+      }
       // 我的排名加载失败不阻塞页面显示
     }
   };
@@ -190,35 +197,35 @@ export default function Leaderboard() {
             <div className="bg-gradient-to-r from-brand-500 to-brand-600 rounded-feishu-lg p-5 shadow-feishu text-white animate-fade-in">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-brand-100 text-sm mb-1">我的排名</p>
+                  <p className="text-brand-100 text-sm mb-1">最佳记录排名</p>
                   <div className="flex items-baseline">
                     <span className="text-4xl font-bold mr-2">
                       {getRankDisplay(myRankData.rank)}
                     </span>
                     <span className="text-brand-100 text-sm">
-                      / {myRankData.total.toLocaleString()}
+                      / {myRankData.total.toLocaleString()} 局
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-brand-100 text-xs mb-1">超过玩家</p>
+                  <p className="text-brand-100 text-xs mb-1">超过游戏记录</p>
                   <p className="text-xl font-bold">
-                    {Math.round(parseFloat(myRankData.percentile))}%
+                    {Math.round(myRankData.percentile)}%
                   </p>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-3 gap-3 text-sm">
                 <div className="text-center">
                   <p className="text-brand-100 text-xs">最佳成绩</p>
-                  <p className="text-lg font-bold">{myRankData.player.bestScore}</p>
+                  <p className="text-lg font-bold">{myRankData.bestScore}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-brand-100 text-xs">总局数</p>
-                  <p className="text-lg font-bold">{myRankData.player.totalGames}</p>
+                  <p className="text-lg font-bold">{myRankData.totalGames}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-brand-100 text-xs">总现金</p>
-                  <p className="text-lg font-bold">{myRankData.player.totalCash}</p>
+                  <p className="text-lg font-bold">{myRankData.totalCash}</p>
                 </div>
               </div>
             </div>
@@ -249,7 +256,7 @@ export default function Leaderboard() {
               <div className="divide-y divide-slate-100">
                 {leaderboardData.leaderboard.map((entry, index) => (
                   <div
-                    key={entry.deviceId}
+                    key={entry.runId}
                     className={`flex items-center p-4 hover:bg-slate-50 transition-colors ${
                       index === 0 ? 'bg-brand-50/50' : ''
                     }`}
@@ -263,20 +270,21 @@ export default function Leaderboard() {
                       </span>
                     </div>
 
-                    {/* 设备 ID（脱敏） */}
+                    {/* 角色名和游戏信息 */}
                     <div className="flex-1 ml-4">
                       <div className="font-medium text-slate-800">
-                        {entry.deviceId.substring(0, 8)}...
+                        {entry.playerName}
                       </div>
-                      {/* 额外信息 */}
-                      {activeTab === 'overall' && entry.totalGames && (
-                        <div className="text-xs text-slate-500">
-                          {entry.totalGames} 局
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>Q{entry.roundsPlayed}</span>
+                        {entry.finalRank && <span>· {entry.finalRank}</span>}
+                        {entry.endReason === 'promoted_to_partner' && (
+                          <span className="text-emerald-600">🏆 晋升合伙人</span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* 分数 */}
+                    {/* 分数/值 */}
                     <div className="text-right">
                       <div className={`text-lg font-bold ${
                         activeTab === 'overall'
@@ -308,7 +316,7 @@ export default function Leaderboard() {
             {/* 分页信息 */}
             {leaderboardData && leaderboardData.pagination.total > 50 && (
               <div className="p-4 bg-slate-50 border-t border-slate-100 text-center text-sm text-slate-500">
-                共 {leaderboardData.pagination.total} 位玩家
+                共 {leaderboardData.pagination.total.toLocaleString()} 局游戏记录
                 显示前 50 名
               </div>
             )}
@@ -318,7 +326,7 @@ export default function Leaderboard() {
           {leaderboardData && (
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white rounded-feishu p-4 shadow-feishu text-center">
-                <div className="text-xs text-slate-500 mb-1">总玩家数</div>
+                <div className="text-xs text-slate-500 mb-1">总游戏局数</div>
                 <div className="text-2xl font-bold text-brand-600">
                   {leaderboardData.pagination.total.toLocaleString()}
                 </div>

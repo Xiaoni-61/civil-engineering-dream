@@ -3,6 +3,22 @@ import { v4 as uuidv4 } from 'uuid';
 import { generateSignature } from '../middleware/auth.js';
 import { Database } from '../database/init.js';
 
+/**
+ * 生成单局游戏 ID
+ * 格式：YYMMDDNNNNNN（12位纯数字）
+ * 示例：250128000001 - 25年1月28日第1局
+ */
+function generateRunId(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2); // 25
+  const mm = String(now.getMonth() + 1).padStart(2, '0'); // 01
+  const dd = String(now.getDate()).padStart(2, '0'); // 28
+  const prefix = `${yy}${mm}${dd}`; // 250128
+
+  // 返回前缀，序号在插入时生成
+  return prefix;
+}
+
 export function createRunRouter(db: Database): Router {
   const router = Router();
 
@@ -68,6 +84,9 @@ export function createRunRouter(db: Database): Router {
         score,
         finalStats,
         roundsPlayed,
+        playerName,
+        endReason,
+        finalRank,
         signature,
       } = req.body;
 
@@ -102,7 +121,7 @@ export function createRunRouter(db: Database): Router {
       if (roundsPlayed && (roundsPlayed < 0 || roundsPlayed > 100)) {
         return res.status(400).json({
           code: 'INVALID_ROUNDS',
-          message: '回合数异常',
+          message: '季度数异常',
         });
       }
 
@@ -112,14 +131,30 @@ export function createRunRouter(db: Database): Router {
         [score, runId]
       );
 
-      // 保存详细统计
+      // 生成单局游戏 ID（格式：YYMMDDNNNNNN）
+      const datePrefix = generateRunId(); // 例如：250128
+
+      // 获取今天的最后一局序号
+      const lastGame = await db.get(
+        `SELECT runId FROM game_stats WHERE runId LIKE ? ORDER BY runId DESC LIMIT 1`,
+        [`${datePrefix}%`]
+      );
+
+      // 生成新序号（000001-999999）
+      const lastSeq = lastGame ? parseInt(lastGame.runId.slice(-6)) : 0;
+      const newSeq = lastSeq + 1;
+      const fullRunId = `${datePrefix}${String(newSeq).padStart(6, '0')}`; // 250128000001
+
+      // 保存详细统计到 game_stats（作为排行榜数据源）
       const stats = finalStats || {};
       await db.run(
         `INSERT INTO game_stats
-         (deviceId, score, finalCash, finalHealth, finalReputation, finalProgress, finalQuality, roundsPlayed)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (runId, deviceId, playerName, score, finalCash, finalHealth, finalReputation, finalProgress, finalQuality, roundsPlayed, endReason, finalRank)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          fullRunId,
           deviceId,
+          playerName || '匿名玩家',
           score,
           stats.cash || 0,
           stats.health || 0,
@@ -127,48 +162,31 @@ export function createRunRouter(db: Database): Router {
           stats.progress || 0,
           stats.quality || 0,
           roundsPlayed || 0,
+          endReason || null,
+          finalRank || null,
         ]
       );
 
-      // 更新排行榜 - 使用原子操作避免 UNIQUE 约束冲突
-      // 使用 INSERT OR IGNORE + UPDATE 确保幂等性
-      await db.run(
-        `INSERT OR IGNORE INTO leaderboard (deviceId, bestScore, totalGames, totalCash)
-         VALUES (?, ?, ?, ?)`,
-        [deviceId, -1, 0, 0]  // 插入一个占位记录（bestScore=-1 会被后续更新覆盖）
+      // 获取基于所有游戏记录的排名
+      const allGames = await db.all(
+        'SELECT runId, score FROM game_stats ORDER BY score DESC'
       );
+      const rank = allGames.findIndex((g: any) => g.runId === fullRunId) + 1;
+      const totalGames = allGames.length;
 
-      // 然后更新记录（无论是新插入的还是已存在的）
-      await db.run(
-        `UPDATE leaderboard
-         SET bestScore = MAX(bestScore, ?),
-             totalGames = totalGames + 1,
-             totalCash = totalCash + ?,
-             updatedAt = CURRENT_TIMESTAMP
-         WHERE deviceId = ?`,
-        [score, stats.cash || 0, deviceId]
-      );
-
-      // 如果 bestScore 还是 -1（新记录），直接设置为当前分数
-      await db.run(
-        `UPDATE leaderboard
-         SET bestScore = ?
-         WHERE deviceId = ? AND bestScore = -1`,
-        [score, deviceId]
-      );
-
-      // 获取排名
-      const rankings = await db.all(
-        'SELECT deviceId, bestScore FROM leaderboard ORDER BY bestScore DESC'
-      );
-      const rank = rankings.findIndex((r: any) => r.deviceId === deviceId) + 1;
+      // 计算超过的百分比
+      const percentile = totalGames > 0
+        ? ((totalGames - rank + 1) / totalGames * 100).toFixed(1)
+        : '0.0';
 
       res.status(200).json({
         code: 'SUCCESS',
         data: {
+          runId: fullRunId,
           score,
           rank,
-          totalPlayers: rankings.length,
+          totalGames,
+          percentile: parseFloat(percentile),
           message: '成绩上传成功',
         },
       });

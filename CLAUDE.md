@@ -66,14 +66,51 @@ cd backend && npm run lint
 
 **失败条件**：Cash < 0（破产）、Health ≤ 0（过劳）、Rep ≤ 0（封杀）
 
+### 状态管理架构
+
+**核心状态管理**：使用 Zustand 实现全局状态管理，主要有两个 store：
+
+- **`gameStore.ts`**：旧版 store（仍在使用，部分页面依赖）
+- **`gameStoreNew.ts`**：新版 store（推荐使用，包含完整的行动点、团队、事件系统）
+
+**重要**：新功能应使用 `gameStoreNew.ts`。两个 store 目前共存，逐步迁移中。
+
+**状态更新模式**：
+```typescript
+// Zustand 状态更新的两种形式
+set({ field: newValue })                    // 简单更新
+set((prev) => ({ field: prev.field + 1 }))  // 基于前一状态（推荐用于依赖旧值的更新）
+```
+
+**关键设计模式**：
+
+1. **预生成 + 缓存模式**（价格预测系统）：
+   - 提前生成下季度真实价格存储在 `nextQuarterRealPrices`
+   - 价格预测基于真实价格 + 准确率偏差
+   - 预测结果缓存在 `pricePredictions`，确保同季度内一致性
+
+2. **事件预告系统**（季度结算）：
+   - `finishQuarter()` 预生成下季度开始事件但不应用
+   - 存储在 `settlement.nextQuarterStartEvents`
+   - 在结算页面展示给玩家
+   - `nextQuarter()` 读取并应用预生成的事件
+
+3. **价格历史更新**：
+   - `nextQuarter()` 必须同步更新 `materialPriceHistory`
+   - 历史用于计算最高/最低价格统计
+   - 最多保留 50 个季度数据
+
 ### 关键文件
 
 | 文件 | 职责 |
 |-----|-----|
-| `frontend/src/store/gameStore.ts` | Zustand store，管理所有游戏状态 |
-| `frontend/src/data/events.ts` | 60+ 事件卡定义 |
-| `frontend/src/data/constants.ts` | 材料/关系/职级的显示配置 |
-| `shared/types/game.ts` | 核心类型定义（职级、材料、关系、配置表） |
+| `frontend/src/store/gameStoreNew.ts` | **主要** Zustand store，包含完整游戏逻辑 |
+| `frontend/src/store/gameStore.ts` | 旧版 store（逐步废弃中） |
+| `frontend/src/data/events/` | 事件系统：`commonEvents.ts`, `bonusEvents.ts`, `quarterStartEvents.ts` 等 |
+| `frontend/src/data/constants.ts` | 游戏配置常量：行动、材料、关系、职级等 |
+| `shared/types/game.ts` | 游戏状态类型定义 |
+| `shared/types/player.ts` | 玩家属性、效果类型定义 |
+| `shared/types/event.ts` | 事件卡类型定义 |
 | `backend/src/services/llmService.ts` | LLM 调用封装 |
 | `backend/src/utils/promptTemplates.ts` | LLM Prompt 模板 |
 
@@ -107,6 +144,68 @@ LLM_MODEL=doubao-seed-1-6-lite-251015
 ## 工作日志
 
 每次完成任务后更新 `WORKLOG.md`，记录时间、改动点、涉及文件和 review 状态。
+
+## 常见问题与调试指南
+
+### 状态更新问题
+
+**症状**：状态更新后 UI 没有反映最新值（如季度结算后现金不对）
+
+**根因**：使用 `get()` 获取状态快照，但快照可能不包含刚刚的更新（Zustand 批处理）
+
+**解决**：使用 `set((prev) => { ... })` 形式，`prev` 总是最新状态
+```typescript
+// ❌ 错误：可能读到旧值
+const state = get();
+const newValue = state.value + 1;
+set({ value: newValue });
+
+// ✅ 正确：总是读到最新值
+set((prev) => ({ value: prev.value + 1 }));
+```
+
+### 价格预测不一致
+
+**症状**：同一季度多次点击材料，预测结果不同
+
+**根因**：预测系统没有缓存，每次生成随机预测
+
+**解决**：
+1. 确保 `nextQuarterRealPrices` 在游戏开始和每次 `nextQuarter()` 时预生成
+2. 确保 `generatePricePrediction()` 先检查 `pricePredictions` 缓存
+3. 确保 `nextQuarter()` 时清空缓存：`pricePredictions: null`
+
+### 价格历史数据缺失
+
+**症状**：最高/最低价格与当前价不匹配，涨跌幅异常（如1000%+）
+
+**根因**：`nextQuarter()` 更新 `materialPrices` 时忘记更新 `materialPriceHistory`
+
+**解决**：在 `nextQuarter()` 中添加：
+```typescript
+const newHistory: Record<MaterialType, number[]> = {} as any;
+Object.values(MaterialType).forEach(type => {
+  const history = [...prev.materialPriceHistory[type]];
+  history.push(newPrices[type].currentPrice);
+  if (history.length > 50) history.shift();
+  newHistory[type] = history;
+});
+// 在 return 中添加：materialPriceHistory: newHistory
+```
+
+## 代码规范
+
+### TypeScript 类型
+
+- 严格模式：`max-warnings 0`
+- 显式类型标注联合类型：`const trend: 'up' | 'down' | 'stable' = ...`
+- 避免 `any`，使用 `as any` 时添加注释说明原因
+
+### 状态管理原则
+
+1. **数据一致性**：相关数据同步更新（如价格和历史）
+2. **预生成模式**：需要确定性的随机数据应提前生成并缓存
+3. **原子更新**：使用 `set((prev) => {...})` 确保基于最新状态更新
 
 ## 游戏策划文档维护
 

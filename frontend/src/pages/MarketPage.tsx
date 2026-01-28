@@ -66,7 +66,7 @@ export function MarketPage() {
   const totalProfit = profitPerUnit * currentInventory;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-52">
       <div className="max-w-md mx-auto px-4">
         {/* 返回按钮 */}
         <button
@@ -146,8 +146,8 @@ export function MarketPage() {
               <div className="text-red-500 font-bold">{maxPrice}</div>
             </div>
             <div className="text-center p-2 bg-slate-50 rounded border border-slate-200">
-              <div className="text-slate-500">平均</div>
-              <div className="text-slate-900 font-bold">{avgPrice}</div>
+              <div className="text-slate-500">现价</div>
+              <div className="text-slate-900 font-bold">{price.currentPrice}</div>
             </div>
             <div className="text-center p-2 bg-slate-50 rounded border border-slate-200">
               <div className="text-slate-500">最低</div>

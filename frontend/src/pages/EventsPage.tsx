@@ -6,11 +6,11 @@ import { EventResultCard } from '@/components/EventResultCard';
 
 export function EventsPage() {
   const navigate = useNavigate();
+  const status = useGameStoreNew((state) => state.status);
 
   // 现有选择器
   const eventHistory = useGameStoreNew((state) => state.eventHistory);
   const currentEvent = useGameStoreNew((state) => state.currentEvent);
-  const status = useGameStoreNew((state) => state.status);
   const selectOption = useGameStoreNew((state) => state.selectOption);
   const actionPoints = useGameStoreNew((state) => state.actionPoints);
   const maxActionPoints = useGameStoreNew((state) => state.maxActionPoints);
@@ -59,7 +59,7 @@ export function EventsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 pt-44">
+    <div className="min-h-screen bg-slate-50 pb-20 pt-52">
       <div className="max-w-md mx-auto px-4">
         {/* 返回按钮 */}
         <button

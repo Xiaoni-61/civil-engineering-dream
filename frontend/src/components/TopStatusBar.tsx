@@ -9,6 +9,9 @@ export function TopStatusBar() {
   const maxActionPoints = useGameStoreNew((state) => state.maxActionPoints);
   const workAbility = useGameStoreNew((state) => state.stats.workAbility);
   const luck = useGameStoreNew((state) => state.stats.luck);
+  const pricePredictionBonus = useGameStoreNew((state) => state.pricePredictionBonus);
+  const storageFeeDiscount = useGameStoreNew((state) => state.storageFeeDiscount);
+  const gameStats = useGameStoreNew((state) => state.gameStats);
 
   const rankConfig = RANK_CONFIGS[rank];
   const hasRaise = actualSalary > rankConfig.minQuarterlySalary;
@@ -127,6 +130,41 @@ export function TopStatusBar() {
             <span className="text-sm font-bold">
               {actionPoints} / {maxActionPoints}
             </span>
+          </div>
+        </div>
+
+        {/* 特殊效果提示 - 只在有加成时显示 */}
+        {(pricePredictionBonus > 0 || storageFeeDiscount > 0) && (
+          <div className="mt-1 bg-gradient-to-r from-purple-50 to-blue-50 rounded px-2 py-1 border border-purple-200 animate-fade-in">
+            {pricePredictionBonus > 0 && (
+              <div className="text-[10px] text-purple-700 flex items-center gap-1">
+                <span>✨</span>
+                <span>设计优化方案：预测准确率 +{pricePredictionBonus}%</span>
+              </div>
+            )}
+            {storageFeeDiscount > 0 && (
+              <div className="text-[10px] text-blue-700 flex items-center gap-1">
+                <span>📖</span>
+                <span>政策解读：仓储费 -{storageFeeDiscount}%</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 项目统计 */}
+        <div className="mt-1 bg-gradient-to-r from-emerald-50 to-teal-50 rounded px-2 py-1 border border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] text-emerald-700 flex items-center gap-1">
+              <span>🏗️</span>
+              <span>已完成项目/优质</span>
+            </div>
+            <div className="text-[10px] text-slate-700">
+              <span className="font-bold text-slate-900">{gameStats.completedProjects}</span>
+              <span className="text-slate-500 mx-0.5">/</span>
+              <span className={`font-bold ${gameStats.qualityProjects > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                {gameStats.qualityProjects}
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore } from '@/store/gameStoreNew';
 import {
   MaterialType,
   MATERIAL_CONFIGS,
@@ -79,14 +79,6 @@ const StrategyPhase = () => {
       return;
     }
 
-    // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
-    // 当前使用临时映射：
-    // - workAbility → stats.quality（作为临时替代）
-    // - luck → stats.progress（作为临时替代）
-    // 待这些属性正式添加后，需要移除此映射
-    const tempWorkAbility = stats.quality; // 临时使用 quality 替代 workAbility
-    const tempLuck = stats.progress; // 临时使用 progress 替代 luck
-
     // ========== 1. 检查并应用加成效果 ==========
     let hasBonus = false;
     let bonusMultiplier = 1;
@@ -96,10 +88,10 @@ const StrategyPhase = () => {
     if (action.bonuses?.ability && action.bonuses.effect) {
       const { ability, effect } = action.bonuses;
 
-      // 检查是否满足加成条件
-      const meetsWorkAbility = !ability.workAbility || tempWorkAbility >= ability.workAbility;
+      // 检查是否满足加成条件（直接使用 workAbility 和 luck）
+      const meetsWorkAbility = !ability.workAbility || stats.workAbility >= ability.workAbility;
       const meetsReputation = !ability.reputation || stats.reputation >= ability.reputation;
-      const meetsLuck = !ability.luck || tempLuck >= ability.luck;
+      const meetsLuck = !ability.luck || stats.luck >= ability.luck;
 
       hasBonus = meetsWorkAbility && meetsReputation && meetsLuck;
 
@@ -144,16 +136,39 @@ const StrategyPhase = () => {
     // ========== 3. 特殊效果判定 ==========
     let specialEffectTriggered = false;
     let specialEffectDescription = '';
-    let specialEffectEffects: { quality?: number; progress?: number; } = {};
+    let specialEffectEffects: { quality?: number; progress?: number; workAbility?: number; luck?: number; } = {};
+    let newPricePredictionBonus = useGameStore.getState().pricePredictionBonus;
+    let newStorageFeeDiscount = useGameStore.getState().storageFeeDiscount;
 
     if (action.specialEffects) {
-      // 特殊效果概率（workAbility 高时可能有加成，这里暂不实现）
-      const specialEffectProbability = action.specialEffects.probability;
+      // 特殊效果概率（workAbility 高时可能有加成）
+      let specialEffectProbability = action.specialEffects.probability;
+
+      // 检查是否有工作能力加成
+      if (action.bonuses?.ability?.workAbility && stats.workAbility >= action.bonuses.ability.workAbility) {
+        // workAbility ≥ 60 时，设计优化方案概率提升
+        if (action.specialEffects.type === 'design_optimization' && stats.workAbility >= 60) {
+          specialEffectProbability = 0.2; // 20%
+        }
+      }
+
+      // 检查政府政策学习的条件
+      if (action.specialEffects.type === 'policy_interpretation' && stats.workAbility >= 70) {
+        specialEffectProbability = 0.1; // 10%
+      }
 
       if (Math.random() < specialEffectProbability) {
         specialEffectTriggered = true;
         specialEffectDescription = action.specialEffects.description;
         specialEffectEffects = action.specialEffects.effects || {};
+
+        // 应用特殊效果
+        if (action.specialEffects.type === 'design_optimization') {
+          newPricePredictionBonus = 50; // 价格预测准确率 +50%
+        }
+        if (action.specialEffects.type === 'policy_interpretation') {
+          newStorageFeeDiscount = 50; // 仓储费 -50%
+        }
       }
     }
 
@@ -170,9 +185,12 @@ const StrategyPhase = () => {
       : relationshipChange;
     newRelationships[selectedRelationship] = Math.max(0, Math.min(100, relationships[selectedRelationship] + finalRelationshipChange));
 
-    // 应用基础效果（workAbility, quality, progress）
+    // 应用基础效果（workAbility, luck, quality, progress）
     if (action.baseEffects.workAbility) {
-      newStats.quality = Math.min(100, stats.quality + action.baseEffects.workAbility);
+      newStats.workAbility = Math.min(100, stats.workAbility + action.baseEffects.workAbility);
+    }
+    if (action.baseEffects.luck) {
+      newStats.luck = Math.min(100, stats.luck + action.baseEffects.luck);
     }
     if (action.baseEffects.quality) {
       newStats.quality = Math.min(100, stats.quality + action.baseEffects.quality);
@@ -188,6 +206,12 @@ const StrategyPhase = () => {
       }
       if (specialEffectEffects.progress) {
         newStats.progress = Math.min(100, newStats.progress + specialEffectEffects.progress);
+      }
+      if (specialEffectEffects.workAbility) {
+        newStats.workAbility = Math.min(100, newStats.workAbility + specialEffectEffects.workAbility);
+      }
+      if (specialEffectEffects.luck) {
+        newStats.luck = Math.min(100, newStats.luck + specialEffectEffects.luck);
       }
       // TODO: storageDiscount 需要在季度结算时处理
     }
@@ -216,6 +240,8 @@ const StrategyPhase = () => {
       relationships: newRelationships,
       maintenanceCount: storeWithoutMaintain.maintenanceCount + 1,
       maintainedRelationships: newMaintained,
+      pricePredictionBonus: newPricePredictionBonus,
+      storageFeeDiscount: newStorageFeeDiscount,
     });
 
     // ========== 5. 构建综合反馈消息 ==========
@@ -318,15 +344,14 @@ const StrategyPhase = () => {
 
     const { workAbility, reputation, luck } = action.bonuses.ability;
 
-    // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
-    // 当前使用临时映射：workAbility → stats.quality，luck → stats.progress
-    if (workAbility && stats.quality < workAbility) return false;
+    // 检查工作能力
+    if (workAbility && stats.workAbility < workAbility) return false;
 
     // 检查声誉
     if (reputation && stats.reputation < reputation) return false;
 
-    // 检查幸运（使用项目进度作为替代）
-    if (luck && stats.progress < luck) return false;
+    // 检查幸运
+    if (luck && stats.luck < luck) return false;
 
     return true;
   };
@@ -340,16 +365,14 @@ const StrategyPhase = () => {
     if (action.bonuses.ability) {
       const { workAbility, reputation, luck } = action.bonuses.ability;
 
-      // TODO: workAbility 和 luck 属性尚未完全添加到游戏状态中
-      // 当前使用临时映射：workAbility → 质量，luck → 进度
       if (workAbility) {
-        parts.push(`🔧 质量≥${workAbility}`);
+        parts.push(`🔧 工作能力≥${workAbility}`);
       }
       if (reputation) {
         parts.push(`⭐ 声誉≥${reputation}`);
       }
       if (luck) {
-        parts.push(`🍀 进度≥${luck}`);
+        parts.push(`🍀 幸运≥${luck}`);
       }
     }
 

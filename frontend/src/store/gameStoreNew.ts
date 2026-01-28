@@ -199,6 +199,13 @@ const createInitialState = (): GameState => ({
   // 新增：待处理事件
   pendingEvents: [],
 
+  // 特殊效果状态（来自关系维护）
+  pricePredictionBonus: 0,
+  storageFeeDiscount: 0,
+
+  // 优质项目完成通知
+  qualityProjectJustCompleted: false,
+
   score: 0,
 });
 
@@ -214,6 +221,7 @@ interface GameStore extends GameState {
   // 扩展状态
   playerName?: string;       // 玩家姓名
   playerGender?: 'male' | 'female'; // 玩家性别
+  projectCompletedThisQuarter: boolean; // 本季度是否完成了项目
   trainingCooldowns: {       // 训练冷却状态
     basic_work: number;
     advanced_work: number;
@@ -232,6 +240,18 @@ interface GameStore extends GameState {
 
   // 材料价格历史
   materialPriceHistory: Record<MaterialType, number[]>;
+
+  // 下季度真实价格（预先生成，玩家不可见）
+  nextQuarterRealPrices: Record<MaterialType, number> | null;
+
+  // 本季度价格预测缓存（避免每次点击都重新生成）
+  pricePredictions: Record<MaterialType, {
+    trend: 'up' | 'down' | 'stable';
+    minPrice: number;
+    maxPrice: number;
+    accuracy: number;
+    eventChance: number;
+  }> | null;
 
   // 事件触发计数器
   actionsSinceLastEventCheck: number;
@@ -320,6 +340,7 @@ interface GameStore extends GameState {
   checkGameEnd: () => void;
   checkProjectCompletion: () => boolean;
   checkPromotion: () => { canPromote: boolean; nextRank?: Rank; missingRequirements?: string[] };
+  dismissQualityProjectNotification: () => void;
   calculateNetAssets: () => number;
   calculateStorageFee: () => number;
   calculateQuarterlySalary: () => number;
@@ -351,16 +372,22 @@ const initializeMaterialPrices = (): Record<MaterialType, MaterialPrice> => {
 
 const generateNextQuarterPrices = (
   currentPrices: Record<MaterialType, MaterialPrice>,
-  _workAbility: number,
+  workAbility: number,
   luck: number
 ): Record<MaterialType, MaterialPrice> => {
   const newPrices: Record<MaterialType, MaterialPrice> = {} as any;
 
+  // 工作能力影响价格波动：工作能力越高，波动越小（市场更稳定可预测）
+  // workAbility 0 → ±15% 波动（完全随机）
+  // workAbility 50 → ±10% 波动
+  // workAbility 100 → ±5% 波动（高度稳定）
+  const baseVolatility = 0.30 * (1 - workAbility / 200); // 0.30 → 0.15
+
   Object.values(MaterialType).forEach(material => {
     const currentPrice = currentPrices[material].currentPrice;
 
-    // 1. 基础价格波动（±15%）
-    let newPrice = currentPrice * (1 + (Math.random() - 0.5) * 0.3);
+    // 1. 基础价格波动（受工作能力影响）
+    let newPrice = currentPrice * (1 + (Math.random() - 0.5) * baseVolatility);
 
     // 2. 幸运特殊事件（暴涨/暴跌）
     const eventChance = 2 + luck / 20; // 2-7%
@@ -400,6 +427,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   ...createInitialState(),
   playerName: undefined,
   playerGender: undefined,
+  projectCompletedThisQuarter: false,
   trainingCooldowns: {
     basic_work: 0,
     advanced_work: 0,
@@ -418,6 +446,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     [MaterialType.SAND]: [],
     [MaterialType.CONCRETE]: [],
   },
+  nextQuarterRealPrices: null,
+  pricePredictions: null,
   actionsSinceLastEventCheck: 0,
   actionsThisQuarter: 0,
 
@@ -558,33 +588,83 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   generatePricePrediction: (material: MaterialType) => {
     const state = get();
+
+    // 1. 如果本季度已有预测缓存，直接返回
+    if (state.pricePredictions && state.pricePredictions[material]) {
+      return state.pricePredictions[material];
+    }
+
     const workAbility = state.stats.workAbility;
     const luck = state.stats.luck;
+    const pricePredictionBonus = state.pricePredictionBonus;
     const currentPrice = state.materialPrices[material].currentPrice;
 
-    // 计算准确率
-    const accuracy = 50 + workAbility / 2;
+    // 2. 如果没有下季度真实价格，先生成（这应该在 nextQuarter 中完成，但作为兜底逻辑）
+    let realNextPrice: number;
+    if (!state.nextQuarterRealPrices) {
+      // 兜底：生成真实价格并存储
+      const allRealPrices = generateNextQuarterPrices(
+        state.materialPrices,
+        workAbility,
+        luck
+      );
+      const realPricesRecord: Record<MaterialType, number> = {} as any;
+      Object.values(MaterialType).forEach(type => {
+        realPricesRecord[type] = allRealPrices[type].currentPrice;
+      });
+      set({ nextQuarterRealPrices: realPricesRecord });
+      realNextPrice = realPricesRecord[material];
+    } else {
+      realNextPrice = state.nextQuarterRealPrices[material];
+    }
 
-    // 生成预测（随机生成趋势）
-    const predictionBase = (Math.random() - 0.5) * 0.2; // ±10%
-    const trend = predictionBase > 0.02 ? 'up' :
-                  predictionBase < -0.02 ? 'down' : 'stable';
+    // 3. 计算准确率（工作能力 + 特殊加成）
+    const accuracy = 50 + workAbility / 2 + pricePredictionBonus;
 
-    // 预测区间宽度（准确率越高，区间越窄）
-    const range = (100 - accuracy) / 100 * 0.2; // 0-20%
-    const minPrice = Math.round(currentPrice * (1 + predictionBase - range));
-    const maxPrice = Math.round(currentPrice * (1 + predictionBase + range));
+    // 4. 基于真实价格生成预测（加入准确率相关的偏差）
+    const realChange = (realNextPrice - currentPrice) / currentPrice; // 真实涨跌幅
+    const accuracyFactor = accuracy / 100; // 0.5 ~ 1.0
 
-    // 特殊事件概率
+    // 预测偏差：准确率越低，偏差越大
+    const maxDeviation = (1 - accuracyFactor) * 0.15; // 最大偏差 0-7.5%
+    const deviation = (Math.random() - 0.5) * 2 * maxDeviation;
+    const predictedChange = realChange + deviation;
+
+    // 5. 生成预测趋势
+    const trend: 'up' | 'down' | 'stable' = predictedChange > 0.02 ? 'up' :
+                  predictedChange < -0.02 ? 'down' : 'stable';
+
+    // 6. 预测区间宽度（准确率越高，区间越窄）
+    const range = (100 - accuracy) / 100 * 0.15; // 0-15%
+    const predictedPrice = currentPrice * (1 + predictedChange);
+    const minPrice = Math.round(predictedPrice * (1 - range));
+    const maxPrice = Math.round(predictedPrice * (1 + range));
+
+    // 7. 特殊事件概率
     const eventChance = 2 + luck / 20; // 2-7%
 
-    return {
+    const prediction: {
+      trend: 'up' | 'down' | 'stable';
+      minPrice: number;
+      maxPrice: number;
+      accuracy: number;
+      eventChance: number;
+    } = {
       trend,
       minPrice,
       maxPrice,
       accuracy: Math.round(accuracy),
       eventChance: Math.round(eventChance * 10) / 10
     };
+
+    // 8. 缓存预测结果
+    const newPredictions = {
+      ...(state.pricePredictions || {} as any),
+      [material]: prediction
+    };
+    set({ pricePredictions: newPredictions });
+
+    return prediction;
   },
 
   startGame: async () => {
@@ -600,6 +680,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         [MaterialType.CONCRETE]: [initialPrices[MaterialType.CONCRETE].currentPrice],
       };
 
+      // 初始化：生成第二季度的真实价格（用于价格预测系统）
+      const nextQuarterPrices = generateNextQuarterPrices(
+        initialPrices,
+        initialState.stats.workAbility,
+        initialState.stats.luck
+      );
+      const initialNextQuarterRealPrices: Record<MaterialType, number> = {} as any;
+      Object.values(MaterialType).forEach(type => {
+        initialNextQuarterRealPrices[type] = nextQuarterPrices[type].currentPrice;
+      });
+
       set({
         ...initialState,
         status: GameStatus.PLAYING,
@@ -609,6 +700,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         runId: response.runId,
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
+        nextQuarterRealPrices: initialNextQuarterRealPrices,
       });
 
       recentEventIds.clear();
@@ -624,6 +716,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
         [MaterialType.CONCRETE]: [initialPrices[MaterialType.CONCRETE].currentPrice],
       };
 
+      // 初始化：生成第二季度的真实价格（用于价格预测系统）
+      const nextQuarterPrices = generateNextQuarterPrices(
+        initialPrices,
+        initialState.stats.workAbility,
+        initialState.stats.luck
+      );
+      const initialNextQuarterRealPrices: Record<MaterialType, number> = {} as any;
+      Object.values(MaterialType).forEach(type => {
+        initialNextQuarterRealPrices[type] = nextQuarterPrices[type].currentPrice;
+      });
+
       set({
         ...initialState,
         status: GameStatus.PLAYING,
@@ -633,6 +736,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         runId: null,
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
+        nextQuarterRealPrices: initialNextQuarterRealPrices,
       });
     }
   },
@@ -647,6 +751,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       [MaterialType.CONCRETE]: [initialPrices[MaterialType.CONCRETE].currentPrice],
     };
 
+    // 初始化：生成第二季度的真实价格（用于价格预测系统）
+    const nextQuarterPrices = generateNextQuarterPrices(
+      initialPrices,
+      initialState.stats.workAbility,
+      initialState.stats.luck
+    );
+    const initialNextQuarterRealPrices: Record<MaterialType, number> = {} as any;
+    Object.values(MaterialType).forEach(type => {
+      initialNextQuarterRealPrices[type] = nextQuarterPrices[type].currentPrice;
+    });
+
     set({
       ...initialState,
       materialPrices: initialPrices,
@@ -658,6 +773,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentSettlement: null,
       actionsSinceLastEventCheck: 0,
       actionsThisQuarter: 0,
+      nextQuarterRealPrices: initialNextQuarterRealPrices,
     });
   },
 
@@ -669,11 +785,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     try {
+      // 获取永久保存的角色名
+      const playerName = state.playerName || undefined;
       const result = await finishGame({
         runId: state.runId,
         score: state.score,
         finalStats: state.stats,
         roundsPlayed: state.currentQuarter,
+        playerName,
+        endReason: state.endReason || undefined,
+        finalRank: state.rank || undefined,
       });
       console.log('成绩上传成功:', result);
     } catch (error) {
@@ -900,6 +1021,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       relationships: newRelationships,
     });
 
+    // 检查游戏结束条件
+    get().checkGameEnd();
+
     // 检查晋升
     const promotionCheck = get().checkPromotion();
 
@@ -982,6 +1106,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       luck: nextQuarterLuckChange,
     };
 
+    // 检查游戏是否已经结束（在设置SETTLEMENT之前）
+    const currentState = get();
+    if (currentState.status === GameStatus.FAILED || currentState.status === GameStatus.COMPLETED) {
+      // 游戏已结束，不进入结算阶段
+      return;
+    }
+
     set({
       currentSettlement: settlement,
       status: GameStatus.SETTLEMENT,
@@ -1000,12 +1131,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set((prev) => {
       const newQuarter = prev.currentQuarter + 1;
 
-      // 生成下季度价格（包含属性影响）
-      const newPrices = generateNextQuarterPrices(
-        prev.materialPrices,
+      // 使用预先生成的真实价格作为新价格（如果存在）
+      let newPrices: Record<MaterialType, MaterialPrice>;
+      if (prev.nextQuarterRealPrices) {
+        // 使用预先生成的真实价格
+        newPrices = {} as any;
+        Object.values(MaterialType).forEach(type => {
+          const realPrice = prev.nextQuarterRealPrices![type];
+          const oldPrice = prev.materialPrices[type].currentPrice;
+          const priceChange = ((realPrice - oldPrice) / oldPrice) * 100;
+          newPrices[type] = {
+            type,
+            currentPrice: realPrice,
+            priceChange: Math.round(priceChange * 10) / 10,
+            trend: priceChange > 2 ? 'up' : priceChange < -2 ? 'down' : 'stable',
+          };
+        });
+      } else {
+        // 兜底：如果没有预生成的价格（不应该发生），使用随机生成
+        newPrices = generateNextQuarterPrices(
+          prev.materialPrices,
+          prev.stats.workAbility,
+          prev.stats.luck
+        );
+      }
+
+      // 生成下下季度的真实价格（用于下次预测）
+      const nextNextQuarterPrices = generateNextQuarterPrices(
+        newPrices,
         prev.stats.workAbility,
         prev.stats.luck
       );
+      const nextNextQuarterRealPrices: Record<MaterialType, number> = {} as any;
+      Object.values(MaterialType).forEach(type => {
+        nextNextQuarterRealPrices[type] = nextNextQuarterPrices[type].currentPrice;
+      });
+
+      // 更新价格历史记录
+      const newHistory: Record<MaterialType, number[]> = {} as any;
+      Object.values(MaterialType).forEach(type => {
+        const history = [...prev.materialPriceHistory[type]];
+        history.push(newPrices[type].currentPrice);
+        // 最多保留 50 个数据点（支持50个季度的历史）
+        if (history.length > 50) {
+          history.shift();
+        }
+        newHistory[type] = history;
+      });
 
       // 季度开始：自动恢复健康
       let newHealth = Math.min(100, prev.stats.health + QUARTER_HEALTH_REGEN);
@@ -1053,6 +1225,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // 季度开始事件记录（用于下一次结算页面显示）
       const quarterStartEventsRecord = nextQuarterEvents;
 
+      // 如果本季度完成了项目，季度开始事件的项目效果应该忽略
+      // 因为项目已经重置为新的空项目，不应该再受上季度事件影响
+      const shouldApplyProjectEffects = !prev.projectCompletedThisQuarter;
+
       return {
         status: GameStatus.PLAYING,
         currentQuarter: newQuarter,
@@ -1064,10 +1240,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           workAbility: newWorkAbility,
           luck: newLuck,
         },
-        // 应用项目状态效果
-        projectProgress: clampStat(prev.projectProgress + progressEffect),
-        projectQuality: clampStat(prev.projectQuality + qualityEffect),
+        // 应用项目状态效果（项目刚完成时忽略季度开始事件的项目效果）
+        projectProgress: shouldApplyProjectEffects ? clampStat(prev.projectProgress + progressEffect) : 0,
+        projectQuality: shouldApplyProjectEffects ? clampStat(prev.projectQuality + qualityEffect) : 50,
         materialPrices: newPrices,
+        materialPriceHistory: newHistory,
         actionPoints: newActionPoints,
         maxActionPoints: newActionPoints,
         phase: newPhase,
@@ -1082,6 +1259,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
         actionsThisQuarter: 0,
         actionsSinceLastEventCheck: 0,
+        // 重置特殊效果（季度开始时失效）
+        pricePredictionBonus: 0,
+        storageFeeDiscount: 0,
+        // 重置项目完成标志
+        projectCompletedThisQuarter: false,
+        // 价格预测系统：存储下季度真实价格，清空预测缓存
+        nextQuarterRealPrices: nextNextQuarterRealPrices,
+        pricePredictions: null,
       };
     });
   },
@@ -1384,6 +1569,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       stats: newStats,
       pendingEvents: state.pendingEvents.filter(e => e.id !== eventId),
     });
+
+    // 检查游戏结束条件
+    get().checkGameEnd();
   },
 
   // ==================== 事件处理方法 ====================
@@ -1517,6 +1705,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       materialTradeCount: state.materialTradeCount + 1,
     });
 
+    // 检查游戏结束条件
+    get().checkGameEnd();
+
     return {
       success: true,
       cashChange: -cost,
@@ -1573,6 +1764,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       inventory: newInventory,
       materialTradeCount: state.materialTradeCount + 1,
     });
+
+    // 检查游戏结束条件
+    get().checkGameEnd();
 
     return {
       success: true,
@@ -1684,6 +1878,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           maintainedRelationships: new Set([...state.maintainedRelationships, relationshipType]),
         });
 
+        // 检查游戏结束条件
+        get().checkGameEnd();
+
         return {
           success: true,
           relationshipChange: finalGain,
@@ -1721,6 +1918,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       maintenanceCount: state.maintenanceCount + 1,
       maintainedRelationships: newMaintained,
     });
+
+    // 检查游戏结束条件
+    get().checkGameEnd();
 
     return {
       success: true,
@@ -1783,7 +1983,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const { stats } = state;
 
-    // 检查健康
+    // 检查现金（破产）
+    if (stats.cash <= LOSE_CONDITIONS.cash) {
+      const score = get().calculateNetAssets();
+      set({
+        status: GameStatus.FAILED,
+        score,
+        endReason: EndReason.BANKRUPT,
+      });
+      return;
+    }
+
+    // 检查健康（过劳）
     if (stats.health <= LOSE_CONDITIONS.health) {
       const score = get().calculateNetAssets();
       set({
@@ -1794,7 +2005,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
 
-    // 检查声誉
+    // 检查声誉（封杀）
     if (stats.reputation <= LOSE_CONDITIONS.reputation) {
       const score = get().calculateNetAssets();
       set({
@@ -1834,6 +2045,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
         projectProgress: 0,
         projectQuality: 50,  // 重置为新项目的初始质量
+        projectCompletedThisQuarter: true, // 标记本季度完成了项目
+        qualityProjectJustCompleted: isQualityProject, // 设置优质项目完成通知标志
       });
 
       return true;
@@ -1846,7 +2059,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const state = get();
     const currentRank = state.rank;
     const netAssets = get().calculateNetAssets();
-    const { gameStats, stats, team } = state;
+    const { gameStats, stats, team, relationships } = state;
 
     if (currentRank === Rank.PARTNER) {
       return { canPromote: false };
@@ -1863,21 +2076,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const nextRankConfig = RANK_CONFIGS[nextRank];
     const missing: string[] = [];
 
+    // 检查净资产
     if (netAssets < nextRankConfig.assetsRequired) {
       missing.push(`净资产需达到 ${(nextRankConfig.assetsRequired / 10000).toFixed(0)}万`);
     }
 
+    // 检查完成项目数
     if (gameStats.completedProjects < nextRankConfig.projectsRequired) {
       missing.push(`完成项目数需达到 ${nextRankConfig.projectsRequired}个`);
     }
 
+    // 检查声誉
     if (stats.reputation < nextRankConfig.reputationRequired) {
       missing.push(`声誉需达到 ${nextRankConfig.reputationRequired}`);
     }
 
+    // 检查特殊要求（优质项目、完成项目数）
     if (nextRankConfig.specialRequirement) {
       if (nextRankConfig.rank === Rank.SENIOR_ENGINEER || nextRankConfig.rank === Rank.PROJECT_DIRECTOR) {
         if (gameStats.qualityProjects < (nextRankConfig.rank === Rank.SENIOR_ENGINEER ? 1 : 5)) {
+          missing.push(nextRankConfig.specialRequirement);
+        }
+      } else if (nextRankConfig.rank === Rank.PROJECT_MANAGER) {
+        // 项目经理要求完成过3个项目（不是优质项目，是普通项目）
+        if (gameStats.completedProjects < 3) {
           missing.push(nextRankConfig.specialRequirement);
         }
       } else if (nextRankConfig.rank === Rank.PARTNER) {
@@ -1887,6 +2109,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
         if (gameStats.qualityProjects < 10) {
           missing.push(nextRankConfig.specialRequirement);
+        }
+      }
+    }
+
+    // 检查关系要求
+    if (nextRankConfig.relationshipRequirements) {
+      const { requirements, requirementType } = nextRankConfig.relationshipRequirements;
+      const unsatisfiedRelationships: string[] = [];
+
+      // 关系类型中文映射
+      const relationshipLabels: Record<RelationshipType, string> = {
+        [RelationshipType.CLIENT]: '甲方',
+        [RelationshipType.SUPERVISION]: '监理',
+        [RelationshipType.DESIGN]: '设计院',
+        [RelationshipType.LABOR]: '劳务队',
+        [RelationshipType.GOVERNMENT]: '政府部门',
+      };
+
+      // 检查每个关系要求
+      for (const req of requirements) {
+        const currentValue = relationships[req.type];
+        if (currentValue < req.requiredValue) {
+          unsatisfiedRelationships.push(
+            `${relationshipLabels[req.type]}需达到 ${req.requiredValue}（当前 ${currentValue}）`
+          );
+        }
+      }
+
+      // 根据要求类型决定是否阻止晋升
+      if (requirementType === 'all') {
+        // 需要满足所有要求
+        if (unsatisfiedRelationships.length > 0) {
+          if (unsatisfiedRelationships.length === 1) {
+            missing.push(`虽然你的业绩很优秀，但${unsatisfiedRelationships[0]}才能晋升。`);
+          } else {
+            missing.push(`虽然你的业绩很优秀，但以下关系需要加强才能晋升：${unsatisfiedRelationships.join('、')}`);
+          }
+        }
+      } else if (requirementType === 'any') {
+        // 满足任一要求即可
+        const allUnsatisfied = unsatisfiedRelationships.length === requirements.length;
+        if (allUnsatisfied) {
+          missing.push(`至少需要满足以下关系之一：${unsatisfiedRelationships.join('、')}`);
         }
       }
     }
@@ -1923,7 +2188,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       totalFee += amount * fee;
     });
 
-    return totalFee;
+    // 应用仓储费折扣（政策解读效果）
+    const discount = state.storageFeeDiscount;
+    const discountedFee = totalFee * (1 - discount / 100);
+
+    return Math.round(discountedFee);
   },
 
   calculateQuarterlySalary: (): number => {
@@ -1961,6 +2230,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       newSalary,
       message: `恭喜！工资上涨 ${raisePercent.toFixed(1)}%，从 ${state.actualSalary} 涨到 ${newSalary}`,
     };
+  },
+
+  dismissQualityProjectNotification: () => {
+    set({ qualityProjectJustCompleted: false });
   },
 
   enhanceEventDescription: async (event: EventCard): Promise<EventCard> => {

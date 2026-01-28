@@ -8,8 +8,9 @@ import { MarketPage } from '@/pages/MarketPage';
 import { RelationsPage } from '@/pages/RelationsPage';
 import { EventsPage } from '@/pages/EventsPage';
 import { QuarterlySettlementPage } from '@/pages/QuarterlySettlementPage';
+import Result from '@/pages/Result';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
-import { Rank } from '@shared/types';
+import { Rank, GameStatus } from '@shared/types';
 
 export function MainGame() {
   const location = useLocation();
@@ -17,10 +18,21 @@ export function MainGame() {
   const rank = useGameStoreNew((state) => state.rank);
   const quarterEvents = useGameStoreNew((state) => state.quarterEvents);
   const isAllEventsCompleted = useGameStoreNew((state) => state.isAllEventsCompleted);
+  const status = useGameStoreNew((state) => state.status);
 
   const isLateGame = rank === Rank.PROJECT_MANAGER ||
                      rank === Rank.PROJECT_DIRECTOR ||
                      rank === Rank.PARTNER;
+
+  // 检查是否是结果页面
+  const isResultPage = location.pathname === '/game-new/result';
+
+  // 如果游戏结束且不在结果页面，自动跳转
+  useEffect(() => {
+    if ((status === GameStatus.FAILED || status === GameStatus.COMPLETED) && !isResultPage) {
+      navigate('/game-new/result', { replace: true });
+    }
+  }, [status, isResultPage, navigate]);
 
   // 检查当前路径是否在 /game-new 下
   const isInGame = location.pathname.startsWith('/game-new');
@@ -39,14 +51,19 @@ export function MainGame() {
       isAllEventsCompleted: isAllEventsCompleted()
     });
 
-    if (hasPendingEvents && location.pathname !== '/game-new/events') {
+    if (hasPendingEvents && location.pathname !== '/game-new/events' && !isResultPage) {
       console.log('[MainGame] 强制跳转到事件页面');
       navigate('/game-new/events', { replace: true });
     }
-  }, [hasPendingEvents, location.pathname, navigate, quarterEvents.length, isAllEventsCompleted]);
+  }, [hasPendingEvents, location.pathname, navigate, quarterEvents.length, isAllEventsCompleted, isResultPage]);
 
   if (!isInGame) {
     return <Navigate to="/game-new/actions" replace />;
+  }
+
+  // 结果页面：不显示 TopBar 和 BottomNav
+  if (isResultPage) {
+    return <Result />;
   }
 
   return (
@@ -90,6 +107,7 @@ export function MainGame() {
         />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/settlement" element={<QuarterlySettlementPage />} />
+        <Route path="/result" element={<Result />} />
         <Route path="*" element={<Navigate to="/game-new/actions" replace />} />
       </Routes>
 
