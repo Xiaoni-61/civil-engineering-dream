@@ -1723,3 +1723,133 @@ e246da0 docs: update WORKLOG.md for Task 22
 - 使用 `Promise.allSettled` 确保部分失败不影响整体
 - 不可用源自动标记和重试机制
 - 完整的备用方案保障系统稳定性
+
+---
+
+### Task 5: 创建 Prompt 模板
+
+**背景**：
+- LLM 驱动功能实现的第五步
+- 需要创建 Prompt 模板用于指导 LLM 生成游戏事件
+- 模板包含变量占位符，运行时替换为实际值
+
+**完成内容**：
+
+1. **创建事件生成模板**
+   - `news-based-event.md`：基于新闻生成事件的模板
+   - `creative-event.md`：创意事件生成模板
+   - 包含角色设定、任务说明、输入参数、设计要求、输出格式等完整内容
+
+2. **模板变量系统**
+   - 使用 `{{variable_name}}` 格式的变量占位符
+   - 新闻事件变量：`{{news_title}}`, `{{news_content}}`, `{{target_rank}}`
+   - 创意事件变量：`{{target_rank}}`, `{{event_type}}`
+
+3. **创建 README 文档**
+   - 说明模板结构和使用方法
+   - 包含质量控制指南
+   - 提供测试方法说明
+
+4. **创建示例文件** (examples 目录)
+   - `news-event-example.json`：新闻事件示例
+   - `creative-event-example.json`：创意事件示例
+   - 用于测试 Prompt 模板效果
+
+**涉及文件**：
+- `backend/prompts/event-generation/news-based-event.md` - 新建（139行）
+- `backend/prompts/event-generation/creative-event.md` - 新建（154行）
+- `backend/prompts/README.md` - 新建（194行）
+- `backend/prompts/event-generation/examples/news-event-example.json` - 新建
+- `backend/prompts/event-generation/examples/creative-event-example.json` - 新建
+
+**测试验证**：
+- ✅ 模板内容完整且格式正确
+- ✅ 变量占位符统一使用 `{{}}` 格式
+- ✅ 输出格式要求明确（JSON）
+- ✅ 包含完整的设计指南和约束
+
+**Review 状态**：✅ 完成并通过验证
+
+---
+
+### Task 6: 实现 LLM 事件生成服务
+
+**背景**：
+- LLM 驱动功能实现的第六步
+- 需要创建事件生成服务，负责调用 LLM 生成游戏事件
+- 集成 Prompt 模板、LLM 调用、质量验证和数据库保存
+
+**完成内容**：
+
+1. **Prompt 模板加载器**
+   - `loadPromptTemplate()`: 从文件系统加载模板
+   - `replaceVariables()`: 替换模板中的变量占位符
+
+2. **事件生成器** (`EventGenerator` 类)
+   - `generateFromNews()`: 基于新闻生成事件
+   - `generateCreative()`: 生成创意事件
+   - `batchGenerate()`: 批量生成事件（并发控制）
+   - 支持重试机制（指数退避）
+
+3. **质量验证器** (`EventValidator` 类)
+   - `validate()`: 验证生成的事件是否符合要求
+   - `calculateQualityScore()`: 计算质量分数（0-1）
+   - 质量分数低于 0.3 的事件自动丢弃
+
+4. **数据库保存** (`EventRepository` 类)
+   - `saveEvent()`: 保存单个事件到数据库
+   - `saveEvents()`: 批量保存事件
+   - 自动计算质量分数和验证状态
+
+5. **配置集成**
+   - 复用 `RSS_LLM_CONFIG` 控制并发、超时和重试
+   - 复用 `llmService` 进行 LLM 调用
+   - 使用已有的数据库接口
+
+6. **错误处理**
+   - LLM 调用失败时返回 null，不影响其他事件
+   - JSON 解析失败时记录错误并返回 null
+   - 验证失败时记录具体错误信息
+
+**技术亮点**：
+
+1. **批量并发控制**：
+   - 使用 `RSS_LLM_CONFIG.concurrency` 控制并发数（默认 3）
+   - 分批处理，每批 `batchSize` 条新闻
+
+2. **质量评分系统**：
+   - 基础分 0.3
+   - 标题/描述长度加分
+   - 选项数量和质量加分
+   - 数值合理性加分
+   - 无验证错误加分
+
+3. **重试机制**：
+   - 最大重试次数：2 次
+   - 指数退避：2^n 秒延迟
+   - 失败计数器防止无限重试
+
+4. **类型安全**：
+   - 完整的 TypeScript 类型定义
+   - `GeneratedEvent` 接口
+   - `ValidationError` 接口
+   - `EventSourceInfo` 接口
+
+**涉及文件**：
+- `backend/src/services/eventGenerator.ts` - 新建（547行）
+
+**测试验证**：
+- ✅ TypeScript 编译通过（后端）
+- ✅ 所有类型定义正确
+- ✅ 符合设计文档要求
+- ✅ 导出接口完整
+
+**提交**: `854f9da` - feat: implement LLM event generation service with validation
+
+**Review 状态**：✅ 完成并通过验证
+
+**特殊亮点**：
+- 完整的质量验证和评分系统
+- 健壮的错误处理和重试机制
+- 批量并发控制避免过载
+- 清晰的日志输出便于调试
