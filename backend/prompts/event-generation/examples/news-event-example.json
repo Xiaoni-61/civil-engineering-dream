@@ -1,0 +1,35 @@
+{
+  "input": {
+    "news_title": "央行降息0.25个百分点，释放长期资金约1万亿元",
+    "news_content": "中国人民银行宣布下调金融机构存款准备金率0.25个百分点，此次降准将释放长期资金约1万亿元，旨在保持银行体系流动性合理充裕，降低金融机构资金成本，通过金融机构传导可促进降低实体经济综合融资成本。",
+    "target_rank": "项目经理"
+  },
+  "output": {
+    "title": "降息利好",
+    "description": "央行宣布降息，贷款成本降低，公司考虑启动新项目",
+    "options": [
+      {
+        "text": "抓住机会投标",
+        "effects": {
+          "cash": -20,
+          "reputation": 15
+        }
+      },
+      {
+        "text": "观望后再决定",
+        "effects": {
+          "cash": 5,
+          "reputation": -5
+        }
+      }
+    ],
+    "min_rank": "项目经理",
+    "max_rank": "合伙人"
+  },
+  "metadata": {
+    "created_at": "2025-01-28",
+    "source_url": "https://example.com/news/12345",
+    "category": "financial",
+    "validation_passed": true
+  }
+}

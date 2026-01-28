@@ -1,0 +1,43 @@
+{
+  "input": {
+    "target_rank": "高级工程师",
+    "event_type": "emergency"
+  },
+  "output": {
+    "title": "现场事故",
+    "description": "施工现场脚手架突然坍塌，2名工人受伤，监理要求停工整改",
+    "options": [
+      {
+        "text": "立即停工处理",
+        "effects": {
+          "cash": -25,
+          "reputation": 10
+        }
+      },
+      {
+        "text": "边整改边施工",
+        "effects": {
+          "cash": -10,
+          "health": -10,
+          "reputation": -15
+        }
+      },
+      {
+        "text": "快速抢修复工",
+        "effects": {
+          "cash": -15,
+          "health": -5,
+          "reputation": 5
+        }
+      }
+    ],
+    "min_rank": "高级工程师",
+    "max_rank": "项目总监"
+  },
+  "metadata": {
+    "created_at": "2025-01-28",
+    "event_type": "emergency",
+    "validation_passed": true,
+    "quality_score": 0.85
+  }
+}
