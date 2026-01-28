@@ -1,12 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
+import ReactMarkdown from 'react-markdown';
+import { generateBiography as generateBiographyApi, shareBiography as shareBiographyApi } from '@/api/eventsApi';
 
 const Result = () => {
   const navigate = useNavigate();
   const hasUploaded = useRef(false);
+
+  // 传记相关状态
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showBiography, setShowBiography] = useState(false);
+  const [biography, setBiography] = useState<string | null>(null);
+  const [biographyError, setBiographyError] = useState<string | null>(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
   const {
     status,
@@ -17,6 +27,9 @@ const Result = () => {
     endReason,
     uploadScore,
     resetGame,
+    runId,
+    playerName,
+    rank,
   } = useGameStore();
 
   // 如果游戏未结束，跳转回首页
@@ -41,6 +54,87 @@ const Result = () => {
 
   const isWin = status === GameStatus.COMPLETED;
   const endMessage = endReason ? END_MESSAGES[endReason] : END_MESSAGES.reputation_depleted;
+
+  /**
+   * 生成职业传记
+   */
+  const handleGenerateBiography = async () => {
+    if (!runId) {
+      setBiographyError('无法生成传记：缺少游戏记录 ID');
+      return;
+    }
+
+    setIsGenerating(true);
+    setBiographyError(null);
+    setCopySuccess(false);
+    setShareSuccess(false);
+
+    try {
+      const result = await generateBiographyApi(runId, {
+        playerName: playerName || '匿名玩家',
+        finalRank: rank || '未知',
+        endReason: endReason || '游戏结束',
+        quartersPlayed: currentQuarter || 0,
+        finalStats: {
+          cash: stats.cash || 0,
+          health: stats.health || 0,
+          reputation: stats.reputation || 0,
+          workAbility: stats.workAbility || 0,
+          luck: stats.luck || 0,
+        },
+        gameStats: {
+          completedProjects: gameStats?.completedProjects || 0,
+          qualityProjects: gameStats?.qualityProjects || 0,
+        },
+        keyDecisions: [], // TODO: 从游戏状态中提取关键决策
+      });
+
+      setBiography(result);
+      setShowBiography(true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '生成传记失败，请稍后重试';
+      setBiographyError(errorMessage);
+      console.error('生成传记失败:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  /**
+   * 复制传记到剪贴板
+   */
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('复制失败:', error);
+      setBiographyError('复制失败，请手动复制文本');
+    }
+  };
+
+  /**
+   * 分享传记
+   */
+  const shareBiographyLink = async () => {
+    if (!runId) {
+      setBiographyError('无法分享传记：缺少游戏记录 ID');
+      return;
+    }
+
+    try {
+      const result = await shareBiographyApi(runId);
+      // 复制分享链接到剪贴板
+      await navigator.clipboard.writeText(result.shareUrl);
+      setShareSuccess(true);
+      setTimeout(() => setShareSuccess(false), 3000);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '分享失败，请稍后重试';
+      setBiographyError(errorMessage);
+      console.error('分享传记失败:', error);
+    }
+  };
 
   const handlePlayAgain = () => {
     resetGame();
@@ -203,6 +297,108 @@ const Result = () => {
                 >
                   返回首页
                 </button>
+              </div>
+
+              {/* 职业传记功能 */}
+              <div className="mt-8 pt-6 border-t border-slate-200">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-bold text-slate-700 mb-2">✨ 职业传记</h3>
+                  <p className="text-sm text-slate-500">让 AI 为你记录这段难忘的职场历程</p>
+                </div>
+
+                {/* 生成传记按钮 */}
+                {!showBiography && (
+                  <button
+                    onClick={handleGenerateBiography}
+                    disabled={isGenerating || !runId}
+                    className={`w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
+                              shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
+                              ${isGenerating || !runId
+                                ? 'bg-slate-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 focus:ring-indigo-500 border-2 border-indigo-800'
+                              }`}
+                  >
+                    <span className="flex items-center justify-center">
+                      <span className="mr-2">{isGenerating ? '⏳' : '📖'}</span>
+                      {isGenerating ? 'AI 正在书写你的故事...' : '生成职业传记'}
+                    </span>
+                  </button>
+                )}
+
+                {/* 错误提示 */}
+                {biographyError && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-feishu">
+                    <p className="text-sm text-red-600 text-center">{biographyError}</p>
+                  </div>
+                )}
+
+                {/* 传记展示区域 */}
+                {showBiography && biography && (
+                  <div className="mt-4 animate-fade-in">
+                    <div className="bg-white border-2 border-indigo-100 rounded-feishu-lg shadow-lg overflow-hidden">
+                      {/* 传记标题 */}
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-indigo-100">
+                        <h4 className="text-lg font-bold text-indigo-700 flex items-center">
+                          <span className="mr-2">📜</span>
+                          {playerName || '匿名玩家'}的职业传记
+                        </h4>
+                      </div>
+
+                      {/* 传记内容 */}
+                      <div className="p-6">
+                        <div className="text-sm">
+                          <ReactMarkdown
+                            components={{
+                              h1: ({node, ...props}) => <h1 className="text-xl font-bold text-slate-800 mb-3 mt-4" {...props} />,
+                              h2: ({node, ...props}) => <h2 className="text-lg font-bold text-slate-800 mb-2 mt-3" {...props} />,
+                              h3: ({node, ...props}) => <h3 className="text-base font-bold text-slate-800 mb-2 mt-3" {...props} />,
+                              p: ({node, ...props}) => <p className="text-slate-700 leading-relaxed mb-3" {...props} />,
+                              ul: ({node, ...props}) => <ul className="list-disc list-inside text-slate-700 mb-3 space-y-1" {...props} />,
+                              ol: ({node, ...props}) => <ol className="list-decimal list-inside text-slate-700 mb-3 space-y-1" {...props} />,
+                              li: ({node, ...props}) => <li className="text-slate-700" {...props} />,
+                              strong: ({node, ...props}) => <strong className="font-bold text-indigo-700" {...props} />,
+                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-300 pl-4 py-2 my-4 bg-indigo-50 text-slate-700 italic" {...props} />,
+                            }}
+                          >
+                            {biography}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+
+                      {/* 操作按钮 */}
+                      <div className="px-6 pb-6 flex gap-3">
+                        <button
+                          onClick={() => copyToClipboard(biography)}
+                          className="flex-1 py-3 px-4 rounded-feishu font-medium text-slate-700 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
+                                   bg-slate-100 hover:bg-slate-200 border border-slate-300 active:scale-[0.98]
+                                   flex items-center justify-center"
+                        >
+                          <span className="mr-2">{copySuccess ? '✅' : '📋'}</span>
+                          {copySuccess ? '已复制' : '复制文本'}
+                        </button>
+                        <button
+                          onClick={shareBiographyLink}
+                          className="flex-1 py-3 px-4 rounded-feishu font-medium text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2
+                                   bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-700 active:scale-[0.98]
+                                   flex items-center justify-center shadow-md hover:shadow-lg"
+                        >
+                          <span className="mr-2">{shareSuccess ? '✅' : '📤'}</span>
+                          {shareSuccess ? '链接已复制' : '分享我的故事'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 重新生成按钮 */}
+                    <button
+                      onClick={handleGenerateBiography}
+                      disabled={isGenerating}
+                      className="mt-4 w-full py-3 px-6 rounded-feishu font-medium text-slate-600 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
+                               bg-slate-50 hover:bg-slate-100 border border-slate-200 active:scale-[0.98] text-sm"
+                    >
+                      🔄 重新生成传记
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
