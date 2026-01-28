@@ -794,3 +794,111 @@
 **TypeScript 编译**：✅ 通过，无错误
 **前端构建**：✅ 通过
 
+---
+
+## 2026-01-28
+
+### LLM 功能实现进度 (Task 1-4)
+
+**Task 1: 创建 RSS 配置文件** ✅ - 3710ede, 77c97e9 (fix)
+- 创建 `backend/src/config/rss-sources.ts` 配置文件
+- 定义 RSSSource 接口（url, name, weight, category）
+- 配置 7 个 RSS 数据源：
+  - 专业类（权重 1.5）：建筑时报、中国建筑新闻网
+  - 综合类（权重 1.0）：腾讯新闻、新华网、凤凰网资讯
+  - 财经类（权重 1.2）：财经网房产
+  - 科技类（权重 0.8）：科技日报
+- 定义关键词配置：
+  - FILTER_KEYWORDS（49 个）：建筑、工程、金融、政策等
+  - BLACKLIST_KEYWORDS（7 个）：娱乐、八卦、体育等
+  - STRONG_KEYWORDS（4 个）：建筑、工程、房地产、基建
+- 定义事件池配置（EVENT_POOL_CONFIG）：固定 35%、新闻 50%、创意 15%
+- 定义权重衰减配置：7 天内从 1.0 衰减到 0.05
+- 修复命名冲突：LLM_CONFIG → RSS_LLM_CONFIG（与前端区分）
+- **规格审查**：✅ 通过
+- **代码质量审查**：✅ 通过（发现命名冲突已修复）
+
+**Task 2: 创建数据库表** ✅ - 72ace70
+- 修改 `backend/src/database/init.ts`，添加 3 个新表：
+  - `dynamic_events`：动态事件表（新闻生成事件 + LLM 创意事件）
+  - `career_biographies`：职业传记缓存表
+  - `event_usage_log`：事件使用日志表
+- 添加 3 个索引优化查询性能
+- **规格审查**：✅ 通过（所有字段和索引符合设计）
+- **代码质量审查**：⚠️ 预期问题（表已创建但未使用，符合增量开发）
+
+**Task 3: 安装后端依赖** ✅ - 2f87b68
+- 安装 `rss-parser@3.13.0`：RSS 解析库
+- 安装 `node-cron@4.2.1`：定时任务调度器
+- 安装 `@types/node-cron@3.0.11`：TypeScript 类型定义
+
+**Task 4: 实现 RSS 抓取器** ✅ - 9768677, 872f00e (fix)
+- 创建 `backend/src/services/rssFetcher.ts`（441 行）
+- 实现 `RSSFetcher` 类：
+  - `fetchAll()`：并发抓取所有 RSS 源（使用 Promise.allSettled）
+  - `fetchSingle()`：抓取单个源（超时 10 秒，每源最多 20 条）
+  - `filterByKeywords()`：白名单/黑名单/强相关关键词过滤
+  - `dedupe()`：基于 URL 或标题去重
+  - `handleFetchError()`：分类处理错误（ENOTFOUND/ETIMEDOUT/ECONNRESET）
+  - `getFallbackNews()`：缓存 + 预设经典事件备用方案
+- 实现缓存机制：1 小时过期，减少重复请求
+- 实现不可用源标记：根据错误类型设置不同的重试间隔
+- 导出 `NewsItem` 接口和 `getRSSFetcher()` 单例函数
+- **规格审查**：❌ 发现接口字段命名不一致（content vs description）
+- **修复**：将 `content` 字段改为 `description`，与设计文档保持一致
+- **代码质量审查**：✅ 通过（评分 7.8/10）
+
+**涉及文件**：
+1. `backend/src/config/rss-sources.ts` - RSS 配置
+2. `backend/src/database/init.ts` - 数据库表
+3. `backend/package.json` - 依赖管理
+4. `backend/src/services/rssFetcher.ts` - RSS 抓取器实现
+
+**当前进度**：4/15 任务完成（27%）
+
+**下一步**：Task 5 - 创建 Prompt 模板
+
+---
+
+**Task 5: 创建 Prompt 模板** ✅ - e36c225
+- 创建 `backend/prompts/` 目录结构
+- 实现事件生成模板：
+  - `news-based-event.md`：基于新闻的事件生成（含角色设定、任务、输入、要求、输出格式）
+  - `creative-event.md`：创意事件生成（含 4 种事件类型：daily/emergency/opportunity/challenge）
+- 实现叙事生成模板：
+  - `career-biography.md`：职业传记生成（三章结构：初入职场、成长之路、结局）
+- 创建示例文件：
+  - `news-event-example.json`：新闻事件输入输出示例
+  - `creative-event-example.json`：创意事件输入输出示例
+  - `biography-example.md`：完整传记输出示例
+- 创建 README.md：
+  - 变量替换规则（{{variable_name}}）
+  - 输出格式要求（JSON）
+  - 质量控制指南
+  - 测试方法
+  - 维护指南
+- 特性：
+  - 变量占位符系统
+  - 严格的 JSON 输出格式
+  - 数值平衡控制（新闻事件 ±10%、创意事件 ±15%）
+  - 完整的示例和测试数据
+- 涉及文件：
+  - `backend/prompts/README.md`
+  - `backend/prompts/event-generation/news-based-event.md`
+  - `backend/prompts/event-generation/creative-event.md`
+  - `backend/prompts/event-generation/examples/news-event-example.json`
+  - `backend/prompts/event-generation/examples/creative-event-example.json`
+  - `backend/prompts/narrative/career-biography.md`
+  - `backend/prompts/narrative/biography-example.md`
+
+**自我审查清单**：
+- ✅ 创建了所有必需的目录和文件（7 个文件）
+- ✅ Prompt 模板使用 {{variable}} 占位符
+- ✅ 包含清晰的输出格式说明（JSON）
+- ✅ 提供了完整的示例（3 个示例文件）
+- ✅ README.md 说明使用方法（含变量替换、质量控制、测试、维护）
+
+**当前进度**：5/15 任务完成（33%）
+
+**下一步**：Task 6 - 实现 LLM 事件生成服务
+
