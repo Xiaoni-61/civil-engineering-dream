@@ -1444,6 +1444,123 @@ e246da0 docs: update WORKLOG.md for Task 22
 
 ---
 
+## 2026-01-28
+
+### Task 1: 创建 RSS 配置文件
+
+**背景**：
+- LLM 驱动功能实现的第一步
+- 需要配置 RSS 数据源和关键词过滤系统
+- 用于后续抓取新闻并生成游戏事件
+
+**完成内容**：
+
+1. **创建配置文件** (`backend/src/config/rss-sources.ts`)
+   - 定义 `RSSSource` 接口
+   - 配置 7 个 RSS 数据源：
+     * 专业类（2个）：建筑时报、中国建筑新闻网（权重 1.5）
+     * 综合类（3个）：腾讯新闻、新华网、凤凰网资讯（权重 1.0）
+     * 财经类（1个）：财经网房产（权重 1.2）
+     * 科技类（1个）：科技日报（权重 0.8）
+
+2. **关键词配置**
+   - `FILTER_KEYWORDS`：白名单关键词（49个）
+     * 建筑工程类：15个
+     * 宏观经济类：15个
+     * 行业相关：7个
+     * 政策法规：6个
+     * 企业相关：5个
+     * 其他相关：6个
+   - `BLACKLIST_KEYWORDS`：黑名单关键词（7个）
+   - `STRONG_KEYWORDS`：强相关关键词（4个，可覆盖黑名单）
+
+3. **事件池配置** (`EVENT_POOL_CONFIG`)
+   - 固定事件 35%
+   - 新闻事件 50%
+   - 创意事件 15%
+   - 权重衰减配置（0-5天，从 1.0 递减到 0.05）
+
+4. **LLM 调用配置** (`LLM_CONFIG`)
+   - 批量大小：10
+   - 并发数：3
+   - 超时：30秒
+   - 最大重试：2次
+
+**涉及文件**：
+- `backend/src/config/rss-sources.ts` - 新建（153行）
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 所有常量使用 `as const` 确保不可变
+- ✅ 接口类型定义完整
+
+**提交**: `3710ede` - feat: add RSS sources and keywords configuration
+
+**Review 状态**：✅ 完成并通过验证
+
+---
+
+### Task 2: 创建数据库表
+
+**背景**：
+- LLM 驱动功能实现的第二步
+- 需要创建数据库表来存储动态生成的事件和职业传记
+- 在 Task 1 创建的 RSS 配置基础上，实现数据持久化
+
+**完成内容**：
+
+1. **创建 dynamic_events 表**（动态事件表）
+   - 存储 LLM 生成的事件
+   - 字段包括：
+     * 基础信息：event_id, title, description, options
+     * 来源信息：source_type, source_url, news_title, news_date
+     * 职级限制：min_rank, max_rank
+     * 权重和质量：base_weight, quality_score
+     * 使用统计：created_at, last_used_at, usage_count, is_validated
+
+2. **创建 career_biographies 表**（职业传记缓存表）
+   - 缓存生成的职业传记
+   - 字段包括：
+     * game_id: 唯一标识
+     * player_name: 玩家姓名
+     * content: 生成的传记内容
+     * game_data: 游戏数据（JSON）
+     * shared_count: 分享次数统计
+
+3. **创建 event_usage_log 表**（事件使用日志表）
+   - 记录事件使用情况用于优化
+   - 字段包括：
+     * event_id: 事件 ID
+     * player_name: 玩家姓名
+     * player_rank: 玩家职级
+     * choice_index: 选择选项
+     * played_at: 使用时间
+
+4. **创建索引**（优化查询性能）
+   - idx_dynamic_events_rank: 按 min_rank, max_rank 索引
+   - idx_dynamic_events_created: 按 created_at DESC 索引
+   - idx_dynamic_events_weight: 按 base_weight DESC 索引
+
+**技术细节**：
+- 使用 `CREATE TABLE IF NOT EXISTS` 确保幂等性
+- 使用 `CREATE INDEX IF NOT EXISTS` 确保索引可重复创建
+- 日期类型使用 TEXT（SQLite 兼容性）
+- 在现有 `initDatabase()` 函数中添加，不破坏现有表结构
+
+**涉及文件**：
+- `backend/src/database/init.ts:112-168` - 添加 3 个新表和 3 个索引
+
+**测试验证**：
+- ✅ TypeScript 编译通过（后端）
+- ✅ 所有 SQL 语句符合 SQLite 语法规范
+- ✅ 表结构符合设计文档要求
+
+**提交**: `72ace70` - feat: add tables for dynamic events and biographies
+
+**Review 状态**：✅ 完成并通过验证
+
+---
+
 ## 2026-01-27 最终完成：关系系统重构全部完成！
 
 **总完成任务数**：18/22（82%）
@@ -1487,3 +1604,122 @@ e246da0 docs: update WORKLOG.md for Task 22
 1. 完成剩余 4 个测试任务（Tasks 18-21）
 2. 全面测试关系系统所有功能
 3. 准备关系系统最终验收
+
+---
+
+## 2026-01-28（新会话）：LLM 驱动功能实现
+
+### Task 3: 安装后端依赖
+
+**背景**：
+- LLM 驱动功能实现的第三步
+- 需要安装 RSS 抓取和定时任务相关的依赖
+
+**完成内容**：
+
+1. **确认已安装依赖**
+   - rss-parser: ^3.13.0（已安装）
+   - node-cron: ^4.2.1（已安装）
+
+2. **验证 package.json**
+   - 所有依赖正确配置
+   - 版本号符合要求
+
+**测试验证**：
+- ✅ 依赖已安装，无需额外操作
+- ✅ node_modules 中包含相应包
+
+**Review 状态**：✅ 依赖已就绪
+
+---
+
+### Task 4: 实现 RSS 抓取器
+
+**背景**：
+- LLM 驱动功能实现的第四步
+- 需要实现 RSS 抓取器模块，支持从多个源抓取新闻并过滤
+
+**完成内容**：
+
+1. **创建 RSS 抓取器类** (`backend/src/services/rssFetcher.ts`，441行)
+   - **核心功能**：
+     * `fetchAll()`: 并发抓取所有 RSS 源
+     * `fetchSingle()`: 抓取单个源
+     * `filterByKeywords()`: 关键词过滤（白名单/黑名单/强相关）
+     * `dedupe()`: 去重（基于 URL 或标题）
+     * `handleFetchError()`: 异常处理
+     * `markUnavailable()`: 标记不可用源
+     * `isSourceAvailable()`: 检查源是否可用
+     * `getFallbackNews()`: 备用方案
+
+2. **RSSParser 配置**
+   - 超时设置：10 秒
+   - 自定义 User-Agent
+   - 每个源最多抓取 20 条新闻
+
+3. **并发控制**
+   - 使用 `Promise.allSettled` 而非 `Promise.all`
+   - 部分失败不影响其他源抓取
+
+4. **异常处理机制**
+   - ENOTFOUND（源不存在）：标记 24 小时内不再尝试
+   - ETIMEDOUT（超时）：不标记，稍后重试
+   - ECONNRESET（连接重置）：标记 1 小时内不再尝试
+   - 其他错误：标记 4 小时内不再尝试
+
+5. **缓存和备用方案**
+   - 缓存机制：1 小时过期
+   - 预设经典事件：5 条备用新闻
+
+6. **工具方法**
+   - `cleanupUnavailableSources()`: 清理过期不可用源标记
+   - `cleanupCache()`: 清理过期缓存
+   - `getStatus()`: 获取抓取器状态
+
+7. **单例模式**
+   - `getRSSFetcher()`: 获取全局实例
+   - `fetchAllNews()`: 便捷函数
+
+8. **创建测试文件** (`backend/src/services/__tests__/rssFetcher.test.ts`)
+   - 为未来测试框架做准备
+   - 包含关键词过滤、去重、状态管理等测试用例
+
+**技术亮点**：
+
+1. **完整的类型定义**：
+   - `NewsItem` 接口
+   - `UnavailableSource` 接口
+   - `RSSFetcher` 类
+
+2. **健壮的错误处理**：
+   - 分类处理不同类型的网络错误
+   - 自动重试机制
+   - 降级到备用方案
+
+3. **性能优化**：
+   - 并发抓取
+   - 缓存机制
+   - 限制单源抓取数量
+
+4. **可维护性**：
+   - 清晰的日志输出
+   - 模块化设计
+   - 单例模式
+
+**涉及文件**：
+- `backend/src/services/rssFetcher.ts` - 新建（441行）
+- `backend/src/services/__tests__/rssFetcher.test.ts` - 新建（65行）
+
+**测试验证**：
+- ✅ TypeScript 编译通过（后端）
+- ✅ 所有类型定义正确
+- ✅ 符合设计文档要求
+
+**提交**: `9768677` - feat: implement RSS fetcher with filtering and error handling
+
+**Review 状态**：✅ 完成并通过验证
+
+**特殊亮点**：
+- 使用 `Promise.allSettled` 确保部分失败不影响整体
+- 不可用源自动标记和重试机制
+- 完整的备用方案保障系统稳定性
