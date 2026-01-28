@@ -324,6 +324,14 @@ export interface GameState {
   // 优质项目完成通知
   qualityProjectJustCompleted: boolean;
 
+  // 关键决策记录（用于职业传记生成）
+  keyDecisions: Array<{
+    event: string;      // 事件标题
+    choice: string;     // 玩家选择的选项文本
+    quarter: number;    // 发生的季度数
+    timestamp: Date;     // 时间戳
+  }>;
+
   score: number;
   endReason?: EndReason;
 }

@@ -157,6 +157,9 @@ const createInitialState = (): GameState => ({
   currentEvent: null,
   eventHistory: [],
 
+  // 关键决策记录
+  keyDecisions: [],
+
   // 职级系统
   rank: GAME_CONFIG.initialRank,
   actualSalary: RANK_CONFIGS[GAME_CONFIG.initialRank].minQuarterlySalary,
@@ -1681,6 +1684,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // 应用效果
     if (option.effects) {
       get().applyEffects(option.effects);
+    }
+
+    // 记录关键决策（用于传记生成）
+    if (state.currentEvent.isImportant) {
+      const newDecision = {
+        event: state.currentEvent.title,
+        choice: option.text,
+        quarter: state.currentQuarter,
+        timestamp: new Date(),
+      };
+      set({ keyDecisions: [...state.keyDecisions, newDecision] });
     }
 
     // 添加到历史

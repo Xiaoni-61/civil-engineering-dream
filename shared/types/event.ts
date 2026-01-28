@@ -25,6 +25,7 @@ export interface EventCard {
   llmEnhanced?: boolean; // 是否由 LLM 增强
   isSpecialEvent?: boolean; // 是否为特殊事件
   isUrgent?: boolean; // 是否紧急（紧急事件必须立即处理）
+  isImportant?: boolean; // 是否为重要决策（用于传记生成）
   deadline?: number; // 截止回合数
   status?: EventStatus; // 事件状态
 }

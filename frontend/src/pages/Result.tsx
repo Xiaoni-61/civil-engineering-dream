@@ -30,6 +30,7 @@ const Result = () => {
     runId,
     playerName,
     rank,
+    keyDecisions,
   } = useGameStore();
 
   // 如果游戏未结束，跳转回首页
@@ -86,7 +87,10 @@ const Result = () => {
           completedProjects: gameStats?.completedProjects || 0,
           qualityProjects: gameStats?.qualityProjects || 0,
         },
-        keyDecisions: [], // TODO: 从游戏状态中提取关键决策
+        keyDecisions: keyDecisions.map((d) => ({
+          event: d.event,
+          choice: d.choice,
+        })),
       });
 
       setBiography(result);
