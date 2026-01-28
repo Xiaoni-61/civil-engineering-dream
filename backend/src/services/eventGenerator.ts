@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import { callLLM } from './llmService.js';
 import type { NewsItem } from './rssFetcher.js';
 import { RSS_LLM_CONFIG } from '../config/rss-sources.js';
+import type { Database } from '../database/init.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, '../../prompts');
@@ -242,7 +243,7 @@ export class EventValidator {
  * 事件仓库
  */
 export class EventRepository {
-  constructor(private db: any) {}
+  constructor(private db: Database) {}
 
   /**
    * 保存生成的事件到数据库
@@ -252,7 +253,7 @@ export class EventRepository {
     sourceInfo: EventSourceInfo
   ): Promise<string> {
     // 生成唯一事件 ID
-    const eventId = `evt_${sourceInfo.sourceType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const eventId = `evt_${sourceInfo.sourceType}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 
     // 计算质量分数
     const validator = new EventValidator();
@@ -314,7 +315,7 @@ export class EventGenerator {
   private validator: EventValidator;
   private retryCount: Map<string, number> = new Map();
 
-  constructor(private db?: any) {
+  constructor(private db?: Database) {
     this.validator = new EventValidator();
   }
 
@@ -529,10 +530,11 @@ export class EventGenerator {
 
 /**
  * 获取事件生成器单例
+ * 注意：如需新的数据库实例，请先调用 resetEventGenerator()
  */
 let generatorInstance: EventGenerator | null = null;
 
-export function getEventGenerator(db?: any): EventGenerator {
+export function getEventGenerator(db?: Database): EventGenerator {
   if (!generatorInstance) {
     generatorInstance = new EventGenerator(db);
   }
@@ -540,8 +542,16 @@ export function getEventGenerator(db?: any): EventGenerator {
 }
 
 /**
+ * 重置事件生成器单例
+ * 用于测试或切换数据库实例
+ */
+export function resetEventGenerator(): void {
+  generatorInstance = null;
+}
+
+/**
  * 获取事件仓库实例
  */
-export function getEventRepository(db: any): EventRepository {
+export function getEventRepository(db: Database): EventRepository {
   return new EventRepository(db);
 }
