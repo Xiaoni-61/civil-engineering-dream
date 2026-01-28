@@ -77,8 +77,9 @@ async function generateSignature(data: Record<string, any>): Promise<string> {
 
 /**
  * API 请求封装
+ * @internal 仅供内部 API 模块使用，不建议外部直接调用
  */
-async function apiRequest(endpoint: string, options: RequestInit = {}) {
+export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
