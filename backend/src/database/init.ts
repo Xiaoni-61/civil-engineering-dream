@@ -109,6 +109,64 @@ export async function initDatabase(): Promise<Database> {
           }
         });
 
+        // 动态事件表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS dynamic_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT UNIQUE NOT NULL,
+            source_type TEXT NOT NULL,
+            source_url TEXT,
+            news_title TEXT,
+            news_date TEXT,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            options TEXT NOT NULL,
+            min_rank TEXT NOT NULL,
+            max_rank TEXT NOT NULL,
+            base_weight REAL DEFAULT 1.0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            last_used_at TEXT,
+            usage_count INTEGER DEFAULT 0,
+            is_validated BOOLEAN DEFAULT 0,
+            quality_score REAL DEFAULT 0.5
+          )
+        `);
+
+        // 职业传记缓存表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS career_biographies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id TEXT UNIQUE NOT NULL,
+            player_name TEXT NOT NULL,
+            content TEXT NOT NULL,
+            game_data TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            shared_count INTEGER DEFAULT 0
+          )
+        `);
+
+        // 事件使用日志表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS event_usage_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT NOT NULL,
+            player_name TEXT,
+            player_rank TEXT,
+            choice_index INTEGER,
+            played_at TEXT DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // 为动态事件创建索引
+        db.run(`CREATE INDEX IF NOT EXISTS idx_dynamic_events_rank
+                ON dynamic_events (min_rank, max_rank)`);
+
+        db.run(`CREATE INDEX IF NOT EXISTS idx_dynamic_events_created
+                ON dynamic_events (created_at DESC)`);
+
+        db.run(`CREATE INDEX IF NOT EXISTS idx_dynamic_events_weight
+                ON dynamic_events (base_weight DESC)`);
+
         console.log('✅ 数据库表创建成功');
       });
 
