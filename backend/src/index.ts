@@ -10,6 +10,7 @@ import {
 import { createRunRouter } from './api/run.js';
 import { createLeaderboardRouter } from './api/leaderboard.js';
 import { createLLMRouter } from './api/llm.js';
+import { createEventsRouter } from './api/events.js';
 import { startScheduler, stopScheduler } from './services/scheduler.js';
 
 // 加载环境变量
@@ -46,6 +47,7 @@ async function startServer() {
     app.use('/api/run', createRunRouter(db));
     app.use('/api/leaderboard', createLeaderboardRouter(db));
     app.use('/api/llm', createLLMRouter());
+    app.use('/api/events', createEventsRouter(db));
 
     // 错误处理
     app.use(errorHandler);
@@ -76,6 +78,10 @@ async function startServer() {
   - LLM状态: GET  /api/llm/status
   - 增强描述: POST /api/llm/enhance
   - 特殊事件: POST /api/llm/special-event
+  - 事件健康: GET  /api/events/health
+  - 今日新闻: GET  /api/events/news
+  - 获取事件: GET  /api/events?playerRank=xxx
+  - 记录使用: POST /api/events/:eventId/use
 
 ⏰ 定时任务:
   - 每日新闻生成: 每日凌晨 3:00
