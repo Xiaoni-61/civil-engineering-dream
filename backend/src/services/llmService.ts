@@ -72,10 +72,12 @@ const providers: Record<string, Partial<LLMProvider>> = {
  * 调用 LLM API
  */
 export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
-  const provider = providers[llmConfig.provider];
-  const baseURL = llmConfig.baseURL || provider?.baseURL;
-  const model = llmConfig.model || provider?.model;
-  const apiKey = llmConfig.apiKey;
+  // 运行时读取环境变量，避免模块加载时机问题
+  const providerName = process.env.LLM_PROVIDER || llmConfig.provider;
+  const provider = providers[providerName];
+  const baseURL = process.env.LLM_BASE_URL || llmConfig.baseURL || provider?.baseURL;
+  const model = process.env.LLM_MODEL || llmConfig.model || provider?.model;
+  const apiKey = process.env.LLM_API_KEY || llmConfig.apiKey;
 
   if (!apiKey) {
     logger.error('LLM_API_KEY not configured');
@@ -83,7 +85,7 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
   }
 
   // 根据提供商构建请求
-  const isAnthropic = llmConfig.provider === 'anthropic';
+  const isAnthropic = providerName === 'anthropic';
   const url = `${baseURL}/chat/completions`;
 
   const body = {
@@ -94,7 +96,7 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
   };
 
   logger.debug('调用 LLM API', {
-    provider: llmConfig.provider,
+    provider: providerName,
     model,
     maxTokens: body.max_tokens,
     temperature: body.temperature,
@@ -259,9 +261,10 @@ export async function generateSpecialEvent(
 
 /**
  * 检查 LLM 是否可用
+ * 运行时直接读取环境变量，避免模块加载时机问题
  */
 export function isLLMAvailable(): boolean {
-  return !!llmConfig.apiKey;
+  return !!(process.env.LLM_API_KEY || llmConfig.apiKey);
 }
 
 export { llmConfig };
