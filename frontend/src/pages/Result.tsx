@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
@@ -6,6 +6,7 @@ import { END_MESSAGES } from '@/data/constants';
 
 const Result = () => {
   const navigate = useNavigate();
+  const hasUploaded = useRef(false);
 
   const {
     status,
@@ -25,13 +26,14 @@ const Result = () => {
     }
   }, [status, navigate]);
 
-  // 上传成绩到后端
+  // 上传成绩到后端（只执行一次）
   useEffect(() => {
-    if (status === GameStatus.COMPLETED || status === GameStatus.FAILED) {
+    if ((status === GameStatus.COMPLETED || status === GameStatus.FAILED) && !hasUploaded.current) {
+      hasUploaded.current = true;
       // 异步上传成绩，不阻塞页面渲染
       uploadScore();
     }
-  }, [status, uploadScore]);
+  }, [status]); // 移除 uploadScore 依赖，避免重复执行
 
   if (status !== GameStatus.COMPLETED && status !== GameStatus.FAILED) {
     return null;

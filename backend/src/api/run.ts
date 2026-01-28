@@ -77,6 +77,16 @@ export function createRunRouter(db: Database): Router {
    * 需要签名验证
    */
   router.post('/finish', async (req: Request, res: Response) => {
+    console.log('=== /api/run/finish 收到请求 ===');
+    console.log('Body:', {
+      runId: req.body.runId,
+      score: req.body.score,
+      roundsPlayed: req.body.roundsPlayed,
+      playerName: req.body.playerName,
+      endReason: req.body.endReason,
+      finalRank: req.body.finalRank,
+    });
+
     try {
       const {
         runId,
@@ -90,7 +100,10 @@ export function createRunRouter(db: Database): Router {
         signature,
       } = req.body;
 
+      console.log('解析后的数据:', { runId, deviceId, score, roundsPlayed, playerName, endReason, finalRank });
+
       if (!runId || !deviceId || score === undefined) {
+        console.log('❌ 缺少必要字段');
         return res.status(400).json({
           code: 'MISSING_FIELDS',
           message: '缺少必要字段：runId、deviceId、score',
@@ -111,12 +124,13 @@ export function createRunRouter(db: Database): Router {
       }
 
       // 检查数据异常值（简单的反作弊）
-      if (score < 0 || score > 50000) {
+      if (score < 0) {
         return res.status(400).json({
           code: 'INVALID_SCORE',
-          message: '分数数据异常，可能存在作弊',
+          message: '分数不能为负数',
         });
       }
+      // 移除上限检查，因为分数可以无限增长（现金 + 库存价值）
 
       if (roundsPlayed && (roundsPlayed < 0 || roundsPlayed > 100)) {
         return res.status(400).json({

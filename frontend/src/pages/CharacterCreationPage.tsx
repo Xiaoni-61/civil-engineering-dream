@@ -40,7 +40,7 @@ export function CharacterCreationPage() {
   };
 
   // 开始游戏
-  const startGame = () => {
+  const startGame = async () => {
     if (!name.trim()) {
       alert('请输入你的姓名');
       return;
@@ -49,7 +49,7 @@ export function CharacterCreationPage() {
     // 保存角色名到 localStorage（永久保存）
     savePlayerName(name);
 
-    initializeGame({
+    await initializeGame({
       name,
       gender,
       workAbility,

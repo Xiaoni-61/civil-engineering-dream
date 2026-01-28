@@ -55,7 +55,7 @@ import {
   LLM_CONFIG,
 } from '@/data/constants';
 import { enhanceDescription, generateSpecialEvent } from '@/api/llmApi';
-import { startGame, finishGame } from '@/api/gameApi';
+import { startGame as startGameApi, finishGame } from '@/api/gameApi';
 import type {
   DecisionEvent,
   EventResult,
@@ -273,7 +273,7 @@ interface GameStore extends GameState {
     gender?: 'male' | 'female';
     workAbility?: number;
     luck?: number;
-  }) => void;
+  }) => Promise<void>;
   executeTraining: (trainingType: 'basic_work' | 'advanced_work' | 'basic_luck' | 'advanced_luck') => {
     success: boolean;
     message: string;
@@ -461,7 +461,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // ==================== 游戏流程 ====================
 
-  initializeGame: (config?: {
+  initializeGame: async (config?: {
     name?: string;
     gender?: 'male' | 'female';
     workAbility?: number;
@@ -483,19 +483,69 @@ export const useGameStore = create<GameStore>((set, get) => ({
     initialState.stats.workAbility = finalConfig.workAbility;
     initialState.stats.luck = finalConfig.luck;
 
-    set((state) => ({
-      ...state,
-      ...initialState,
-      playerName: finalConfig.name,
-      playerGender: finalConfig.gender,
-      status: GameStatus.PLAYING,
-      currentQuarter: 1,
-      materialPrices: initialPrices,
-      actionsSinceLastEventCheck: 0,
-      actionsThisQuarter: 0,
-    }));
+    // 初始化价格历史
+    const initialHistory: Record<MaterialType, number[]> = {
+      [MaterialType.CEMENT]: [initialPrices[MaterialType.CEMENT].currentPrice],
+      [MaterialType.STEEL]: [initialPrices[MaterialType.STEEL].currentPrice],
+      [MaterialType.SAND]: [initialPrices[MaterialType.SAND].currentPrice],
+      [MaterialType.CONCRETE]: [initialPrices[MaterialType.CONCRETE].currentPrice],
+    };
 
-    recentEventIds.clear();
+    // 初始化：生成第二季度的真实价格（用于价格预测系统）
+    const nextQuarterPrices = generateNextQuarterPrices(
+      initialPrices,
+      initialState.stats.workAbility,
+      initialState.stats.luck
+    );
+    const initialNextQuarterRealPrices: Record<MaterialType, number> = {} as any;
+    Object.values(MaterialType).forEach(type => {
+      initialNextQuarterRealPrices[type] = nextQuarterPrices[type].currentPrice;
+    });
+
+    try {
+      // 调用后端 API 获取 runId
+      console.log('=== initializeGame 调用 startGameApi ===');
+      const response = await startGameApi();
+      console.log('✅ startGameApi 返回:', { runId: response.runId, serverSeed: response.serverSeed });
+
+      set({
+        ...initialState,
+        playerName: finalConfig.name,
+        playerGender: finalConfig.gender,
+        status: GameStatus.PLAYING,
+        currentQuarter: 1,
+        materialPrices: initialPrices,
+        materialPriceHistory: initialHistory,
+        runId: response.runId,
+        deviceId: null, // deviceId 在后端通过请求体传递，不需要在 store 中存储
+        actionsSinceLastEventCheck: 0,
+        actionsThisQuarter: 0,
+        nextQuarterRealPrices: initialNextQuarterRealPrices,
+      });
+      console.log('✅ 游戏状态已设置，runId:', response.runId);
+
+      recentEventIds.clear();
+      get().drawEvent();
+    } catch (error) {
+      console.error('❌ Failed to start game:', error);
+      // 降级：仍然允许离线游戏
+      set({
+        ...initialState,
+        playerName: finalConfig.name,
+        playerGender: finalConfig.gender,
+        status: GameStatus.PLAYING,
+        currentQuarter: 1,
+        materialPrices: initialPrices,
+        materialPriceHistory: initialHistory,
+        runId: null,
+        deviceId: null,
+        actionsSinceLastEventCheck: 0,
+        actionsThisQuarter: 0,
+        nextQuarterRealPrices: initialNextQuarterRealPrices,
+      });
+      recentEventIds.clear();
+      get().drawEvent();
+    }
   },
 
   executeTraining: (trainingType: 'basic_work' | 'advanced_work' | 'basic_luck' | 'advanced_luck') => {
@@ -669,7 +719,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   startGame: async () => {
     try {
-      const response = await startGame();
+      const response = await startGameApi();
 
       const initialState = createInitialState();
       const initialPrices = initializeMaterialPrices();
@@ -779,14 +829,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   uploadScore: async () => {
     const state = get();
+    console.log('=== uploadScore 调用 ===');
+    console.log('runId:', state.runId);
+    console.log('playerName:', state.playerName);
+    console.log('score:', state.score);
+    console.log('status:', state.status);
+
     if (!state.runId) {
-      console.log('离线模式，跳过成绩上传');
+      console.log('离线模式，跳过成绩上传 (runId 为空)');
       return;
     }
 
     try {
       // 获取永久保存的角色名
       const playerName = state.playerName || undefined;
+      console.log('准备上传成绩:', {
+        runId: state.runId,
+        score: state.score,
+        roundsPlayed: state.currentQuarter,
+        playerName,
+        endReason: state.endReason,
+        finalRank: state.rank,
+      });
+
       const result = await finishGame({
         runId: state.runId,
         score: state.score,
@@ -796,9 +861,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         endReason: state.endReason || undefined,
         finalRank: state.rank || undefined,
       });
-      console.log('成绩上传成功:', result);
+      console.log('✅ 成绩上传成功:', result);
     } catch (error) {
-      console.error('成绩上传失败:', error);
+      console.error('❌ 成绩上传失败:', error);
     }
   },
 

@@ -166,10 +166,10 @@ export async function finishGame(params: {
 
 /**
  * 查询排行榜
- * GET /api/leaderboard?type=overall&limit=50&offset=0
+ * GET /api/leaderboard?type=rank&limit=50&offset=0
  */
 export async function getLeaderboard(params: {
-  type?: 'overall' | 'cash' | 'games';
+  type?: 'rank' | 'cash';
   limit?: number;
   offset?: number;
 } = {}) {
@@ -185,11 +185,11 @@ export async function getLeaderboard(params: {
 
 /**
  * 查询当前玩家排名
- * GET /api/leaderboard/me?deviceId=xxx
+ * GET /api/leaderboard/me?deviceId=xxx&type=rank
  */
-export async function getMyRank() {
+export async function getMyRank(type: 'rank' | 'cash' = 'rank') {
   const deviceId = generateDeviceId();
-  const response = await apiRequest(`/api/leaderboard/me?deviceId=${encodeURIComponent(deviceId)}`);
+  const response = await apiRequest(`/api/leaderboard/me?deviceId=${encodeURIComponent(deviceId)}&type=${type}`);
 
   return response.data;
 }

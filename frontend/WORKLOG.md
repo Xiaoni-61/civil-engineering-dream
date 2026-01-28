@@ -699,3 +699,98 @@
 **后端编译**：✅ 通过，无错误
 **前端构建**：✓ built in 694ms
 
+## 2026-01-28
+
+### 单局游戏排行榜系统重构
+
+**核心改动**：从"玩家聚合排行榜"改为"单局游戏排行榜"
+
+**runId 设计**：
+- 格式：`YYMMDDNNNNNN`（12位纯数字）
+- 示例：`250128000001` - 25年1月28日第1局
+- 每天支持 999,999 局游戏
+
+**榜单类型**：
+1. **职位榜**：按最终职位排序（合伙人 > 项目总监 > ...）
+2. **现金榜**：按总资产排序（现金 + 存货价值）
+
+**数据库改动**：
+- `game_stats` 表添加字段：
+  - `runId TEXT UNIQUE NOT NULL` - 单局游戏ID（主键）
+  - `playerName TEXT NOT NULL DEFAULT '匿名玩家'` - 角色名
+  - `endReason TEXT` - 游戏结束原因
+  - `finalRank TEXT` - 最终职级
+
+**后端改动**：
+- `run.ts`：生成 runId，保存完整游戏信息到 game_stats
+- `leaderboard.ts`：完全重写，从 game_stats 查询单局排行榜
+  - 职位榜：按职位权重排序，同职位按分数排序
+  - 现金榜：按 finalCash 排序（TODO：添加库存材料价值）
+  - `/api/leaderboard/me`：获取玩家最佳记录的职位排名
+- 移除 `leaderboard` 聚合表的依赖
+
+**前端改动**：
+- `Leaderboard.tsx`：
+  - 只保留两个榜单：职位榜、现金榜
+  - 移除"次数榜"
+  - 更新接口定义，适配单局游戏数据
+  - 显示：角色名、季度数、最终职级
+- `gameApi.ts`：finishGame 添加 endReason 和 finalRank 参数
+- `gameStoreNew.ts`：uploadScore 传递 endReason 和 finalRank
+
+**显示改动**：
+- 排行榜列表：每行显示一局游戏（而非一个玩家）
+- "我的排名"：最佳记录在所有游戏中的排名
+- 百分比：基于"所有游戏记录"而非"所有玩家"
+- 统计信息：总游戏局数
+
+**匿名玩家问题**：
+- 原因：旧数据在添加 playerName 字段前创建
+- 解决：新游戏会正确显示角色名
+- 旧数据：保留为"匿名玩家"
+
+**TypeScript 编译**：✅ 通过，无错误
+**后端编译**：✅ 通过，无错误
+**前端构建**：✅ 通过
+
+---
+
+## 2026-01-28
+
+### 修复排行榜数据未保存问题
+
+**问题诊断**：
+- 用户完成游戏后，排行榜显示为空
+- 数据库 `game_stats` 表没有记录
+- 原因：`initializeGame()` 未调用后端 API 获取 runId
+- 当 `uploadScore()` 被调用时，runId 为 null，打印"离线模式，跳过成绩上传"
+
+**修复内容**：
+
+1. **gameStoreNew.ts**：
+   - 将 `initializeGame` 改为 async 函数
+   - 调用后端 `/api/run/start` API 获取 runId
+   - 重命名导入：`startGame as startGameApi` 避免命名冲突
+   - 更新现有 `startGame` store 函数使用 `startGameApi`
+
+2. **CharacterCreationPage.tsx**：
+   - `startGame` 函数改为 async
+   - 添加 `await initializeGame(...)`
+
+3. **gameApi.ts**：
+   - 修正 `getLeaderboard` 类型：`'rank' | 'cash'`
+
+4. **Leaderboard.tsx**：
+   - 移除未使用的 `RANK_WEIGHT` 常量
+   - 修正条件判断：`activeTab === 'overall'` → `activeTab === 'rank'`
+
+**数据流程**：
+```
+角色创建 → initializeGame() → /api/run/start → 获取 runId (UUID)
+→ 游戏进行 → 游戏结束 → uploadScore() → /api/run/finish
+→ 生成新 runId (YYMMDDNNNNNN) → 保存到 game_stats → 排行榜显示
+```
+
+**TypeScript 编译**：✅ 通过，无错误
+**前端构建**：✅ 通过
+

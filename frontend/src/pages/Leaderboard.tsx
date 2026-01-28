@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getLeaderboard, getMyRank } from '@/api';
 
-type LeaderboardType = 'overall' | 'cash' | 'games';
+type LeaderboardType = 'rank' | 'cash';
 
 interface LeaderboardEntry {
   rank: number;
@@ -11,13 +11,14 @@ interface LeaderboardEntry {
   score: number;
   value: number; // 根据榜单类型不同，表示不同值
   roundsPlayed: number;
-  finalCash?: number;
+  finalCash: number;
   endReason?: string;
   finalRank?: string;
   createdAt: string;
 }
 
 interface MyRankData {
+  type: string;
   rank: number;
   total: number;
   percentile: number;
@@ -26,6 +27,8 @@ interface MyRankData {
   bestScore: number;
   totalGames: number;
   totalCash: number;
+  finalRank?: string;
+  finalCash?: number;
 }
 
 interface LeaderboardData {
@@ -40,42 +43,51 @@ interface LeaderboardData {
 }
 
 const tabs: { key: LeaderboardType; label: string }[] = [
-  { key: 'overall', label: '综合榜' },
+  { key: 'rank', label: '职位榜' },
   { key: 'cash', label: '现金榜' },
-  { key: 'games', label: '次数榜' },
 ];
+
+// 职位显示名称映射（支持小写和大写输入）
+const RANK_DISPLAY_NAMES: Record<string, string> = {
+  'partner': '合伙人',
+  'PARTNER': '合伙人',
+  'project_director': '项目总监',
+  'PROJECT_DIRECTOR': '项目总监',
+  'project_manager': '项目经理',
+  'PROJECT_MANAGER': '项目经理',
+  'senior_engineer': '高级工程师',
+  'SENIOR_ENGINEER': '高级工程师',
+  'engineer': '工程师',
+  'ENGINEER': '工程师',
+  'assistant_engineer': '助理工程师',
+  'ASSISTANT_ENGINEER': '助理工程师',
+  'intern': '实习生',
+  'INTERN': '实习生',
+};
 
 // 类型对应的标签和单位
 const typeConfig = {
-  overall: {
-    label: '综合分',
+  rank: {
+    label: '最终职位',
     unit: '',
-    bgColor: 'bg-brand-500',
+    bgColor: 'bg-purple-500',
     textColor: 'text-white',
-    badgeColor: 'bg-brand-100',
-    badgeText: 'text-brand-700',
+    badgeColor: 'bg-purple-100',
+    badgeText: 'text-purple-700',
   },
   cash: {
-    label: '总现金',
-    unit: '万',
+    label: '总资产',
+    unit: '元',
     bgColor: 'bg-status-cash',
     textColor: 'text-white',
     badgeColor: 'bg-status-cash/10',
     badgeText: 'text-status-cash',
   },
-  games: {
-    label: '总局数',
-    unit: '局',
-    bgColor: 'bg-status-reputation',
-    textColor: 'text-white',
-    badgeColor: 'bg-status-reputation/10',
-    badgeText: 'text-status-reputation',
-  },
 };
 
 export default function Leaderboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<LeaderboardType>('overall');
+  const [activeTab, setActiveTab] = useState<LeaderboardType>('rank');
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardData | null>(null);
   const [myRankData, setMyRankData] = useState<MyRankData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,9 +113,9 @@ export default function Leaderboard() {
   };
 
   // 加载我的排名
-  const loadMyRank = async () => {
+  const loadMyRank = async (type: LeaderboardType) => {
     try {
-      const data = await getMyRank();
+      const data = await getMyRank(type);
       setMyRankData(data);
     } catch (err) {
       console.error('加载排名失败:', err);
@@ -118,7 +130,7 @@ export default function Leaderboard() {
   // 初始化和切换 Tab 时加载数据
   useEffect(() => {
     loadLeaderboard(activeTab);
-    loadMyRank();
+    loadMyRank(activeTab);
   }, [activeTab]);
 
   // 处理 Tab 切换
@@ -216,8 +228,14 @@ export default function Leaderboard() {
               </div>
               <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-3 gap-3 text-sm">
                 <div className="text-center">
-                  <p className="text-brand-100 text-xs">最佳成绩</p>
-                  <p className="text-lg font-bold">{myRankData.bestScore}</p>
+                  <p className="text-brand-100 text-xs">
+                    {activeTab === 'rank' ? '最佳职位' : '最高现金'}
+                  </p>
+                  <p className="text-lg font-bold">
+                    {activeTab === 'rank'
+                      ? (myRankData.finalRank ? RANK_DISPLAY_NAMES[myRankData.finalRank] || myRankData.finalRank : '-')
+                      : (myRankData.finalCash || 0).toLocaleString()}
+                  </p>
                 </div>
                 <div className="text-center">
                   <p className="text-brand-100 text-xs">总局数</p>
@@ -225,7 +243,7 @@ export default function Leaderboard() {
                 </div>
                 <div className="text-center">
                   <p className="text-brand-100 text-xs">总现金</p>
-                  <p className="text-lg font-bold">{myRankData.totalCash}</p>
+                  <p className="text-lg font-bold">{(myRankData.totalCash || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -277,7 +295,7 @@ export default function Leaderboard() {
                       </div>
                       <div className="flex items-center gap-2 text-xs text-slate-500">
                         <span>Q{entry.roundsPlayed}</span>
-                        {entry.finalRank && <span>· {entry.finalRank}</span>}
+                        {entry.finalRank && <span>· {RANK_DISPLAY_NAMES[entry.finalRank] || entry.finalRank}</span>}
                         {entry.endReason === 'promoted_to_partner' && (
                           <span className="text-emerald-600">🏆 晋升合伙人</span>
                         )}
@@ -286,19 +304,33 @@ export default function Leaderboard() {
 
                     {/* 分数/值 */}
                     <div className="text-right">
-                      <div className={`text-lg font-bold ${
-                        activeTab === 'overall'
-                          ? 'text-brand-600'
-                          : activeTab === 'cash'
-                          ? 'text-status-cash'
-                          : 'text-status-reputation'
-                      }`}>
-                        {(entry.value || 0).toLocaleString()}
-                      </div>
-                      {config.unit && (
-                        <div className="text-xs text-slate-400">
-                          {config.unit}
+                      {activeTab === 'rank' ? (
+                        // 职位榜：显示职位名称
+                        <div className={`text-lg font-bold ${
+                          entry.finalRank === 'PARTNER' || entry.finalRank === 'partner'
+                            ? 'text-purple-600'
+                            : entry.finalRank === 'PROJECT_DIRECTOR' || entry.finalRank === 'project_director'
+                            ? 'text-indigo-600'
+                            : entry.finalRank === 'PROJECT_MANAGER' || entry.finalRank === 'project_manager'
+                            ? 'text-blue-600'
+                            : entry.finalRank === 'SENIOR_ENGINEER' || entry.finalRank === 'senior_engineer'
+                            ? 'text-cyan-600'
+                            : 'text-slate-600'
+                        }`}>
+                          {entry.finalRank ? RANK_DISPLAY_NAMES[entry.finalRank] || entry.finalRank : '-'}
                         </div>
+                      ) : (
+                        // 现金榜：显示金额
+                        <>
+                          <div className={`text-lg font-bold text-status-cash`}>
+                            {(entry.value || 0).toLocaleString()}
+                          </div>
+                          {config.unit && (
+                            <div className="text-xs text-slate-400">
+                              {config.unit}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
