@@ -202,14 +202,14 @@ const Result = () => {
                   <div className="text-2xl mb-1">🏗️</div>
                   <div className="text-xs text-slate-500 mb-1">完成项目</div>
                   <div className="text-lg font-bold text-slate-800 tabular-nums">
-                    {gameStats.completedProjects}
+                    {gameStats?.completedProjects ?? 0}
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.2s' }}>
                   <div className="text-2xl mb-1">⭐</div>
                   <div className="text-xs text-slate-500 mb-1">优质项目</div>
                   <div className="text-lg font-bold text-slate-800 tabular-nums">
-                    {gameStats.qualityProjects}
+                    {gameStats?.qualityProjects ?? 0}
                   </div>
                 </div>
                 <div className="bg-slate-50 rounded-feishu p-4 border border-slate-100 animate-slide-up" style={{ animationDelay: '0.25s' }}>
