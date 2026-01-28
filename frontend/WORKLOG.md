@@ -1,4 +1,30 @@
-# 能力系统开发日志
+# 开发日志
+
+## 2026-01-28
+
+### 关键决策系统实现 ✅ - 6fa3c49
+
+**功能**：实现关键决策自动记录系统，用于职业传记生成
+
+**改动点**：
+- 在 `shared/types/game.ts` 中添加 `keyDecisions` 字段到 GameState 接口
+- 在 `shared/types/event.ts` 中添加 `isImportant` 标记到 EventCard 接口
+- 实现 `isImportantDecision` 辅助函数，自动判断决策重要性：
+  * 特殊事件（isSpecialEvent, isUrgent, llmEnhanced）自动标记为重要
+  * 属性变化幅度 >= 10 的决策标记为重要
+  * 选项数量 >= 3（表示存在权衡）标记为重要
+- 在 `selectOption` 函数中添加关键决策记录逻辑
+- Result 页面将 `keyDecisions` 映射传递到传记 API
+
+**涉及文件**：
+- `shared/types/game.ts`
+- `shared/types/event.ts`
+- `frontend/src/store/gameStoreNew.ts`
+- `frontend/src/pages/Result.tsx`
+
+**Review 状态**：待 review
+
+---
 
 ## 2026-01-26
 

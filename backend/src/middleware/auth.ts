@@ -61,8 +61,21 @@ export function signatureMiddleware(req: Request, res: Response, next: NextFunct
 
   const { signature, ...data } = req.body;
 
-  // 如果没有签名且不是 /run/start，则拒绝
-  if (!signature && req.path !== '/api/run/start') {
+  // 不需要签名验证的路径
+  const excludedPaths = [
+    '/api/run/start',          // 创建游戏会话
+  ];
+
+  // 不需要签名验证的路径模式（支持动态路由）
+  const excludedPatterns = [
+    '/api/run/',               // 传记相关 API（/api/run/:gameId/biography）
+  ];
+
+  const isExcluded = excludedPaths.includes(req.path) ||
+                     excludedPatterns.some(pattern => req.path.startsWith(pattern) && req.path.includes('/biography'));
+
+  // 如果没有签名且不在豁免列表中，则拒绝
+  if (!signature && !isExcluded) {
     return res.status(401).json({
       code: 'MISSING_SIGNATURE',
       message: '缺少签名',
