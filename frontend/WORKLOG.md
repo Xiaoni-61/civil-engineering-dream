@@ -1105,3 +1105,77 @@
 
 **下一步**：Task 11 - Result 页面添加传记功能
 
+---
+
+**Task 11: Result 页面添加传记功能** ✅ - 14b45c2
+- 修改 `frontend/src/pages/Result.tsx`（新增 197 行）
+- 导入依赖：
+  - `ReactMarkdown`：渲染 Markdown 格式的传记内容
+  - `generateBiography` / `shareBiography`：传记生成和分享 API
+  - `useState`：传记相关状态管理
+- 状态管理：
+  - `isGenerating`：生成中状态
+  - `showBiography`：是否显示传记
+  - `biography`：传记内容
+  - `biographyError`：错误信息
+  - `copySuccess`：复制成功提示
+  - `shareSuccess`：分享成功提示
+- 核心功能：
+  - `handleGenerateBiography()`：调用 API 生成传记
+    - 传递游戏数据（玩家名、职级、结束原因、季度数、最终属性、项目统计）
+    - 错误处理和加载状态
+    - 成功后显示传记内容
+  - `copyToClipboard()`：复制传记到剪贴板
+    - 使用 Navigator Clipboard API
+    - 显示 2 秒成功提示
+  - `shareBiographyLink()`：生成分享链接
+    - 调用分享 API
+    - 复制链接到剪贴板
+    - 显示 3 秒成功提示
+- UI 组件：
+  - 生成传记按钮：
+    - 紫色渐变背景（indigo-600 to purple-600）
+    - 加载状态显示"⏳ AI 正在书写你的故事..."
+    - 禁用状态（runId 为空或生成中）
+  - 错误提示：
+    - 红色背景卡片
+    - 居中显示错误信息
+  - 传记展示区域：
+    - 白色卡片，紫色边框
+    - 渐变标题栏（indigo-50 to purple-50）
+    - ReactMarkdown 渲染（自定义样式）
+    - 自定义 Markdown 组件样式（h1/h2/h3/p/ul/ol/li/strong/blockquote）
+  - 操作按钮：
+    - "复制文本"：灰色背景，复制成功后显示"✅ 已复制"
+    - "分享我的故事"：紫色渐变，复制链接后显示"✅ 链接已复制"
+  - 重新生成按钮：
+    - 小尺寸，灰色背景
+    - 允许用户多次生成传记
+- 从 gameStoreNew 获取数据：
+  - `runId`：游戏记录 ID（必需）
+  - `playerName`：玩家姓名
+  - `rank`：最终职级
+  - `currentQuarter`：季度数
+  - `stats`：最终属性（cash/health/reputation/workAbility/luck）
+  - `gameStats`：项目统计（completedProjects/qualityProjects）
+  - `endReason`：游戏结束原因
+- 涉及文件：
+  - `frontend/src/pages/Result.tsx` - 传记功能实现
+- **规格审查**：✅ 通过（所有功能完整实现）
+- **代码质量审查**：✅ 通过（类型安全、错误处理完善、UI 美观）
+- **TypeScript 编译**：✅ 通过，无错误
+- **自我审查清单**：
+  - ✅ 添加了"生成职业传记"按钮
+  - ✅ 实现了 API 调用逻辑
+  - ✅ 使用 ReactMarkdown 渲染传记内容
+  - ✅ 添加了"分享传记"按钮
+  - ✅ 添加了"复制文本"按钮
+  - ✅ 处理了加载状态
+  - ✅ 处理了错误状态
+  - ✅ 添加了适当的样式
+  - ✅ 不依赖 @tailwindcss/typography 插件（手动样式）
+
+**当前进度**：11/15 任务完成（73%）
+
+**下一步**：Task 12 - 实现传记生成 API
+
