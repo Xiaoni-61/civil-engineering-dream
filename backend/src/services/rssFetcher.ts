@@ -7,6 +7,10 @@
 
 import Parser from 'rss-parser';
 import { RSS_SOURCES, FILTER_KEYWORDS, BLACKLIST_KEYWORDS, STRONG_KEYWORDS, type RSSSource } from '../config/rss-sources.js';
+import { createLogger, PerformanceMonitor } from '../utils/logger.js';
+
+const logger = createLogger('RSSFetcher');
+const perf = new PerformanceMonitor('RSSFetcher');
 
 /**
  * 新闻条目接口
@@ -63,58 +67,67 @@ export class RSSFetcher {
    * 抓取所有 RSS 源
    */
   async fetchAll(): Promise<NewsItem[]> {
-    console.log(`📡 开始抓取 ${RSS_SOURCES.length} 个 RSS 源...`);
+    return perf.measure('fetchAll', async () => {
+      logger.info(`开始抓取 ${RSS_SOURCES.length} 个 RSS 源`);
 
-    // 过滤掉当前不可用的源
-    const availableSources = RSS_SOURCES.filter((source) =>
-      this.isSourceAvailable(source.url)
-    );
+      // 过滤掉当前不可用的源
+      const availableSources = RSS_SOURCES.filter((source) =>
+        this.isSourceAvailable(source.url)
+      );
 
-    if (availableSources.length < RSS_SOURCES.length) {
-      const unavailableCount = RSS_SOURCES.length - availableSources.length;
-      console.log(`⚠️ ${unavailableCount} 个源暂时不可用，已跳过`);
-    }
-
-    // 并发抓取所有可用源
-    const fetchPromises = availableSources.map((source) =>
-      this.fetchSingle(source)
-    );
-
-    const results = await Promise.allSettled(fetchPromises);
-
-    // 收集成功的结果
-    const allItems: NewsItem[] = [];
-    let successCount = 0;
-    let failCount = 0;
-
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled' && result.value.length > 0) {
-        allItems.push(...result.value);
-        successCount++;
-      } else {
-        if (result.status === 'rejected') {
-          this.handleFetchError(availableSources[index], result.reason);
-        }
-        failCount++;
+      if (availableSources.length < RSS_SOURCES.length) {
+        const unavailableCount = RSS_SOURCES.length - availableSources.length;
+        logger.warn(`${unavailableCount} 个源暂时不可用，已跳过`, { unavailableCount });
       }
+
+      // 并发抓取所有可用源
+      const fetchPromises = availableSources.map((source) =>
+        this.fetchSingle(source)
+      );
+
+      const results = await Promise.allSettled(fetchPromises);
+
+      // 收集成功的结果
+      const allItems: NewsItem[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.length > 0) {
+          allItems.push(...result.value);
+          successCount++;
+        } else {
+          if (result.status === 'rejected') {
+            this.handleFetchError(availableSources[index], result.reason);
+          }
+          failCount++;
+        }
+      });
+
+      logger.success(`成功抓取 ${successCount} 个源，失败 ${failCount} 个源`, {
+        successCount,
+        failCount,
+        totalNews: allItems.length,
+      });
+
+      // 如果没有抓取到任何新闻，使用备用方案
+      if (allItems.length === 0) {
+        logger.warn('未能抓取到任何新闻，使用备用方案');
+        return this.getFallbackNews();
+      }
+
+      // 去重
+      const dedupedItems = this.dedupe(allItems);
+      logger.info(`去重后剩余 ${dedupedItems.length} 条新闻`, {
+        before: allItems.length,
+        after: dedupedItems.length,
+      });
+
+      // 更新缓存
+      this.updateCache(dedupedItems);
+
+      return dedupedItems;
     });
-
-    console.log(`✅ 成功抓取 ${successCount} 个源，失败 ${failCount} 个源，共 ${allItems.length} 条新闻`);
-
-    // 如果没有抓取到任何新闻，使用备用方案
-    if (allItems.length === 0) {
-      console.warn('⚠️ 未能抓取到任何新闻，使用备用方案');
-      return this.getFallbackNews();
-    }
-
-    // 去重
-    const dedupedItems = this.dedupe(allItems);
-    console.log(`🔍 去重后剩余 ${dedupedItems.length} 条新闻`);
-
-    // 更新缓存
-    this.updateCache(dedupedItems);
-
-    return dedupedItems;
   }
 
   /**

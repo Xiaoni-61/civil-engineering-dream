@@ -16,6 +16,11 @@ import { callLLM } from './llmService.js';
 import type { NewsItem } from './rssFetcher.js';
 import { RSS_LLM_CONFIG } from '../config/rss-sources.js';
 import type { Database } from '../database/init.js';
+import { createLogger, PerformanceMonitor, MetricsCollector } from '../utils/logger.js';
+
+const logger = createLogger('EventGenerator');
+const perf = new PerformanceMonitor('EventGenerator');
+const metrics = new MetricsCollector('EventGenerator');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, '../../prompts');
@@ -261,6 +266,9 @@ export class EventRepository {
     const validationErrors = validator.validate(event);
     const isValidated = validationErrors.length === 0;
 
+    // 记录指标
+    metrics.record('quality_score', qualityScore);
+
     // 保存到数据库
     await this.db.run(
       `INSERT INTO dynamic_events (
@@ -284,7 +292,11 @@ export class EventRepository {
       ]
     );
 
-    console.log(`✅ 保存事件: ${eventId} (质量分数: ${qualityScore.toFixed(2)})`);
+    logger.success(`保存事件: ${eventId}`, {
+      qualityScore: qualityScore.toFixed(2),
+      sourceType: sourceInfo.sourceType,
+      validated: isValidated,
+    });
 
     return eventId;
   }

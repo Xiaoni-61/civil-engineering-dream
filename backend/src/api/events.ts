@@ -8,6 +8,9 @@ import { Router, Request, Response } from 'express';
 import { Database } from '../database/init.js';
 import { getScheduler } from '../services/scheduler.js';
 import { EVENT_POOL_CONFIG } from '../config/rss-sources.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('EventsAPI');
 
 /**
  * 动态事件数据库行接口
@@ -264,6 +267,101 @@ export function createEventsRouter(db: Database): Router {
       });
     } catch (error) {
       console.error('❌ /events/:eventId/use 错误：', error);
+      res.status(500).json({
+        code: 'ERROR',
+        message: (error as Error).message || '服务器错误',
+      });
+    }
+  });
+
+  /**
+   * GET /api/events/stats
+   * 获取事件统计信息
+   */
+  router.get('/stats', async (req: Request, res: Response) => {
+    try {
+      logger.info('获取事件统计');
+
+      // 统计总事件数
+      const totalEventsResult = await db.get<{ count: number }>(
+        'SELECT COUNT(*) as count FROM dynamic_events'
+      );
+      const totalEvents = totalEventsResult?.count || 0;
+
+      // 按来源类型统计
+      const newsEvents = await db.get<{ count: number }>(
+        `SELECT COUNT(*) as count FROM dynamic_events WHERE source_type = 'news'`
+      );
+      const creativeEvents = await db.get<{ count: number }>(
+        `SELECT COUNT(*) as count FROM dynamic_events WHERE source_type = 'creative'`
+      );
+
+      // 统计总使用次数
+      const usageResult = await db.get<{ total: number }>(
+        'SELECT SUM(usage_count) as total FROM dynamic_events'
+      );
+      const usageCount = usageResult?.total || 0;
+
+      // 计算平均质量分数
+      const qualityResult = await db.get<{ avg: number }>(
+        'SELECT AVG(quality_score) as avg FROM dynamic_events WHERE quality_score IS NOT NULL'
+      );
+      const averageQualityScore = qualityResult?.avg || 0;
+
+      // 今日生成统计
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEvents = await db.get<{ count: number }>(
+        `SELECT COUNT(*) as count FROM dynamic_events
+         WHERE datetime(created_at) >= datetime(?)`,
+        [todayStart.toISOString()]
+      );
+      const todayGenerated = todayEvents?.count || 0;
+
+      // 最常用的事件（Top 5）
+      const topEvents = await db.all<{ event_id: string; title: string; usage_count: number }>(
+        `SELECT event_id, title, usage_count FROM dynamic_events
+         ORDER BY usage_count DESC LIMIT 5`
+      );
+
+      // 最新生成的事件（Top 5）
+      const recentEvents = await db.all<{ event_id: string; title: string; created_at: string }>(
+        `SELECT event_id, title, created_at FROM dynamic_events
+         ORDER BY created_at DESC LIMIT 5`
+      );
+
+      logger.info('返回事件统计', {
+        totalEvents,
+        todayGenerated,
+        usageCount,
+        avgQuality: averageQualityScore.toFixed(2),
+      });
+
+      res.status(200).json({
+        code: 'SUCCESS',
+        data: {
+          totalEvents,
+          bySourceType: {
+            news: newsEvents?.count || 0,
+            creative: creativeEvents?.count || 0,
+          },
+          usageCount,
+          averageQualityScore: parseFloat(averageQualityScore.toFixed(3)),
+          todayGenerated,
+          topEvents: topEvents.map((e) => ({
+            eventId: e.event_id,
+            title: e.title,
+            usageCount: e.usage_count,
+          })),
+          recentEvents: recentEvents.map((e) => ({
+            eventId: e.event_id,
+            title: e.title,
+            createdAt: e.created_at,
+          })),
+        },
+      });
+    } catch (error) {
+      logger.error('获取事件统计失败', error as Error);
       res.status(500).json({
         code: 'ERROR',
         message: (error as Error).message || '服务器错误',

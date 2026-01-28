@@ -3,9 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { generateSignature } from '../middleware/auth.js';
 import { Database } from '../database/init.js';
 import { callLLM, isLLMAvailable } from '../services/llmService.js';
+import { createLogger, PerformanceMonitor, MetricsCollector } from '../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const logger = createLogger('RunAPI');
+const perf = new PerformanceMonitor('RunAPI');
+const metrics = new MetricsCollector('RunAPI');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -224,114 +229,133 @@ export function createRunRouter(db: Database): Router {
    * 生成职业传记
    */
   router.post('/:gameId/biography', async (req: Request, res: Response) => {
-    console.log('=== /api/run/:gameId/biography 收到请求 ===');
-    console.log('GameId:', req.params.gameId);
+    const gameId = req.params.gameId;
+    logger.info('收到传记生成请求', { gameId });
 
     try {
-      const { gameId } = req.params;
       const biographyInput = req.body;
 
       // 验证必要字段
       if (!biographyInput.playerName || !biographyInput.finalRank) {
+        logger.warn('缺少必要字段', { playerName: biographyInput.playerName, finalRank: biographyInput.finalRank });
         return res.status(400).json({
           code: 'MISSING_FIELDS',
           message: '缺少必要字段：playerName、finalRank',
         });
       }
 
-      // 检查缓存是否存在
-      const cached = await db.get(
-        'SELECT content FROM career_biographies WHERE game_id = ?',
-        [gameId]
-      );
+      return perf.measure('generateBiography', async () => {
+        // 检查缓存是否存在
+        const cached = await db.get(
+          'SELECT content FROM career_biographies WHERE game_id = ?',
+          [gameId]
+        );
 
-      if (cached) {
-        console.log('✅ 从缓存返回传记');
+        if (cached) {
+          logger.success('从缓存返回传记', { gameId });
+          metrics.record('biography_cache_hit', 1);
+          return res.status(200).json({
+            code: 'SUCCESS',
+            data: {
+              biography: cached.content,
+              cached: true,
+            },
+          });
+        }
+
+        metrics.record('biography_cache_miss', 1);
+
+        // 检查 LLM 是否可用
+        if (!isLLMAvailable()) {
+          logger.error('LLM 服务未配置');
+          return res.status(503).json({
+            code: 'LLM_UNAVAILABLE',
+            message: 'LLM 服务未配置，无法生成传记',
+          });
+        }
+
+        // 加载 Prompt 模板
+        const promptPath = path.join(__dirname, '../../prompts/narrative/career-biography.md');
+        let promptTemplate: string;
+
+        try {
+          promptTemplate = fs.readFileSync(promptPath, 'utf-8');
+        } catch (error) {
+          logger.error('读取传记模板失败', error as Error);
+          return res.status(500).json({
+            code: 'TEMPLATE_ERROR',
+            message: '传记模板文件不存在',
+          });
+        }
+
+        // 替换模板变量
+        const prompt = promptTemplate
+          .replace(/\{\{player_name\}\}/g, biographyInput.playerName)
+          .replace(/\{\{final_rank\}\}/g, biographyInput.finalRank)
+          .replace(/\{\{end_reason\}\}/g, biographyInput.endReason || '游戏结束')
+          .replace(/\{\{quarters\}\}/g, String(biographyInput.quartersPlayed || 0))
+          .replace(/\{\{final_stats\}\}/g, JSON.stringify(biographyInput.finalStats || {}, null, 2))
+          .replace(/\{\{key_decisions\}\}/g, JSON.stringify(biographyInput.keyDecisions || [], null, 2));
+
+        logger.debug('传记 prompt 准备完成', {
+          playerName: biographyInput.playerName,
+          finalRank: biographyInput.finalRank,
+          promptLength: prompt.length,
+        });
+
+        // 调用 LLM 生成传记
+        const response = await callLLM({
+          messages: [
+            {
+              role: 'system',
+              content: '你是《还我一个土木梦》游戏的叙事总监，擅长生成生动有趣的职业传记。',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.8,
+          max_tokens: 2000,
+        });
+
+        // 清理返回的内容
+        let biography = response.content.trim();
+        // 移除可能的引号包裹
+        biography = biography.replace(/^["']|["']$/g, '');
+
+        logger.success('传记生成成功', {
+          gameId,
+          length: biography.length,
+          playerName: biographyInput.playerName,
+        });
+
+        metrics.record('biography_generated', 1);
+        metrics.record('biography_length', biography.length);
+
+        // 保存到缓存
+        await db.run(
+          `INSERT INTO career_biographies (game_id, player_name, content, game_data)
+           VALUES (?, ?, ?, ?)`,
+          [
+            gameId,
+            biographyInput.playerName,
+            biography,
+            JSON.stringify(biographyInput),
+          ]
+        );
+
         return res.status(200).json({
           code: 'SUCCESS',
           data: {
-            biography: cached.content,
-            cached: true,
+            biography,
+            cached: false,
           },
         });
-      }
-
-      // 检查 LLM 是否可用
-      if (!isLLMAvailable()) {
-        return res.status(503).json({
-          code: 'LLM_UNAVAILABLE',
-          message: 'LLM 服务未配置，无法生成传记',
-        });
-      }
-
-      // 加载 Prompt 模板
-      const promptPath = path.join(__dirname, '../../prompts/narrative/career-biography.md');
-      let promptTemplate: string;
-
-      try {
-        promptTemplate = fs.readFileSync(promptPath, 'utf-8');
-      } catch (error) {
-        console.error('❌ 读取传记模板失败:', error);
-        return res.status(500).json({
-          code: 'TEMPLATE_ERROR',
-          message: '传记模板文件不存在',
-        });
-      }
-
-      // 替换模板变量
-      const prompt = promptTemplate
-        .replace(/\{\{player_name\}\}/g, biographyInput.playerName)
-        .replace(/\{\{final_rank\}\}/g, biographyInput.finalRank)
-        .replace(/\{\{end_reason\}\}/g, biographyInput.endReason || '游戏结束')
-        .replace(/\{\{quarters\}\}/g, String(biographyInput.quartersPlayed || 0))
-        .replace(/\{\{final_stats\}\}/g, JSON.stringify(biographyInput.finalStats || {}, null, 2))
-        .replace(/\{\{key_decisions\}\}/g, JSON.stringify(biographyInput.keyDecisions || [], null, 2));
-
-      // 调用 LLM 生成传记
-      console.log('🤖 调用 LLM 生成传记...');
-      const response = await callLLM({
-        messages: [
-          {
-            role: 'system',
-            content: '你是《还我一个土木梦》游戏的叙事总监，擅长生成生动有趣的职业传记。',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.8,
-        max_tokens: 2000,
-      });
-
-      // 清理返回的内容
-      let biography = response.content.trim();
-      // 移除可能的引号包裹
-      biography = biography.replace(/^["']|["']$/g, '');
-
-      console.log('✅ 传记生成成功，字数:', biography.length);
-
-      // 保存到缓存
-      await db.run(
-        `INSERT INTO career_biographies (game_id, player_name, content, game_data)
-         VALUES (?, ?, ?, ?)`,
-        [
-          gameId,
-          biographyInput.playerName,
-          biography,
-          JSON.stringify(biographyInput),
-        ]
-      );
-
-      res.status(200).json({
-        code: 'SUCCESS',
-        data: {
-          biography,
-          cached: false,
-        },
       });
     } catch (error) {
-      console.error('❌ /api/run/:gameId/biography 错误：', error);
+      logger.error('传记生成失败', error as Error);
+      metrics.record('biography_error', 1);
       res.status(500).json({
         code: 'ERROR',
         message: (error as Error).message || '服务器错误',

@@ -3,6 +3,12 @@
  * 负责调用 LLM API、管理提供商、处理错误
  */
 
+import { createLogger, PerformanceMonitor, MetricsCollector } from '../utils/logger.js';
+
+const logger = createLogger('LLMService');
+const perf = new PerformanceMonitor('LLMService');
+const metrics = new MetricsCollector('LLMService');
+
 interface LLMProvider {
   name: string;
   baseURL: string;
@@ -72,6 +78,7 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
   const apiKey = llmConfig.apiKey;
 
   if (!apiKey) {
+    logger.error('LLM_API_KEY not configured');
     throw new Error('LLM_API_KEY not configured');
   }
 
@@ -86,7 +93,16 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
     temperature: request.temperature || 0.7,
   };
 
+  logger.debug('调用 LLM API', {
+    provider: llmConfig.provider,
+    model,
+    maxTokens: body.max_tokens,
+    temperature: body.temperature,
+  });
+
   try {
+    const startTime = Date.now();
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -97,8 +113,16 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
       signal: AbortSignal.timeout(llmConfig.timeout),
     });
 
+    const duration = Date.now() - startTime;
+    metrics.record('llm_call_duration', duration);
+
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error('LLM API error', {
+        status: response.status,
+        error: errorText,
+        duration: `${duration}ms`,
+      });
       throw new Error(`LLM API error: ${response.status} - ${errorText}`);
     }
 
@@ -108,9 +132,27 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
     const content = data.choices?.[0]?.message?.content || '';
     const usage = data.usage;
 
+    // 记录 token 使用情况
+    if (usage) {
+      metrics.record('llm_prompt_tokens', usage.prompt_tokens);
+      metrics.record('llm_completion_tokens', usage.completion_tokens);
+      logger.debug('LLM token usage', {
+        prompt: usage.prompt_tokens,
+        completion: usage.completion_tokens,
+        total: usage.prompt_tokens + usage.completion_tokens,
+        duration: `${duration}ms`,
+      });
+    }
+
+    logger.success('LLM API 调用成功', {
+      duration: `${duration}ms`,
+      contentLength: content.length,
+    });
+
     return { content, usage };
   } catch (error) {
-    console.error('LLM API call failed:', error);
+    metrics.record('llm_error', 1);
+    logger.error('LLM API call failed', error as Error);
     throw error;
   }
 }
