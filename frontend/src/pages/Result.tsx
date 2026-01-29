@@ -5,6 +5,7 @@ import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
 import ReactMarkdown from 'react-markdown';
 import { generateBiography as generateBiographyApi, shareBiography as shareBiographyApi } from '@/api/eventsApi';
+import { startGame as startGameApi } from '@/api/gameApi';
 
 const Result = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Result = () => {
   const [biographyError, setBiographyError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const {
     status,
@@ -32,6 +34,7 @@ const Result = () => {
     rank,
     keyDecisions,
     quarterlyActions,
+    setRunId,
   } = useGameStore();
 
   // 如果游戏未结束，跳转回首页
@@ -56,6 +59,26 @@ const Result = () => {
 
   const isWin = status === GameStatus.COMPLETED;
   const endMessage = endReason ? END_MESSAGES[endReason] : END_MESSAGES.reputation_depleted;
+
+  /**
+   * 重新连接到服务器获取 runId
+   */
+  const handleReconnect = async () => {
+    setIsReconnecting(true);
+    setBiographyError(null);
+
+    try {
+      const response = await startGameApi();
+      setRunId(response.runId);
+      console.log('✅ 重新连接成功，runId:', response.runId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '连接失败，请检查后端服务是否运行';
+      setBiographyError(errorMessage);
+      console.error('重新连接失败:', error);
+    } finally {
+      setIsReconnecting(false);
+    }
+  };
 
   /**
    * 生成职业传记
@@ -314,21 +337,44 @@ const Result = () => {
 
                 {/* 生成传记按钮 */}
                 {!showBiography && (
-                  <button
-                    onClick={handleGenerateBiography}
-                    disabled={isGenerating || !runId}
-                    className={`w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
-                              shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
-                              ${isGenerating || !runId
-                                ? 'bg-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 focus:ring-indigo-500 border-2 border-indigo-800'
-                              }`}
-                  >
-                    <span className="flex items-center justify-center">
-                      <span className="mr-2">{isGenerating ? '⏳' : '📖'}</span>
-                      {isGenerating ? 'AI 正在书写你的故事...' : '生成职业传记'}
-                    </span>
-                  </button>
+                  <>
+                    <button
+                      onClick={handleGenerateBiography}
+                      disabled={isGenerating || !runId}
+                      className={`w-full py-4 px-6 rounded-feishu font-bold text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2
+                                shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]
+                                ${isGenerating || !runId
+                                  ? 'bg-slate-400 cursor-not-allowed'
+                                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 focus:ring-indigo-500 border-2 border-indigo-800'
+                                }`}
+                    >
+                      <span className="flex items-center justify-center">
+                        <span className="mr-2">{isGenerating ? '⏳' : '📖'}</span>
+                        {isGenerating ? 'AI 正在书写你的故事...' : '生成职业传记'}
+                      </span>
+                    </button>
+
+                    {/* runId 为 null 时的提示信息和重新连接按钮 */}
+                    {!runId && !isGenerating && (
+                      <div className="mt-3 space-y-2">
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-feishu">
+                          <p className="text-xs text-amber-700 text-center">
+                            ⚠️ 游戏会话未连接到服务器
+                          </p>
+                        </div>
+                        <button
+                          onClick={handleReconnect}
+                          disabled={isReconnecting}
+                          className="w-full py-2 px-4 rounded-feishu font-medium text-slate-700 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
+                                   bg-slate-100 hover:bg-slate-200 border border-slate-300 active:scale-[0.98]
+                                   flex items-center justify-center text-sm"
+                        >
+                          <span className="mr-2">{isReconnecting ? '⏳' : '🔄'}</span>
+                          {isReconnecting ? '正在连接...' : '重新连接服务器'}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* 错误提示 */}

@@ -299,6 +299,7 @@ interface GameStore extends GameState {
   startGame: () => Promise<void>;
   resetGame: () => void;
   uploadScore: () => Promise<void>;
+  setRunId: (runId: string) => void;
 
   // 事件系统
   drawEvent: () => Promise<void>;
@@ -884,6 +885,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     } catch (error) {
       console.error('❌ 成绩上传失败:', error);
     }
+  },
+
+  setRunId: (runId: string) => {
+    set({ runId });
   },
 
   // ==================== 行动系统 ====================
