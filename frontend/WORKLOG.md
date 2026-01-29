@@ -2,6 +2,36 @@
 
 ## 2026-01-28
 
+### 传记签名验证豁免 ✅ - 5ae1a44
+**功能**：豁免传记生成 API 的签名验证
+
+### LLM 环境变量修复 ✅ - 48a915d
+**功能**：修复 LLM 服务运行时读取环境变量
+
+### 季度行动记录系统 ✅ - b3bb858
+**功能**：添加季度行动记录到传记生成
+
+**改动点**：
+- 在 GameState 中添加 `quarterlyActions` 和当前季度临时记录字段
+- 在 `doAction` 函数中记录行动类型
+- 在 `executeTraining` 函数中记录训练类型
+- 在 `nextQuarter` 函数中保存当前季度记录到历史并重置
+- 更新传记 Prompt 模板：
+  * 添加基础行动类型及效果说明
+  * 添加训练类型及效果说明
+  * 添加训练的重要意义说明
+  * 指导 AI 如何使用季度行动数据分析玩家行为模式
+
+**涉及文件**：
+- `shared/types/game.ts`
+- `frontend/src/store/gameStoreNew.ts`
+- `frontend/src/api/eventsApi.ts`
+- `frontend/src/pages/Result.tsx`
+- `backend/src/api/run.ts`
+- `backend/prompts/narrative/career-biography.md`
+
+**Review 状态**：待 review
+
 ### 关键决策系统实现 ✅ - 6fa3c49
 
 **功能**：实现关键决策自动记录系统，用于职业传记生成
