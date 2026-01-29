@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { flushSync } from 'react-dom';
 import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
@@ -91,16 +92,23 @@ const Result = () => {
       return;
     }
 
-    // 重置状态
-    setIsGenerating(true);
-    setBiographyError(null);
-    setCopySuccess(false);
-    setShareSuccess(false);
-    setShowBiography(true);
-    setBiography('');
-    setIsIncomplete(false);
+    // 如果正在生成，先停止
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
 
-    // 创建 AbortController 用于取消
+    // 使用 flushSync 强制同步更新，确保传记立即清空
+    flushSync(() => {
+      setIsGenerating(true);
+      setBiographyError(null);
+      setCopySuccess(false);
+      setShareSuccess(false);
+      setShowBiography(true);
+      setBiography(''); // 立即清空传记
+      setIsIncomplete(false);
+    });
+
+    // 创建新的 AbortController 用于取消
     abortControllerRef.current = new AbortController();
 
     try {
