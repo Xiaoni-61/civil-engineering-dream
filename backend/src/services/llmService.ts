@@ -160,6 +160,118 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
 }
 
 /**
+ * 调用 LLM API（流式）
+ * 返回一个 ReadableStream
+ */
+export async function callLLMStream(
+  request: LLMRequest & { onChunk?: (chunk: string) => void }
+): Promise<string> {
+  // 运行时读取环境变量，避免模块加载时机问题
+  const providerName = process.env.LLM_PROVIDER || llmConfig.provider;
+  const provider = providers[providerName];
+  const baseURL = process.env.LLM_BASE_URL || llmConfig.baseURL || provider?.baseURL;
+  const model = process.env.LLM_MODEL || llmConfig.model || provider?.model;
+  const apiKey = process.env.LLM_API_KEY || llmConfig.apiKey;
+
+  if (!apiKey) {
+    logger.error('LLM_API_KEY not configured');
+    throw new Error('LLM_API_KEY not configured');
+  }
+
+  const url = `${baseURL}/chat/completions`;
+
+  const body = {
+    model,
+    messages: request.messages,
+    max_tokens: request.max_tokens || 2000,
+    temperature: request.temperature || 0.7,
+    stream: true, // 启用流式响应
+  };
+
+  logger.debug('调用 LLM API (流式)', {
+    provider: providerName,
+    model,
+    maxTokens: body.max_tokens,
+    temperature: body.temperature,
+  });
+
+  try {
+    const startTime = Date.now();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('LLM API error', {
+        status: response.status,
+        error: errorText,
+      });
+      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+    }
+
+    // 读取流式响应
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const decoder = new TextDecoder();
+    let fullContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+
+            if (content) {
+              fullContent += content;
+              if (request.onChunk) {
+                request.onChunk(content);
+              }
+            }
+          } catch (e) {
+            // 忽略解析错误
+          }
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
+    metrics.record('llm_call_duration', duration);
+    logger.success('LLM API 调用成功 (流式)', {
+      duration: `${duration}ms`,
+      contentLength: fullContent.length,
+    });
+
+    return fullContent;
+  } catch (error) {
+    metrics.record('llm_error', 1);
+    logger.error('LLM API call failed', error as Error);
+    throw error;
+  }
+}
+
+/**
  * 增强事件描述
  */
 export async function enhanceDescription(

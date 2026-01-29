@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { generateSignature } from '../middleware/auth.js';
 import { Database } from '../database/init.js';
-import { callLLM, isLLMAvailable } from '../services/llmService.js';
+import { callLLM, callLLMStream, isLLMAvailable } from '../services/llmService.js';
 import { createLogger, PerformanceMonitor, MetricsCollector } from '../utils/logger.js';
 import fs from 'fs';
 import path from 'path';
@@ -245,6 +245,11 @@ export function createRunRouter(db: Database): Router {
       }
 
       return perf.measure('generateBiography', async () => {
+        // 设置 SSE 响应头
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
         // 检查缓存是否存在
         const cached = await db.get(
           'SELECT content FROM career_biographies WHERE game_id = ?',
@@ -252,15 +257,11 @@ export function createRunRouter(db: Database): Router {
         );
 
         if (cached) {
-          logger.success('从缓存返回传记', { gameId });
+          logger.success('从缓存返回传记（流式）', { gameId });
           metrics.record('biography_cache_hit', 1);
-          return res.status(200).json({
-            code: 'SUCCESS',
-            data: {
-              biography: cached.content,
-              cached: true,
-            },
-          });
+          res.write(`data: ${JSON.stringify({ type: 'complete', content: cached.content, cached: true })}\n\n`);
+          res.end();
+          return;
         }
 
         metrics.record('biography_cache_miss', 1);
@@ -268,10 +269,9 @@ export function createRunRouter(db: Database): Router {
         // 检查 LLM 是否可用
         if (!isLLMAvailable()) {
           logger.error('LLM 服务未配置');
-          return res.status(503).json({
-            code: 'LLM_UNAVAILABLE',
-            message: 'LLM 服务未配置，无法生成传记',
-          });
+          res.write(`data: ${JSON.stringify({ type: 'error', error: 'LLM 服务未配置，无法生成传记' })}\n\n`);
+          res.end();
+          return;
         }
 
         // 加载 Prompt 模板
@@ -282,10 +282,9 @@ export function createRunRouter(db: Database): Router {
           promptTemplate = fs.readFileSync(promptPath, 'utf-8');
         } catch (error) {
           logger.error('读取传记模板失败', error as Error);
-          return res.status(500).json({
-            code: 'TEMPLATE_ERROR',
-            message: '传记模板文件不存在',
-          });
+          res.write(`data: ${JSON.stringify({ type: 'error', error: '传记模板文件不存在' })}\n\n`);
+          res.end();
+          return;
         }
 
         // 替换模板变量
@@ -304,55 +303,84 @@ export function createRunRouter(db: Database): Router {
           promptLength: prompt.length,
         });
 
-        // 调用 LLM 生成传记
-        const response = await callLLM({
-          messages: [
-            {
-              role: 'system',
-              content: '你是《还我一个土木梦》游戏的叙事总监，擅长生成生动有趣的职业传记。',
+        // 发送开始事件
+        res.write(`data: ${JSON.stringify({ type: 'start' })}\n\n`);
+
+        let fullContent = '';
+        let isComplete = false;
+
+        // 设置超时（120秒）
+        const timeout = setTimeout(() => {
+          if (!isComplete) {
+            logger.warn('传记生成超时', { gameId });
+            res.write(`data: ${JSON.stringify({ type: 'timeout', content: fullContent })}\n\n`);
+            res.end();
+          }
+        }, 120000);
+
+        try {
+          // 调用流式 LLM
+          await callLLMStream({
+            messages: [
+              {
+                role: 'system',
+                content: '你是《还我一个土木梦》游戏的叙事总监，擅长生成生动有趣的职业传记。',
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature: 0.8,
+            max_tokens: 2500,
+            onChunk: (chunk: string) => {
+              fullContent += chunk;
+              // 发送内容块
+              res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
             },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.8,
-          max_tokens: 2000,
-        });
+          });
 
-        // 清理返回的内容
-        let biography = response.content.trim();
-        // 移除可能的引号包裹
-        biography = biography.replace(/^["']|["']$/g, '');
+          isComplete = true;
+          clearTimeout(timeout);
 
-        logger.success('传记生成成功', {
-          gameId,
-          length: biography.length,
-          playerName: biographyInput.playerName,
-        });
+          // 清理内容
+          let biography = fullContent.trim();
+          biography = biography.replace(/^["']|["']$/g, '');
 
-        metrics.record('biography_generated', 1);
-        metrics.record('biography_length', biography.length);
-
-        // 保存到缓存
-        await db.run(
-          `INSERT INTO career_biographies (game_id, player_name, content, game_data)
-           VALUES (?, ?, ?, ?)`,
-          [
+          logger.success('传记生成成功（流式）', {
             gameId,
-            biographyInput.playerName,
-            biography,
-            JSON.stringify(biographyInput),
-          ]
-        );
+            length: biography.length,
+            playerName: biographyInput.playerName,
+          });
 
-        return res.status(200).json({
-          code: 'SUCCESS',
-          data: {
-            biography,
-            cached: false,
-          },
-        });
+          metrics.record('biography_generated', 1);
+          metrics.record('biography_length', biography.length);
+
+          // 保存到缓存
+          await db.run(
+            `INSERT INTO career_biographies (game_id, player_name, content, game_data)
+             VALUES (?, ?, ?, ?)`,
+            [
+              gameId,
+              biographyInput.playerName,
+              biography,
+              JSON.stringify(biographyInput),
+            ]
+          );
+
+          // 发送完成事件
+          res.write(`data: ${JSON.stringify({ type: 'complete', content: biography })}\n\n`);
+          res.end();
+        } catch (error) {
+          isComplete = true;
+          clearTimeout(timeout);
+          logger.error('传记生成失败（流式）', error as Error);
+          metrics.record('biography_error', 1);
+
+          // 发送错误事件
+          res.write(`data: ${JSON.stringify({ type: 'error', error: (error as Error).message, content: fullContent })}\n\n`);
+          res.end();
+        }
       });
     } catch (error) {
       logger.error('传记生成失败', error as Error);

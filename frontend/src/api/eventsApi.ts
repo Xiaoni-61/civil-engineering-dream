@@ -5,6 +5,8 @@
 
 import { apiRequest } from './gameApi';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
 /**
  * 事件系统健康状态响应
  */
@@ -193,25 +195,93 @@ export async function recordEventUsage(
 }
 
 /**
- * 生成职业传记
+ * 生成职业传记（流式）
  * POST /api/run/:gameId/biography
  *
- * 注意：此 API 需要在后端实现（Task 12）
- * 目前此函数为占位符，实际使用时需要后端支持
+ * 支持取消操作和实时进度回调
  */
-export async function generateBiography(
+export async function generateBiographyStream(
   gameId: string,
-  gameData: BiographyInput
-): Promise<string> {
+  gameData: BiographyInput,
+  callbacks: {
+    onChunk: (chunk: string) => void;
+    onComplete: (content: string) => void;
+    onError: (error: string, partialContent?: string) => void;
+  },
+  signal?: AbortSignal
+): Promise<void> {
+  const url = `${API_BASE_URL}/api/run/${gameId}/biography`;
+
   try {
-    const response = await apiRequest(`/api/run/${gameId}/biography`, {
+    const response = await fetch(url, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(gameData),
+      signal,
     });
-    return response.data.biography;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: '网络错误' }));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('无法读取响应流');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || ''; // 保留不完整的行
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+
+          try {
+            const event = JSON.parse(data);
+
+            switch (event.type) {
+              case 'start':
+                console.log('开始生成传记');
+                break;
+              case 'chunk':
+                fullContent += event.content;
+                callbacks.onChunk(event.content);
+                break;
+              case 'complete':
+                callbacks.onComplete(event.content);
+                break;
+              case 'error':
+                callbacks.onError(event.error, event.content);
+                break;
+              case 'timeout':
+                callbacks.onError('生成超时', event.content);
+                break;
+            }
+          } catch (e) {
+            console.error('解析 SSE 数据失败:', e);
+          }
+        }
+      }
+    }
   } catch (error) {
-    console.error('生成传记失败:', error);
-    throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      callbacks.onError('生成已取消');
+    } else {
+      callbacks.onError(error instanceof Error ? error.message : '未知错误');
+    }
   }
 }
 

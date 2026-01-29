@@ -4,7 +4,7 @@ import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
 import ReactMarkdown from 'react-markdown';
-import { generateBiography as generateBiographyApi, shareBiography as shareBiographyApi } from '@/api/eventsApi';
+import { generateBiographyStream, shareBiography as shareBiographyApi } from '@/api/eventsApi';
 import { startGame as startGameApi } from '@/api/gameApi';
 
 const Result = () => {
@@ -19,6 +19,8 @@ const Result = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isIncomplete, setIsIncomplete] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const {
     status,
@@ -81,7 +83,7 @@ const Result = () => {
   };
 
   /**
-   * 生成职业传记
+   * 生成职业传记（流式）
    */
   const handleGenerateBiography = async () => {
     if (!runId) {
@@ -89,42 +91,80 @@ const Result = () => {
       return;
     }
 
+    // 重置状态
     setIsGenerating(true);
     setBiographyError(null);
     setCopySuccess(false);
     setShareSuccess(false);
+    setShowBiography(true);
+    setBiography('');
+    setIsIncomplete(false);
+
+    // 创建 AbortController 用于取消
+    abortControllerRef.current = new AbortController();
 
     try {
-      const result = await generateBiographyApi(runId, {
-        playerName: playerName || '匿名玩家',
-        finalRank: rank || '未知',
-        endReason: endReason || '游戏结束',
-        quartersPlayed: currentQuarter || 0,
-        finalStats: {
-          cash: stats.cash || 0,
-          health: stats.health || 0,
-          reputation: stats.reputation || 0,
-          workAbility: stats.workAbility || 0,
-          luck: stats.luck || 0,
+      await generateBiographyStream(
+        runId,
+        {
+          playerName: playerName || '匿名玩家',
+          finalRank: rank || '未知',
+          endReason: endReason || '游戏结束',
+          quartersPlayed: currentQuarter || 0,
+          finalStats: {
+            cash: stats.cash || 0,
+            health: stats.health || 0,
+            reputation: stats.reputation || 0,
+            workAbility: stats.workAbility || 0,
+            luck: stats.luck || 0,
+          },
+          gameStats: {
+            completedProjects: gameStats?.completedProjects || 0,
+            qualityProjects: gameStats?.qualityProjects || 0,
+          },
+          keyDecisions: keyDecisions.map((d) => ({
+            event: d.event,
+            choice: d.choice,
+          })),
+          quarterlyActions: quarterlyActions,
         },
-        gameStats: {
-          completedProjects: gameStats?.completedProjects || 0,
-          qualityProjects: gameStats?.qualityProjects || 0,
+        {
+          onChunk: (chunk: string) => {
+            setBiography(prev => (prev || '') + chunk);
+          },
+          onComplete: (content: string) => {
+            setBiography(content);
+            setIsIncomplete(false);
+            setIsGenerating(false);
+          },
+          onError: (error: string, partialContent?: string) => {
+            if (error.includes('取消') || error.includes('超时')) {
+              setIsIncomplete(true);
+            }
+            if (partialContent) {
+              setBiography(partialContent);
+            }
+            setBiographyError(error);
+            setIsGenerating(false);
+          },
         },
-        keyDecisions: keyDecisions.map((d) => ({
-          event: d.event,
-          choice: d.choice,
-        })),
-        quarterlyActions: quarterlyActions,
-      });
-
-      setBiography(result);
-      setShowBiography(true);
+        abortControllerRef.current.signal
+      );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '生成传记失败，请稍后重试';
       setBiographyError(errorMessage);
       console.error('生成传记失败:', error);
-    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  /**
+   * 停止生成传记
+   */
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsIncomplete(true);
       setIsGenerating(false);
     }
   };
@@ -385,19 +425,48 @@ const Result = () => {
                 )}
 
                 {/* 传记展示区域 */}
-                {showBiography && biography && (
+                {showBiography && (
                   <div className="mt-4 animate-fade-in">
                     <div className="bg-white border-2 border-indigo-100 rounded-feishu-lg shadow-lg overflow-hidden">
                       {/* 传记标题 */}
                       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-6 py-4 border-b border-indigo-100">
-                        <h4 className="text-lg font-bold text-indigo-700 flex items-center">
-                          <span className="mr-2">📜</span>
-                          {playerName || '匿名玩家'}的职业传记
-                        </h4>
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-lg font-bold text-indigo-700 flex items-center">
+                            <span className="mr-2">📜</span>
+                            {playerName || '匿名玩家'}的职业传记
+                          </h4>
+                          {isGenerating && (
+                            <div className="flex items-center text-sm text-indigo-600">
+                              <span className="animate-pulse mr-2">✨</span>
+                              <span className="animate-pulse">正在生成...</span>
+                            </div>
+                          )}
+                          {isIncomplete && !isGenerating && (
+                            <div className="flex items-center text-sm text-amber-600">
+                              <span className="mr-1">⚠️</span>
+                              <span>未完成</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* 传记内容 */}
                       <div className="p-6">
+                        {/* 生成中显示停止按钮 */}
+                        {isGenerating && (
+                          <div className="mb-4 flex justify-center">
+                            <button
+                              onClick={handleStopGeneration}
+                              className="py-2 px-6 rounded-feishu font-medium text-red-600 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2
+                                       bg-red-50 hover:bg-red-100 border border-red-200 active:scale-[0.98]
+                                       flex items-center"
+                            >
+                              <span className="mr-2">⏹️</span>
+                              停止生成
+                            </button>
+                          </div>
+                        )}
+
                         <div className="text-sm">
                           <ReactMarkdown
                             components={{
@@ -412,7 +481,7 @@ const Result = () => {
                               blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-300 pl-4 py-2 my-4 bg-indigo-50 text-slate-700 italic" {...props} />,
                             }}
                           >
-                            {biography}
+                            {biography || '_正在生成..._'}
                           </ReactMarkdown>
                         </div>
                       </div>
@@ -420,19 +489,27 @@ const Result = () => {
                       {/* 操作按钮 */}
                       <div className="px-6 pb-6 flex gap-3">
                         <button
-                          onClick={() => copyToClipboard(biography)}
-                          className="flex-1 py-3 px-4 rounded-feishu font-medium text-slate-700 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
-                                   bg-slate-100 hover:bg-slate-200 border border-slate-300 active:scale-[0.98]
-                                   flex items-center justify-center"
+                          onClick={() => biography && copyToClipboard(biography)}
+                          disabled={isGenerating || !biography}
+                          className={`flex-1 py-3 px-4 rounded-feishu font-medium transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2
+                                   flex items-center justify-center
+                                   ${isGenerating || !biography
+                                     ? 'bg-slate-300 text-slate-400 cursor-not-allowed border border-slate-200'
+                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 active:scale-[0.98]'
+                                   }`}
                         >
                           <span className="mr-2">{copySuccess ? '✅' : '📋'}</span>
                           {copySuccess ? '已复制' : '复制文本'}
                         </button>
                         <button
                           onClick={shareBiographyLink}
-                          className="flex-1 py-3 px-4 rounded-feishu font-medium text-white transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2
-                                   bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border border-indigo-700 active:scale-[0.98]
-                                   flex items-center justify-center shadow-md hover:shadow-lg"
+                          disabled={isGenerating || isIncomplete || !biography}
+                          className={`flex-1 py-3 px-4 rounded-feishu font-medium transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2
+                                   flex items-center justify-center shadow-md hover:shadow-lg
+                                   ${isGenerating || isIncomplete || !biography
+                                     ? 'bg-slate-300 text-slate-400 cursor-not-allowed border border-slate-200'
+                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border border-indigo-700 active:scale-[0.98]'
+                                   }`}
                         >
                           <span className="mr-2">{shareSuccess ? '✅' : '📤'}</span>
                           {shareSuccess ? '链接已复制' : '分享我的故事'}
