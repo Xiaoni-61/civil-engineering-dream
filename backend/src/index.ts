@@ -20,6 +20,44 @@ const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || 'localhost';
 
 /**
+ * 预热 LLM 连接
+ * 在后台发送一个简短请求，让模型加载到内存
+ */
+async function warmupLLMConnection() {
+  const { isLLMAvailable } = await import('./services/llmService.js');
+
+  if (!isLLMAvailable()) {
+    console.log('⚠️  LLM 未配置，跳过预热');
+    return;
+  }
+
+  console.log('🔥 预热 LLM 连接中...');
+
+  // 延迟 2 秒，让服务器先完全启动
+  setTimeout(async () => {
+    try {
+      const { callLLMStream } = await import('./services/llmService.js');
+
+      const startTime = Date.now();
+      await callLLMStream({
+        messages: [
+          { role: 'system', content: '预热' },
+          { role: 'user', content: '你好' },
+        ],
+        temperature: 0.7,
+        max_tokens: 10,
+        onChunk: () => {},
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ LLM 预热完成 (耗时: ${duration}ms)`);
+    } catch (error) {
+      console.warn('⚠️  LLM 预热失败:', error);
+    }
+  }, 2000);
+}
+
+/**
  * 启动服务器
  */
 async function startServer() {
@@ -96,6 +134,9 @@ async function startServer() {
 ✅ 准备就绪！
       `);
     });
+
+    // LLM 连接预热（在后台执行，不阻塞启动）
+    warmupLLMConnection();
 
     // 优雅关闭
     process.on('SIGINT', async () => {

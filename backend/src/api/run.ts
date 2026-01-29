@@ -332,7 +332,7 @@ export function createRunRouter(db: Database): Router {
               },
             ],
             temperature: 0.8,
-            max_tokens: 2500,
+            max_tokens: 1500,  // 减少到 1500，传记不需要太长
             onChunk: (chunk: string) => {
               fullContent += chunk;
               // 发送内容块
