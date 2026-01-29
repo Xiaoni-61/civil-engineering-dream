@@ -1,97 +1,17 @@
 /**
  * 事件决策系统类型定义
+ *
+ * 注意：这些类型现在已经定义在 @shared/types/event.ts 中
+ * 此文件为了向后兼容，从 shared 重新导出这些类型
  */
 
-import { Rank, RelationshipType } from '@shared/types';
-
-/**
- * 事件类别
- */
-export type EventCategory = 'professional' | 'workplace';
-
-/**
- * 决策事件
- */
-export interface DecisionEvent {
-  id: string;
-  title: string;
-  description: string;
-  category: EventCategory;
-  requiredRank: Rank;
-  options: DecisionOption[];
-  flavorText?: string;
-}
-
-/**
- * 决策选项
- */
-export interface DecisionOption {
-  id: string;
-  text: string;
-  feedback: string;
-  effects: EventEffects;
-
-  // 新增：隐藏选项支持
-  requiredAbility?: {
-    workAbility?: number;
-    luck?: number;
-  };
-  hidden?: boolean;        // 是否为隐藏选项
-  riskFactor?: number;     // 冒险选项的失败率 (0-1)
-  // 失败时的反馈文本（会附加在 feedback 后）
-  failureFeedback?: string;
-}
-
-/**
- * 事件影响效果
- */
-export interface EventEffects {
-  cash?: number;
-  health?: number;
-  reputation?: number;
-  progress?: number;
-  quality?: number;
-  relationships?: RelationshipEffect[];
-  teamMorale?: number;
-  leadership?: number;
-  workAbility?: number;  // 工作能力变化
-  luck?: number;         // 幸运变化
-
-  // 冒险选项失败时的效果（仅在 riskFactor 存在时有效）
-  failure?: EventEffects;
-}
-
-/**
- * 关系影响
- */
-export interface RelationshipEffect {
-  type: RelationshipType;
-  change: number;
-}
-
-/**
- * 事件结果记录
- */
-export interface EventResult {
-  eventId: string;
-  eventTitle: string;
-  selectedOptionId: string;
-  selectedOptionText: string;
-  feedback: string;
-  effects: EventEffects;
-  timestamp: number;
-}
-
-/**
- * 事件池配置
- */
-export interface EventPoolConfig {
-  common: DecisionEvent[];
-  intern: DecisionEvent[];
-  assistantEngineer: DecisionEvent[];
-  engineer: DecisionEvent[];
-  seniorEngineer: DecisionEvent[];
-  manager: DecisionEvent[];
-  director: DecisionEvent[];
-  partner: DecisionEvent[];
-}
+// 从 shared/types 导入所有决策事件相关类型
+export type {
+  EventCategory,
+  DecisionEvent,
+  DecisionEventOption as DecisionOption,
+  DecisionEventEffects as EventEffects,
+  RelationshipEffect,
+  EventResult,
+  EventPoolConfig,
+} from '@shared/types/event';

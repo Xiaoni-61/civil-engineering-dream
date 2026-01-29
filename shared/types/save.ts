@@ -12,10 +12,10 @@ import {
   MaterialPrice,
   GameStats,
   RelationshipType,
+  QuarterSettlement,
 } from './game';
 import { TeamState } from './team';
-import { DecisionEvent, EventResult } from '../../frontend/src/data/events/eventTypes';
-import { EventCard } from './event';
+import { DecisionEvent, EventResult, EventCard } from './event';
 
 /**
  * 价格预测类型
@@ -134,7 +134,7 @@ export interface SaveGameState {
   isLLMEnhancing: boolean;
 
   // ==================== 当前季度结算数据 ====================
-  currentSettlement: any | null;
+  currentSettlement: QuarterSettlement | null;
 }
 
 /**
