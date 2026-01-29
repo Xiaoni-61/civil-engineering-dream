@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 import { useGameStore } from '@/store/gameStoreNew';
 import { GameStatus } from '@shared/types';
 import { END_MESSAGES } from '@/data/constants';
@@ -15,12 +14,13 @@ const Result = () => {
   // 传记相关状态
   const [isGenerating, setIsGenerating] = useState(false);
   const [showBiography, setShowBiography] = useState(false);
-  const [biography, setBiography] = useState<string | null>(null);
+  const [biography, setBiography] = useState<string>('');
   const [biographyError, setBiographyError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isIncomplete, setIsIncomplete] = useState(false);
+  const [biographyKey, setBiographyKey] = useState(0); // 用于强制重新挂载 ReactMarkdown
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const {
@@ -97,16 +97,15 @@ const Result = () => {
       abortControllerRef.current.abort();
     }
 
-    // 使用 flushSync 强制同步更新，确保传记立即清空
-    flushSync(() => {
-      setIsGenerating(true);
-      setBiographyError(null);
-      setCopySuccess(false);
-      setShareSuccess(false);
-      setShowBiography(true);
-      setBiography(''); // 立即清空传记
-      setIsIncomplete(false);
-    });
+    // 重置所有状态
+    setIsGenerating(true);
+    setBiographyError(null);
+    setCopySuccess(false);
+    setShareSuccess(false);
+    setShowBiography(true);
+    setBiography(''); // 清空传记
+    setIsIncomplete(false);
+    setBiographyKey(prev => prev + 1); // 改变 key 强制 ReactMarkdown 重新挂载
 
     // 创建新的 AbortController 用于取消
     abortControllerRef.current = new AbortController();
@@ -477,6 +476,7 @@ const Result = () => {
 
                         <div className="text-sm">
                           <ReactMarkdown
+                            key={biographyKey}
                             components={{
                               h1: ({node, ...props}) => <h1 className="text-xl font-bold text-slate-800 mb-3 mt-4" {...props} />,
                               h2: ({node, ...props}) => <h2 className="text-lg font-bold text-slate-800 mb-2 mt-3" {...props} />,
