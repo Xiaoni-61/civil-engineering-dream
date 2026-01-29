@@ -30,6 +30,13 @@ export type {
   EventOption,
   EventCard,
   EventTriggerCondition,
+  EventCategory,
+  DecisionEvent,
+  DecisionEventOption,
+  DecisionEventEffects,
+  RelationshipEffect,
+  EventResult,
+  EventPoolConfig,
 } from './event';
 
 export {
