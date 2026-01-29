@@ -39,7 +39,7 @@ const llmConfig = {
   apiKey: process.env.LLM_API_KEY || '',
   baseURL: process.env.LLM_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3',
   model: process.env.LLM_MODEL || 'doubao-seed-1-6-lite-251015',
-  timeout: 30000, // 30秒超时
+  timeout: 90000, // 90秒超时（传记生成需要更长时间）
 };
 
 /**

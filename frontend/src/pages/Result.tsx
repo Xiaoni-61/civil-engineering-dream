@@ -31,6 +31,7 @@ const Result = () => {
     playerName,
     rank,
     keyDecisions,
+    quarterlyActions,
   } = useGameStore();
 
   // 如果游戏未结束，跳转回首页
@@ -91,6 +92,7 @@ const Result = () => {
           event: d.event,
           choice: d.choice,
         })),
+        quarterlyActions: quarterlyActions,
       });
 
       setBiography(result);

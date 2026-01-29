@@ -161,6 +161,13 @@ const createInitialState = (): GameState => ({
   // 关键决策记录
   keyDecisions: [],
 
+  // 季度行动记录
+  quarterlyActions: [],
+
+  // 当前季度临时记录
+  currentQuarterActionCounts: {},
+  currentQuarterTrainingCounts: {},
+
   // 职级系统
   rank: GAME_CONFIG.initialRank,
   actualSalary: RANK_CONFIGS[GAME_CONFIG.initialRank].minQuarterlySalary,
@@ -623,6 +630,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? TRAINING_COOLDOWN.advanced
       : TRAINING_COOLDOWN.basic;
 
+    // 记录训练类型（用于传记生成）
+    const currentTrainingCounts = { ...state.currentQuarterTrainingCounts };
+    currentTrainingCounts[trainingType] = (currentTrainingCounts[trainingType] || 0) + 1;
+
     set((state) => ({
       ...state,
       stats: {
@@ -634,7 +645,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       trainingCooldowns: {
         ...state.trainingCooldowns,
         [cooldownKey]: currentQuarter + cooldown
-      }
+      },
+      currentQuarterTrainingCounts: currentTrainingCounts,
     }));
 
     return {
@@ -946,11 +958,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newActionPoints = state.actionPoints - 1;
     const newMaxActionPoints = calculateActionPoints(newStats.health);
 
+    // 记录行动类型（用于传记生成）
+    const currentCounts = { ...state.currentQuarterActionCounts };
+    currentCounts[actionType] = (currentCounts[actionType] || 0) + 1;
+
     set({
       stats: newStats,
       actionPoints: newActionPoints,
       maxActionPoints: newMaxActionPoints,
       actionsThisQuarter: state.actionsThisQuarter + 1,
+      currentQuarterActionCounts: currentCounts,
     });
 
     // 检查游戏结束
@@ -1297,6 +1314,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // 季度开始事件记录（用于下一次结算页面显示）
       const quarterStartEventsRecord = nextQuarterEvents;
 
+      // 保存本季度行动记录到历史（用于传记生成）
+      const actionRecords = Object.entries(prev.currentQuarterActionCounts)
+        .filter(([_, count]) => count > 0)
+        .map(([type, count]) => ({ type, count }));
+      const trainingRecords = Object.entries(prev.currentQuarterTrainingCounts)
+        .filter(([_, count]) => count > 0)
+        .map(([type, count]) => ({ type, count }));
+
+      const newQuarterlyAction = {
+        quarter: prev.currentQuarter,
+        actions: actionRecords,
+        training: trainingRecords,
+      };
+
+      const newQuarterlyActions = [...prev.quarterlyActions, newQuarterlyAction];
+
       // 如果本季度完成了项目，季度开始事件的项目效果应该忽略
       // 因为项目已经重置为新的空项目，不应该再受上季度事件影响
       const shouldApplyProjectEffects = !prev.projectCompletedThisQuarter;
@@ -1339,6 +1372,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // 价格预测系统：存储下季度真实价格，清空预测缓存
         nextQuarterRealPrices: nextNextQuarterRealPrices,
         pricePredictions: null,
+        // 季度行动记录：保存历史并重置当前季度
+        quarterlyActions: newQuarterlyActions,
+        currentQuarterActionCounts: {},
+        currentQuarterTrainingCounts: {},
       };
     });
   },

@@ -295,7 +295,8 @@ export function createRunRouter(db: Database): Router {
           .replace(/\{\{end_reason\}\}/g, biographyInput.endReason || '游戏结束')
           .replace(/\{\{quarters\}\}/g, String(biographyInput.quartersPlayed || 0))
           .replace(/\{\{final_stats\}\}/g, JSON.stringify(biographyInput.finalStats || {}, null, 2))
-          .replace(/\{\{key_decisions\}\}/g, JSON.stringify(biographyInput.keyDecisions || [], null, 2));
+          .replace(/\{\{key_decisions\}\}/g, JSON.stringify(biographyInput.keyDecisions || [], null, 2))
+          .replace(/\{\{quarterly_actions\}\}/g, JSON.stringify(biographyInput.quarterlyActions || [], null, 2));
 
         logger.debug('传记 prompt 准备完成', {
           playerName: biographyInput.playerName,

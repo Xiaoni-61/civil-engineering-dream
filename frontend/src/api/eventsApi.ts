@@ -108,6 +108,11 @@ export interface BiographyInput {
     event: string;
     choice: string;
   }>;
+  quarterlyActions?: Array<{
+    quarter: number;
+    actions: Array<{ type: string; count: number }>;
+    training: Array<{ type: string; count: number }>;
+  }>;
 }
 
 /**

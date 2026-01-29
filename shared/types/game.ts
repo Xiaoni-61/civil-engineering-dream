@@ -332,6 +332,23 @@ export interface GameState {
     timestamp: Date;     // 时间戳
   }>;
 
+  // 季度行动记录（用于职业传记生成）
+  quarterlyActions: Array<{
+    quarter: number;           // 季度数
+    actions: Array<{
+      type: string;            // 行动类型（do_project, freelance, rest, cut_corners, recruit, team_project, resolve_issue）
+      count: number;           // 执行次数
+    }>;
+    training: Array<{
+      type: string;            // 训练类型（basic_work, advanced_work, basic_luck, advanced_luck）
+      count: number;           // 训练次数
+    }>;
+  }>;
+
+  // 当前季度临时记录（季度结束时保存到 quarterlyActions）
+  currentQuarterActionCounts: Record<string, number>;    // 行动类型计数
+  currentQuarterTrainingCounts: Record<string, number>;  // 训练类型计数
+
   score: number;
   endReason?: EndReason;
 }
