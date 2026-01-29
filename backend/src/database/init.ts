@@ -157,6 +157,29 @@ export async function initDatabase(): Promise<Database> {
           )
         `);
 
+        // 游戏存档表
+        db.run(`
+          CREATE TABLE IF NOT EXISTS game_saves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            slot_id INTEGER NOT NULL,
+            run_id TEXT NOT NULL,
+            player_name TEXT,
+            player_gender TEXT,
+            current_quarter INTEGER,
+            rank TEXT,
+            status TEXT,
+            game_state TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(device_id, slot_id)
+          )
+        `);
+
+        // 为存档表创建索引
+        db.run(`CREATE INDEX IF NOT EXISTS idx_saves_device
+                ON game_saves(device_id, updated_at DESC)`);
+
         // 为动态事件创建索引
         db.run(`CREATE INDEX IF NOT EXISTS idx_dynamic_events_rank
                 ON dynamic_events (min_rank, max_rank)`);
