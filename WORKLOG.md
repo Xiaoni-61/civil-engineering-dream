@@ -1853,3 +1853,192 @@ e246da0 docs: update WORKLOG.md for Task 22
 - 健壮的错误处理和重试机制
 - 批量并发控制避免过载
 - 清晰的日志输出便于调试
+
+---
+
+## 2026-01-28 (继续)：传记流式生成实现
+
+### 职业传记流式输出优化
+
+**背景**：
+- 用户反馈传记生成等待时间过长（llm prefill 阶段慢）
+- 需要实现流式输出，提供实时反馈
+- 支持用户中断操作和异常处理
+
+**完成内容**：
+
+#### 1. 实现流式 LLM 调用 (llmService.ts)
+
+**核心功能**：
+- 添加 `callLLMStream()` 函数支持流式响应
+- 使用 Server-Sent Events (SSE) 格式处理流式数据
+- 通过 `onChunk` 回调实时传递生成内容
+
+**技术实现**：
+```typescript
+export async function callLLMStream(
+  request: LLMRequest & { onChunk?: (chunk: string) => void }
+): Promise<string>
+```
+
+- 解析 SSE 格式：`data: {...}\n\n`
+- 提取 `choices[0].delta.content` 内容
+- 累积完整内容并实时回调
+
+**涉及文件**：
+- `backend/src/services/llmService.ts:38-93` - 添加 callLLMStream 函数
+
+#### 2. 传记 API 流式化改造 (run.ts)
+
+**改动点**：
+- 设置 SSE 响应头：`Content-Type: text/event-stream`
+- 发送流式事件：`start`, `chunk`, `complete`, `error`, `timeout`
+- 120 秒超时保护，超时后发送 `timeout` 事件并保留已生成内容
+- 降低 `max_tokens` 从 2500 到 1500
+
+**SSE 事件格式**：
+```json
+{"type": "start"}
+{"type": "chunk", "content": "生成的片段"}
+{"type": "complete", "content": "完整传记"}
+{"type": "timeout", "content": "部分内容"}
+{"type": "error", "error": "错误信息"}
+```
+
+**涉及文件**：
+- `backend/src/api/run.ts:247-384` - 重构传记生成为流式
+- `backend/prompts/narrative/career-biography.md` - 优化为全中文
+
+#### 3. 前端流式 API 客户端 (eventsApi.ts)
+
+**核心功能**：
+- 实现 `generateBiographyStream()` 函数
+- 使用 `AbortController` 支持取消操作
+- 解析 SSE 响应流
+- 提供回调接口：`onChunk`, `onComplete`, `onError`
+
+**技术实现**：
+```typescript
+export async function generateBiographyStream(
+  gameId: string,
+  gameData: BiographyInput,
+  callbacks: {
+    onChunk: (chunk: string) => void;
+    onComplete: (content: string) => void;
+    onError: (error: string, partialContent?: string) => void;
+  },
+  signal?: AbortSignal
+): Promise<void>
+```
+
+**涉及文件**：
+- `frontend/src/api/eventsApi.ts:198-286` - 添加流式生成函数
+
+#### 4. Result 页面流式 UI (Result.tsx)
+
+**新增功能**：
+1. **实时渲染**：生成内容实时追加到界面
+2. **停止按钮**：允许用户中断生成
+3. **状态指示**：
+   - "正在生成..." - 生成中
+   - "未完成" - 中断或超时
+4. **按钮状态**：
+   - 生成中：禁用复制/分享按钮
+   - 完成后：启用复制/分享按钮
+
+**新增状态**：
+- `isIncomplete`: 标记传记是否未完成
+- `abortControllerRef`: 引用 AbortController 用于取消
+
+**涉及文件**：
+- `frontend/src/pages/Result.tsx` - 流式生成 UI 实现
+
+#### 5. Prompt 优化
+
+**改动点**：
+- 全部改为中文展示（行动类型、训练类型等）
+- 行动类型："做项目"、"接私活"、"偷工减料"、"休息"
+- 训练类型："基础工作能力训练"、"高级工作能力训练"等
+- 减少英文术语，提升用户体验
+
+**涉及文件**：
+- `backend/prompts/narrative/career-biography.md` - 中文优化
+
+#### 6. LLM 连接预热 (index.ts)
+
+**问题**：Prefill 阶段耗时过长
+
+**解决方案**：服务器启动后预热 LLM 连接
+
+**实现细节**：
+- 启动后 2 秒发送预热请求
+- 预热请求仅 10 个 token，足够加载模型到内存
+- 后台执行，不阻塞服务器启动
+- 记录预热耗时到控制台
+
+**涉及文件**：
+- `backend/src/index.ts:22-58` - 添加 warmupLLMConnection 函数
+- `backend/src/index.ts:138-139` - 调用预热
+
+---
+
+### 技术亮点
+
+1. **Server-Sent Events (SSE)**：
+   - 标准化的流式数据传输格式
+   - 自动处理断线重连
+   - 浏览器原生支持
+
+2. **AbortController**：
+   - 标准化的取消机制
+   - 支持用户主动中断
+   - 清理资源避免泄漏
+
+3. **部分内容保留**：
+   - 超时或取消时保留已生成内容
+   - 标记"未完成"状态
+   - 用户可以基于部分内容继续
+
+4. **LLM 预热优化**：
+   - 首次请求前加载模型到内存
+   - 减少用户等待时间
+   - 后台异步执行不影响启动
+
+---
+
+### 测试验证
+
+- ✅ TypeScript 编译通过（前端 + 后端）
+- ✅ 前端构建成功
+- ✅ 流式输出正常工作
+- ✅ 停止按钮可以中断生成
+- ✅ 超时保护机制生效
+- ✅ 部分内容正确保留
+- ✅ LLM 预热功能正常
+
+---
+
+### 提交历史
+
+```
+d871505 fix: 添加 runId 重连功能解决传记生成按钮禁用问题
+0cbcb03 feat: 实现传记流式生成和用户控制
+b29084b feat: 添加 LLM 连接预热以减少 prefill 延迟
+```
+
+---
+
+### Review 状态
+
+**Review 通过点**：
+1. ✅ 代码符合 TypeScript 类型规范
+2. ✅ SSE 流式实现标准
+3. ✅ 错误处理完善（超时、取消、LLM 不可用）
+4. ✅ UI 反馈及时友好
+5. ✅ Prompt 优化为全中文
+
+**特殊亮点**：
+- 使用 SSE 标准实现流式输出
+- AbortController 实现优雅取消
+- 预热机制减少首次等待时间
+- 部分内容保留提升用户体验
