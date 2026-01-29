@@ -170,8 +170,8 @@ export async function initDatabase(): Promise<Database> {
             rank TEXT,
             status TEXT,
             game_state TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(device_id, slot_id)
           )
         `);
