@@ -87,17 +87,29 @@ const Result = () => {
    * 生成职业传记（流式）
    */
   const handleGenerateBiography = async () => {
+    console.log('=== handleGenerateBiography 开始 ===');
+    console.log('当前状态:', {
+      runId,
+      showBiography,
+      biographyLength: biography?.length,
+      biographyKey,
+      isGenerating,
+    });
+
     if (!runId) {
+      console.error('❌ runId 为空，无法生成传记');
       setBiographyError('无法生成传记：缺少游戏记录 ID');
       return;
     }
 
     // 如果正在生成，先停止
     if (abortControllerRef.current) {
+      console.log('⏹️ 中止之前的请求');
       abortControllerRef.current.abort();
     }
 
     // 重置所有状态
+    console.log('🔄 重置所有状态');
     setIsGenerating(true);
     setBiographyError(null);
     setCopySuccess(false);
@@ -105,12 +117,19 @@ const Result = () => {
     setShowBiography(true);
     setBiography(''); // 清空传记
     setIsIncomplete(false);
-    setBiographyKey(prev => prev + 1); // 改变 key 强制 ReactMarkdown 重新挂载
+    setBiographyKey(prev => {
+      const newKey = prev + 1;
+      console.log(`🔑 biographyKey: ${prev} -> ${newKey}`);
+      return newKey;
+    });
+
+    console.log('✅ 状态已重置，准备调用 generateBiographyStream');
 
     // 创建新的 AbortController 用于取消
     abortControllerRef.current = new AbortController();
 
     try {
+      console.log('📡 开始调用 generateBiographyStream，runId:', runId, 'forceRegenerate: true');
       await generateBiographyStream(
         runId,
         {
@@ -137,14 +156,25 @@ const Result = () => {
         },
         {
           onChunk: (chunk: string) => {
-            setBiography(prev => (prev || '') + chunk);
+            console.log('📝 onChunk 收到内容，长度:', chunk.length, '当前传记长度:', biography?.length);
+            setBiography(prev => {
+              const newContent = (prev || '') + chunk;
+              console.log('📝 传记更新:', {
+                prevLength: prev?.length || 0,
+                chunkLength: chunk.length,
+                newLength: newContent.length,
+              });
+              return newContent;
+            });
           },
           onComplete: (content: string) => {
+            console.log('✅ onComplete, 最终内容长度:', content.length);
             setBiography(content);
             setIsIncomplete(false);
             setIsGenerating(false);
           },
           onError: (error: string, partialContent?: string) => {
+            console.error('❌ onError:', error, 'partialContent 长度:', partialContent?.length);
             if (error.includes('取消') || error.includes('超时')) {
               setIsIncomplete(true);
             }
@@ -155,9 +185,11 @@ const Result = () => {
             setIsGenerating(false);
           },
         },
-        abortControllerRef.current.signal
+        abortControllerRef.current.signal,
+        true // forceRegenerate: 强制重新生成，忽略缓存
       );
     } catch (error) {
+      console.error('❌ generateBiographyStream 抛出异常:', error);
       const errorMessage = error instanceof Error ? error.message : '生成传记失败，请稍后重试';
       setBiographyError(errorMessage);
       console.error('生成传记失败:', error);

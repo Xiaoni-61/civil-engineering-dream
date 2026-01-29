@@ -250,18 +250,27 @@ export function createRunRouter(db: Database): Router {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        // 检查缓存是否存在
-        const cached = await db.get(
-          'SELECT content FROM career_biographies WHERE game_id = ?',
-          [gameId]
-        );
+        // 检查是否强制重新生成（忽略缓存）
+        const forceRegenerate = req.query.force === '1' || req.query.force === 'true';
 
-        if (cached) {
-          logger.success('从缓存返回传记（流式）', { gameId });
-          metrics.record('biography_cache_hit', 1);
-          res.write(`data: ${JSON.stringify({ type: 'complete', content: cached.content, cached: true })}\n\n`);
-          res.end();
-          return;
+        // 只在非强制模式下检查缓存
+        if (!forceRegenerate) {
+          const cached = await db.get(
+            'SELECT content FROM career_biographies WHERE game_id = ?',
+            [gameId]
+          );
+
+          if (cached) {
+            logger.success('从缓存返回传记（流式）', { gameId });
+            metrics.record('biography_cache_hit', 1);
+            res.write(`data: ${JSON.stringify({ type: 'complete', content: cached.content, cached: true })}\n\n`);
+            res.end();
+            return;
+          }
+        }
+
+        if (forceRegenerate) {
+          logger.info('强制重新生成传记（忽略缓存）', { gameId });
         }
 
         metrics.record('biography_cache_miss', 1);

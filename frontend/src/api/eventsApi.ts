@@ -208,9 +208,10 @@ export async function generateBiographyStream(
     onComplete: (content: string) => void;
     onError: (error: string, partialContent?: string) => void;
   },
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  forceRegenerate: boolean = false
 ): Promise<void> {
-  const url = `${API_BASE_URL}/api/run/${gameId}/biography`;
+  const url = `${API_BASE_URL}/api/run/${gameId}/biography${forceRegenerate ? '?force=1' : ''}`;
 
   try {
     const response = await fetch(url, {
