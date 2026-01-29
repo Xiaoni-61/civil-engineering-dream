@@ -88,3 +88,17 @@ export type {
 export {
   TeamMemberType,
 } from './team';
+
+// Save types
+export type {
+  SaveGameState,
+  SaveSlot,
+  SaveGameRequest,
+  SaveGameResponse,
+  GetSavesListResponse,
+  LoadGameRequest,
+  LoadGameResponse,
+  DeleteSaveRequest,
+  DeleteSaveResponse,
+  PricePrediction,
+} from './save';
