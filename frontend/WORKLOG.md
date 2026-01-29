@@ -54,6 +54,27 @@
 
 **Review 状态**：待 review
 
+### 传记流式输出实现 ✅ - 0cbcb03
+**功能**：传记生成改为流式输出，优化用户体验
+
+**改动点**：
+- 后端添加 `callLLMStream` 流式调用方法
+- 传记 API 使用 Server-Sent Events (SSE) 流式响应
+- 添加 120 秒超时保护，超时保留已生成内容
+- 前端添加 `generateBiographyStream` 流式接收函数
+- 实时渲染生成内容，添加"停止生成"按钮
+- 生成过程中禁用复制/分享按钮，完成后启用
+- Prompt 中行动类型改为中文（做项目、接私活、偷工减料等）
+
+**涉及文件**：
+- `backend/src/services/llmService.ts`
+- `backend/src/api/run.ts`
+- `backend/prompts/narrative/career-biography.md`
+- `frontend/src/api/eventsApi.ts`
+- `frontend/src/pages/Result.tsx`
+
+**Review 状态**：待 review
+
 ---
 
 ## 2026-01-26
