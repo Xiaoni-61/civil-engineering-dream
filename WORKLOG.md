@@ -2042,3 +2042,95 @@ b29084b feat: 添加 LLM 连接预热以减少 prefill 延迟
 - AbortController 实现优雅取消
 - 预热机制减少首次等待时间
 - 部分内容保留提升用户体验
+
+---
+
+## 2026-01-29
+
+### Task 1 代码质量修复
+
+**背景**：
+- Task 1 "创建存档相关类型定义" 存在 2 个代码质量问题
+- 需要修复循环依赖和 `any` 类型使用
+
+**问题描述**：
+
+1. **循环依赖问题**：
+   - `shared/types/save.ts` 从 `frontend/src/data/events/eventTypes` 导入类型
+   - 在 `shared/` 目录下导入 `frontend/` 目录会造成循环依赖风险
+
+2. **使用 `any` 类型**：
+   - `currentSettlement: any | null` 违反项目代码规范
+   - 应使用 `QuarterSettlement | null`
+
+**修复内容**：
+
+1. **将决策事件类型移至 shared/types/event.ts**：
+   - 添加 `DecisionEvent` 接口
+   - 添加 `DecisionEventOption` 接口
+   - 添加 `DecisionEventEffects` 接口
+   - 添加 `RelationshipEffect` 接口
+   - 添加 `EventResult` 接口
+   - 添加 `EventPoolConfig` 接口
+   - 导入 `Rank` 和 `RelationshipType` 类型
+
+2. **修复 shared/types/save.ts**：
+   - 从 `./event` 导入 `DecisionEvent`, `EventResult`, `EventCard`
+   - 从 `./game` 导入 `QuarterSettlement`
+   - 修复 `currentSettlement` 类型为 `QuarterSettlement | null`
+
+3. **前端保持向后兼容**：
+   - `frontend/src/data/events/eventTypes.ts` 改为从 `@shared/types` 重新导出
+   - 使用类型别名确保兼容性（`DecisionEventOption as DecisionOption`, `DecisionEventEffects as EventEffects`）
+   - 添加注释说明变更原因
+
+**涉及文件**：
+- `shared/types/event.ts` - 添加决策事件系统类型定义（+93行）
+- `shared/types/save.ts` - 修复循环依赖和 any 类型
+- `frontend/src/data/events/eventTypes.ts` - 改为重新导出 shared 类型
+
+**测试验证**：
+- ✅ TypeScript 编译通过（前端）
+- ✅ TypeScript 编译通过（后端）
+- ✅ 前端构建成功
+- ✅ 类型定义完整性保持
+
+**提交**: `641a2b4` - fix: 修复存档类型定义的代码质量问题
+
+**Review 状态**：✅ 代码质量问题已修复
+
+---
+
+## 2026-01-29 (新会话)
+
+### Task 1 最后一个问题修复
+
+**背景**：
+- Task 1 代码质量审查发现的最后一个问题
+- `shared/types/index.ts` 缺少 `DecisionEvent` 和 `EventResult` 等类型的导出
+- 这些类型已经在 `shared/types/event.ts` 中定义，但没有在统一导出文件中导出
+
+**问题描述**：
+- 降低 `@shared/types` 作为统一入口的便利性
+- 使用者需要知道具体类型定义在哪个文件
+
+**修复内容**：
+在 `shared/types/index.ts` 中添加以下类型的导出：
+- `EventCategory`
+- `DecisionEvent`
+- `DecisionEventOption`
+- `DecisionEventEffects`
+- `RelationshipEffect`
+- `EventResult`
+- `EventPoolConfig`
+
+**涉及文件**：
+- `shared/types/index.ts:28-40` - 添加事件类型导出
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 所有类型可从 `@shared/types` 统一导入
+
+**提交**: `77a1faf` - fix: 添加缺失的事件相关类型导出
+
+**Review 状态**：✅ 完成并通过验证
