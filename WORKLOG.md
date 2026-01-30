@@ -2357,3 +2357,83 @@ await db.run(
 **特殊说明**：
 - loadGame 方法当前返回待实现提示，在 Task 7 中完成
 - saveGame 方法包含完整的错误处理和降级机制
+
+## 2026-01-30
+
+### Task 7: 前端实现 loadGame 方法
+
+**背景**：
+- 存档系统实施的第七个任务
+- Task 6 已创建 API 封装和 gameStoreNew 方法骨架
+- getSavesList 已在 Task 6 实现
+- 本任务完成 loadGame 方法的实现
+
+**完成内容**：
+
+1. **添加 loadGameApi 导入**（gameStoreNew.ts:34）
+   - 从 `@/api/savesApi` 导入 `loadGame as loadGameApi`
+   - 避免与 store 方法名称冲突
+
+2. **实现 loadGame 方法**（gameStoreNew.ts:2854-2993）
+   - **验证 deviceId**：确保设备ID存在
+   - **调用 API**：使用 loadGameApi({ slotId })
+   - **验证返回数据**：
+     * 检查 success 字段
+     * 检查 gameState 是否存在
+     * 检查 runId 和 currentQuarter 字段完整性
+   - **恢复游戏状态**：
+     * 使用 `set()` 恢复所有游戏状态
+     * 将 `maintainedRelationships` 从数组转换为 Set
+     * 重置 UI 临时状态（showEventResult、pendingEventResult）
+   - **错误处理**：捕获异常并返回友好错误信息
+
+**关键实现细节**：
+
+1. **Set 类型转换**：
+   ```typescript
+   maintainedRelationships: new Set<RelationshipType>(savedState.maintainedRelationships)
+   ```
+   - 保存时 Set 转为数组
+   - 加载时数组转回 Set
+
+2. **UI 临时状态重置**：
+   - `showEventResult: false`
+   - `pendingEventResult: null`
+   - 这些状态不需要保存，加载后重置
+
+3. **完整状态恢复**：
+   - 基础信息：playerName, playerGender, runId, deviceId
+   - 核心数值：stats, score
+   - 游戏进度：status, currentQuarter, phase, endReason
+   - 职级系统：rank, actualSalary, gameStats
+   - 材料系统：inventory, materialPrices, materialPriceHistory, nextQuarterRealPrices, pricePredictions
+   - 关系系统：relationships, maintenanceCount, materialTradeCount, maintainedRelationships
+   - 项目状态：projectProgress, projectQuality, projectCompletedThisQuarter
+   - 团队系统：team
+   - 事件系统：currentEvent, eventHistory, pendingEvents, quarterEvents 等
+   - 行动系统：actionPoints, actionsThisQuarter, currentQuarterActionCounts 等
+   - 训练系统：trainingCooldowns, currentQuarterTrainingCounts
+   - 特殊效果：pricePredictionBonus, storageFeeDiscount, qualityProjectJustCompleted
+   - 关键决策记录：keyDecisions, quarterlyActions
+   - LLM 相关：specialEventCount, isLLMEnhancing
+   - 当前季度结算数据：currentSettlement
+
+**涉及文件**：
+- `frontend/src/store/gameStoreNew.ts:34` - 添加 loadGameApi 导入
+- `frontend/src/store/gameStoreNew.ts:2854-2993` - 实现 loadGame 方法（+140行）
+
+**测试验证**：
+- ✅ TypeScript 编译通过（前端）
+- ✅ 所有状态字段正确恢复
+- ✅ maintainedRelationships 正确转换为 Set
+- ✅ UI 临时状态正确重置
+- ⏳ 需要手动测试完整加载流程
+
+**Review 状态**：✅ 实现完成
+
+**提交**: `b1455d6` - feat: 前端实现 loadGame 方法
+
+**特殊说明**：
+- Task 7 完成，loadGame 和 getSavesList 两个方法均已实现
+- 下一步：Task 8 创建存档选择组件
+
