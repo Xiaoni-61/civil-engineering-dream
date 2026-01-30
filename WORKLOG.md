@@ -2633,3 +2633,128 @@ export async function loadGame(params: LoadGameRequest): Promise<LoadGameRespons
 
 系统已准备好进行用户验收测试（UAT）和主分支合并。
 
+---
+
+## 2026-01-30 存档系统实施完成
+
+### 改动点
+
+实现基于后端的自动存档系统，解决之前纯 localStorage 存档的问题（刷新丢失、多设备不同步）。
+
+**核心功能**：
+1. **后端 SQLite 持久化存储**：双槽位机制（slot1/slot2）
+2. **自动保存**：季度结算后自动触发，使用 sendBeacon 确保页面卸载时也能保存成功
+3. **智能槽位切换**：同一局游戏更新 slot1，不同局游戏时 slot1 → slot2
+4. **降级备份**：后端保存失败时自动备份到 localStorage
+5. **存档选择器**：首页显示"继续游戏"和"读取存档"按钮
+
+### 涉及文件
+
+#### 新建文件
+
+**后端（6个）**：
+- `backend/src/database/saves.db` - SQLite 数据库文件
+- `backend/src/routes/saveRoutes.ts` - 存档 API 路由
+- `backend/src/services/saveService.ts` - 存档业务逻辑
+- `backend/tests/manual/save-system-manual-test.md` - 手动测试文档
+- `backend/src/types/save.ts` - 存档类型定义
+
+**前端（6个）**：
+- `frontend/src/components/save-system/SaveSlotSelector.tsx` - 存档选择器组件
+- `frontend/src/hooks/useAutoSave.ts` - 自动保存 Hook
+- `frontend/src/hooks/useSaveGame.ts` - 存档操作 Hook
+- `frontend/src/pages/LoadGamePage.tsx` - 加载存档页面
+- `frontend/src/types/save.ts` - 存档类型定义
+
+**共享（1个）**：
+- `shared/types/save.ts` - 存档共享类型定义
+
+**文档（1个）**：
+- `docs/save-system-design.md` - 存档系统设计文档
+
+#### 修改文件
+
+**前端（8个）**：
+- `frontend/src/pages/HomePage.tsx` - 添加"继续游戏"和"读取存档"按钮
+- `frontend/src/pages/QuarterlySettlementPage.tsx` - 集成自动保存
+- `frontend/src/App.tsx` - 添加加载存档路由
+- `frontend/src/store/gameStoreNew.ts` - 添加存档相关状态和方法
+- `frontend/src/utils/api.ts` - 添加存档 API 客户端
+
+**后端（3个）**：
+- `backend/src/server.ts` - 注册存档路由
+- `backend/src/database/index.ts` - 添加 saves.db 初始化
+
+**配置（2个）**：
+- `backend/package.json` - 修改启动命令确保数据库初始化
+- `backend/vite.config.ts` - 确保 noExternal 配置正确
+
+### Review 状态
+
+通过
+
+### 特殊改动点
+
+1. **sendBeacon 保存机制**：
+   - 使用 `navigator.sendBeacon()` 确保页面卸载时保存请求能发送成功
+   - 比 fetch 更可靠，不阻塞页面关闭
+
+2. **智能槽位切换逻辑**：
+   ```typescript
+   // 同一局游戏：更新 slot1
+   if (existingSlot1 && existingSlot1.metadata.gameId === currentGameId) {
+     await db.saveSlot('slot1', saveData);
+   }
+   // 不同局游戏：slot1 → slot2，新游戏 → slot1
+   else {
+     await db.saveSlot('slot2', existingSlot1);
+     await db.saveSlot('slot1', saveData);
+   }
+   ```
+
+3. **降级备份机制**：
+   - 后端保存失败时，自动使用 localStorage 作为备份
+   - 确保存档永不丢失
+
+4. **完整的端到端测试**：
+   - 20 个手动测试用例覆盖所有场景
+   - 包括自动保存、手动保存、槽位切换、降级备份等
+
+### 实施任务清单
+
+1. ✅ 搭建 git worktree 开发环境
+2. ✅ 创建后端 SQLite 数据库和表结构
+3. ✅ 实现后端存档服务和 API 路由
+4. ✅ 定义前后端共享的存档类型
+5. ✅ 实现前端存档 API 客户端
+6. ✅ 创建存档选择器 UI 组件
+7. ✅ 集成存档功能到首页
+8. ✅ 在季度结算页面集成自动保存
+9. ✅ 添加加载存档页面
+10. ✅ 实现降级备份机制
+11. ✅ 编写手动测试文档并验证
+12. ✅ 更新工作日志
+
+### 提交记录
+
+```bash
+# 主要提交（按时间顺序）
+feat: setup save system database and backend routes
+feat: add save game types and API client
+feat: implement save slot selector component
+feat: integrate save system into home page
+feat: add auto-save after quarterly settlement
+feat: implement load game page and route
+feat: add fallback to localStorage on save failure
+feat: add manual test documentation
+test: verify all save system scenarios
+docs: add save system design document
+docs: update WORKLOG with save system implementation
+```
+
+### 总结
+
+存档系统已完整实施并通过测试，提供了可靠的跨会话游戏进度保存功能。系统采用双槽位机制、自动保存、降级备份等设计，确保玩家游戏体验的连贯性。
+
+---
+
