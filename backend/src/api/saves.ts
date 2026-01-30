@@ -125,5 +125,86 @@ export function createSavesRouter(db: Database): Router {
     }
   });
 
+  /**
+   * GET /api/saves/list?deviceId=xxx
+   * 获取存档列表
+   *
+   * 逻辑：
+   * 1. 验证 deviceId 参数
+   * 2. 查询该设备的所有存档: 按 device_id 查询
+   * 3. 构建返回结果: 始终返回 2 个槽位（slot1 和 slot2）
+   * 4. 返回响应: success, saves 数组
+   */
+  router.get('/list', async (req: Request, res: Response) => {
+    console.log('=== /api/saves/list 收到请求 ===');
+
+    try {
+      const { deviceId } = req.query;
+
+      // 1. 验证 deviceId 参数
+      if (!deviceId || typeof deviceId !== 'string') {
+        console.log('❌ 缺少 deviceId 参数');
+        return res.status(400).json({
+          code: 'MISSING_DEVICE_ID',
+          message: '缺少 deviceId 参数',
+        });
+      }
+
+      // 2. 查询该设备的所有存档（按 device_id 查询）
+      const existingSaves = await db.all(
+        `SELECT * FROM game_saves WHERE device_id = ? ORDER BY slot_id`,
+        [deviceId]
+      );
+
+      console.log(`📋 查询到 ${existingSaves.length} 个存档`);
+
+      // 3. 构建返回结果：始终返回 2 个槽位
+      const slot1 = existingSaves.find(s => s.slot_id === 1);
+      const slot2 = existingSaves.find(s => s.slot_id === 2);
+
+      const saves = [
+        slot1 ? {
+          slotId: 1,
+          hasSlot: true,
+          runId: slot1.run_id,
+          playerName: slot1.player_name,
+          rank: slot1.rank,
+          currentQuarter: slot1.current_quarter,
+          updatedAt: slot1.updated_at,
+        } : {
+          slotId: 1,
+          hasSlot: false,
+        },
+        slot2 ? {
+          slotId: 2,
+          hasSlot: true,
+          runId: slot2.run_id,
+          playerName: slot2.player_name,
+          rank: slot2.rank,
+          currentQuarter: slot2.current_quarter,
+          updatedAt: slot2.updated_at,
+        } : {
+          slotId: 2,
+          hasSlot: false,
+        },
+      ];
+
+      // 4. 返回响应
+      res.status(200).json({
+        code: 'SUCCESS',
+        data: {
+          success: true,
+          saves,
+        },
+      });
+    } catch (error) {
+      console.error('❌ /api/saves/list 错误：', error);
+      res.status(500).json({
+        code: 'ERROR',
+        message: (error as Error).message || '服务器错误',
+      });
+    }
+  });
+
   return router;
 }
