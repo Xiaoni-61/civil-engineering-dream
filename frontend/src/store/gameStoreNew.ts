@@ -30,6 +30,8 @@ import {
   TeamMember,
   TeamIssue,
 } from '@shared/types';
+import type { SaveSlot, SaveGameState } from '@shared/types/save';
+import { saveGame as saveGameApi, getSavesList } from '@/api/savesApi';
 import { EVENTS } from '@/data/events';
 import {
   GAME_CONFIG,
@@ -363,6 +365,11 @@ interface GameStore extends GameState {
 
   // 关键决策系统（传记生成）
   isImportantDecision: (event: EventCard, selectedOption: EventOption) => boolean;
+
+  // 存档系统
+  saveGame: (slotId?: 1 | 2) => Promise<{ success: boolean; message?: string; slotId?: 1 | 2 }>;
+  loadGame: (slotId: 1 | 2) => Promise<{ success: boolean; message?: string }>;
+  getSavesList: () => Promise<SaveSlot[]>;
 }
 
 // ==================== 材料价格初始化 ====================
@@ -2687,5 +2694,208 @@ export const useGameStore = create<GameStore>((set, get) => ({
   getCurrentEventResult: () => {
     const state = get();
     return state.pendingEventResult;
+  },
+
+  // ==================== 存档系统 ====================
+
+  /**
+   * 保存游戏存档
+   * @param slotId 存档槽位（默认为 1）
+   * @returns 保存结果
+   */
+  saveGame: async (slotId: 1 | 2 = 1) => {
+    const state = get();
+
+    // 1. 验证 deviceId 和 runId
+    if (!state.deviceId) {
+      return {
+        success: false,
+        message: '设备ID不存在，无法保存存档',
+      };
+    }
+
+    if (!state.runId) {
+      return {
+        success: false,
+        message: '游戏会话ID不存在，无法保存存档',
+      };
+    }
+
+    // 2. 构建保存数据（排除UI临时状态）
+    const saveData: SaveGameState = {
+      // 玩家基础信息
+      playerName: state.playerName,
+      playerGender: state.playerGender,
+      runId: state.runId,
+      deviceId: state.deviceId,
+
+      // 核心数值
+      stats: state.stats,
+      score: state.score,
+
+      // 游戏进度
+      status: state.status,
+      currentQuarter: state.currentQuarter,
+      maxActionsPerQuarter: state.maxActionsPerQuarter,
+      phase: state.phase,
+      endReason: state.endReason,
+
+      // 职级系统
+      rank: state.rank,
+      actualSalary: state.actualSalary,
+      gameStats: state.gameStats,
+
+      // 材料系统
+      inventory: state.inventory,
+      materialPrices: state.materialPrices,
+      materialPriceHistory: state.materialPriceHistory,
+      nextQuarterRealPrices: state.nextQuarterRealPrices,
+      pricePredictions: state.pricePredictions,
+
+      // 关系系统
+      relationships: state.relationships,
+      maintenanceCount: state.maintenanceCount,
+      materialTradeCount: state.materialTradeCount,
+      maintainedRelationships: Array.from(state.maintainedRelationships),
+
+      // 项目状态
+      projectProgress: state.projectProgress,
+      projectQuality: state.projectQuality,
+      projectCompletedThisQuarter: state.projectCompletedThisQuarter,
+
+      // 团队系统
+      team: state.team,
+
+      // 事件系统
+      currentEvent: state.currentEvent,
+      eventHistory: state.eventHistory,
+      pendingEvents: state.pendingEvents,
+      quarterEvents: state.quarterEvents,
+      currentEventIndex: state.currentEventIndex,
+      completedEventResults: state.completedEventResults,
+      allEventHistory: state.allEventHistory,
+      pendingEventResult: state.pendingEventResult,
+      showEventResult: state.showEventResult,
+
+      // 行动系统
+      actionPoints: state.actionPoints,
+      maxActionPoints: state.maxActionPoints,
+      actionsThisQuarter: state.actionsThisQuarter,
+      actionsSinceLastEventCheck: state.actionsSinceLastEventCheck,
+      currentQuarterActionCounts: state.currentQuarterActionCounts,
+
+      // 训练系统
+      trainingCooldowns: state.trainingCooldowns,
+      currentQuarterTrainingCounts: state.currentQuarterTrainingCounts,
+
+      // 特殊效果
+      pricePredictionBonus: state.pricePredictionBonus,
+      storageFeeDiscount: state.storageFeeDiscount,
+      qualityProjectJustCompleted: state.qualityProjectJustCompleted,
+
+      // 关键决策记录
+      keyDecisions: state.keyDecisions,
+
+      // 季度行动记录
+      quarterlyActions: state.quarterlyActions,
+
+      // LLM 相关
+      specialEventCount: state.specialEventCount,
+      isLLMEnhancing: state.isLLMEnhancing,
+
+      // 当前季度结算数据
+      currentSettlement: state.currentSettlement,
+    };
+
+    // 3. 调用后端 API
+    try {
+      const response = await saveGameApi({
+        slotId,
+        gameState: saveData,
+      });
+
+      if (response.success) {
+        return {
+          success: true,
+          message: response.message || '存档保存成功',
+          slotId: response.saveSlot?.slotId,
+        };
+      } else {
+        throw new Error(response.message || '存档保存失败');
+      }
+    } catch (error) {
+      console.error('保存存档失败:', error);
+
+      // 4. 失败时备份到 localStorage
+      try {
+        const backupKey = `civil-engineering-save-backup-${slotId}`;
+        localStorage.setItem(backupKey, JSON.stringify(saveData));
+        console.log('存档已备份到 localStorage:', backupKey);
+
+        return {
+          success: false,
+          message: `存档保存失败，已备份到本地: ${(error as Error).message}`,
+        };
+      } catch (backupError) {
+        console.error('备份到 localStorage 失败:', backupError);
+        return {
+          success: false,
+          message: `存档保存失败且备份失败: ${(error as Error).message}`,
+        };
+      }
+    }
+  },
+
+  /**
+   * 加载游戏存档
+   * @param slotId 存档槽位
+   * @returns 加载结果
+   */
+  loadGame: async (slotId: 1 | 2) => {
+    const state = get();
+
+    // 验证 deviceId
+    if (!state.deviceId) {
+      return {
+        success: false,
+        message: '设备ID不存在，无法加载存档',
+      };
+    }
+
+    // TODO: 实现加载逻辑（在下一个任务中完成）
+    return {
+      success: false,
+      message: '加载功能待实现',
+    };
+  },
+
+  /**
+   * 获取存档列表
+   * @returns 存档槽位列表
+   */
+  getSavesList: async () => {
+    const state = get();
+
+    // 验证 deviceId
+    if (!state.deviceId) {
+      console.warn('设备ID不存在，返回空存档列表');
+      return [
+        { slotId: 1, hasSlot: false },
+        { slotId: 2, hasSlot: false },
+      ];
+    }
+
+    try {
+      const response = await getSavesList(state.deviceId);
+      return response.slots;
+    } catch (error) {
+      console.error('获取存档列表失败:', error);
+
+      // 失败时返回空列表
+      return [
+        { slotId: 1, hasSlot: false },
+        { slotId: 2, hasSlot: false },
+      ];
+    }
   },
 }));
