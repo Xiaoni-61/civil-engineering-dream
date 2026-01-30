@@ -87,18 +87,12 @@ export function createSavesRouter(db: Database): Router {
           // 有存档，不同 runId → slot1 复制到 slot2，新游戏存到 slot1
           console.log('📝 存档 slot1 移至 slot2，创建新 slot1');
 
-          // 先删除旧的 slot2（如果存在）
+          // 使用 INSERT OR REPLACE 将 slot1 复制到 slot2（原子操作：自动删除旧 slot2 并插入新数据）
           await db.run(
-            `DELETE FROM game_saves WHERE device_id = ? AND slot_id = ?`,
-            [deviceId, 2]
-          );
-
-          // 将 slot1 复制到 slot2
-          await db.run(
-            `INSERT INTO game_saves
-             (device_id, slot_id, run_id, player_name, player_gender, current_quarter, rank, status, game_state, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [deviceId, 2, slot1.run_id, slot1.player_name, slot1.player_gender, slot1.current_quarter, slot1.rank, slot1.status, slot1.game_state, now]
+            `INSERT OR REPLACE INTO game_saves
+             (device_id, slot_id, run_id, player_name, player_gender, current_quarter, rank, status, game_state, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [deviceId, 2, slot1.run_id, slot1.player_name, slot1.player_gender, slot1.current_quarter, slot1.rank, slot1.status, slot1.game_state, slot1.created_at, now]
           );
 
           // 将新游戏存到 slot1

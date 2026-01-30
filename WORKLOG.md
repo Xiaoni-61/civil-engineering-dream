@@ -2134,3 +2134,72 @@ b29084b feat: 添加 LLM 连接预热以减少 prefill 延迟
 **提交**: `77a1faf` - fix: 添加缺失的事件相关类型导出
 
 **Review 状态**：✅ 完成并通过验证
+
+---
+
+## 2026-01-30
+
+### Task 3 代码质量修复：缺少事务处理
+
+**背景**：
+- Task 3 "实现后端保存存档 API" 存在代码质量问题
+- 在"不同 runId"场景中执行了三个数据库操作但没有使用事务
+- 可能导致数据不一致（如 DELETE 成功但 INSERT 失败）
+
+**问题描述**：
+
+1. **原代码问题**（saves.ts:86-112）：
+   ```typescript
+   // 不同 runId 时执行三个独立操作：
+   await db.run(`DELETE FROM game_saves WHERE device_id = ? AND slot_id = 2`, ...);
+   await db.run(`INSERT INTO game_saves ...`, ...);  // 复制 slot1 到 slot2
+   await db.run(`UPDATE game_saves ...`, ...);       // 更新 slot1
+   ```
+   - 如果 INSERT 失败，slot1 已被删除但 slot2 没有创建成功
+   - 数据不一致风险
+
+2. **约束条件**：
+   - 当前 `Database` 接口不支持事务
+   - 表有 `UNIQUE(device_id, slot_id)` 约束
+
+**修复方案**：
+
+使用 `INSERT OR REPLACE` 将三个操作简化为两个原子操作：
+1. `INSERT OR REPLACE` slot2（原子操作：自动删除旧 slot2 并插入新数据）
+2. UPDATE slot1
+
+**修复后代码**：
+```typescript
+// 使用 INSERT OR REPLACE 将 slot1 复制到 slot2（原子操作）
+await db.run(
+  `INSERT OR REPLACE INTO game_saves
+   (device_id, slot_id, run_id, player_name, player_gender, current_quarter, rank, status, game_state, created_at, updated_at)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  [deviceId, 2, slot1.run_id, slot1.player_name, slot1.player_gender, slot1.current_quarter, slot1.rank, slot1.status, slot1.game_state, slot1.created_at, now]
+);
+
+// 将新游戏存到 slot1
+await db.run(
+  `UPDATE game_saves
+   SET run_id = ?, player_name = ?, player_gender = ?, current_quarter = ?, rank = ?, status = ?, game_state = ?, updated_at = ?
+   WHERE device_id = ? AND slot_id = ?`,
+  [runId, playerName, playerGender, currentQuarter, rank, status, JSON.stringify(gameState), now, deviceId, slotId]
+);
+```
+
+**优势**：
+1. **原子性**：`INSERT OR REPLACE` 是单一原子操作，要么成功要么失败
+2. **改动最小**：不需要扩展 Database 接口或添加事务支持
+3. **符合约束**：利用 UNIQUE 约束实现原子替换
+4. **保留 created_at**：显式传递 `slot1.created_at` 保留原始创建时间
+
+**涉及文件**：
+- `backend/src/api/saves.ts:86-106` - 修复缺少事务处理问题
+
+**测试验证**：
+- ✅ TypeScript 编译通过（后端）
+- ✅ 逻辑正确性验证
+
+**Review 状态**：✅ 代码质量问题已修复
+
+**提交**: (待提交)
