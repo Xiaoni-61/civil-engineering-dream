@@ -206,5 +206,87 @@ export function createSavesRouter(db: Database): Router {
     }
   });
 
+  /**
+   * POST /api/saves/load
+   * 加载游戏存档
+   *
+   * 逻辑：
+   * 1. 验证必需字段: deviceId, slotId
+   * 2. 查询存档: 按 device_id 和 slot_id 查询
+   * 3. 解析游戏状态: JSON.parse game_state
+   * 4. 验证必需字段: runId, stats
+   * 5. 返回响应: success, gameState
+   */
+  router.post('/load', async (req: Request, res: Response) => {
+    console.log('=== /api/saves/load 收到请求 ===');
+
+    try {
+      const { deviceId, slotId } = req.body;
+
+      console.log('解析后的数据:', { deviceId, slotId });
+
+      // 1. 验证必需字段
+      if (!deviceId || slotId === undefined || slotId === null) {
+        console.log('❌ 缺少必要字段');
+        return res.status(400).json({
+          code: 'MISSING_FIELDS',
+          message: '缺少必要字段：deviceId、slotId',
+        });
+      }
+
+      // 2. 查询存档（按 device_id 和 slot_id 查询）
+      const save = await db.get(
+        `SELECT * FROM game_saves WHERE device_id = ? AND slot_id = ?`,
+        [deviceId, slotId]
+      );
+
+      if (!save) {
+        console.log('❌ 存档不存在');
+        return res.status(404).json({
+          code: 'SAVE_NOT_FOUND',
+          message: `槽位 ${slotId} 没有存档`,
+        });
+      }
+
+      console.log(`📦 找到存档: runId=${save.run_id}, playerName=${save.player_name}`);
+
+      // 3. 解析游戏状态
+      let gameState;
+      try {
+        gameState = JSON.parse(save.game_state);
+      } catch (error) {
+        console.error('❌ 解析游戏状态失败：', error);
+        return res.status(500).json({
+          code: 'PARSE_ERROR',
+          message: '游戏状态解析失败',
+        });
+      }
+
+      // 4. 验证必需字段
+      if (!gameState.runId || !gameState.stats) {
+        console.log('❌ 游戏状态缺少必要字段');
+        return res.status(500).json({
+          code: 'INVALID_STATE',
+          message: '游戏状态缺少必要字段：runId、stats',
+        });
+      }
+
+      // 5. 返回响应
+      res.status(200).json({
+        code: 'SUCCESS',
+        data: {
+          success: true,
+          gameState,
+        },
+      });
+    } catch (error) {
+      console.error('❌ /api/saves/load 错误：', error);
+      res.status(500).json({
+        code: 'ERROR',
+        message: (error as Error).message || '服务器错误',
+      });
+    }
+  });
+
   return router;
 }
