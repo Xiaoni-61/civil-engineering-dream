@@ -31,7 +31,7 @@ import {
   TeamIssue,
 } from '@shared/types';
 import type { SaveSlot, SaveGameState } from '@shared/types/save';
-import { saveGame as saveGameApi, getSavesList } from '@/api/savesApi';
+import { saveGame as saveGameApi, loadGame as loadGameApi, getSavesList } from '@/api/savesApi';
 import { EVENTS } from '@/data/events';
 import {
   GAME_CONFIG,
@@ -2851,7 +2851,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
    * @param slotId 存档槽位
    * @returns 加载结果
    */
-  loadGame: async (_slotId: 1 | 2) => {
+  loadGame: async (slotId: 1 | 2) => {
     const state = get();
 
     // 验证 deviceId
@@ -2862,11 +2862,133 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }
 
-    // TODO: 实现加载逻辑（在下一个任务中完成）
-    return {
-      success: false,
-      message: '加载功能待实现',
-    };
+    try {
+      // 调用 API 加载存档
+      const response = await loadGameApi({ slotId });
+
+      if (!response.success) {
+        return {
+          success: false,
+          message: response.message || '加载存档失败',
+        };
+      }
+
+      if (!response.gameState) {
+        return {
+          success: false,
+          message: '存档数据为空',
+        };
+      }
+
+      const savedState = response.gameState;
+
+      // 验证返回数据的基本完整性
+      if (!savedState.runId || savedState.currentQuarter === undefined) {
+        return {
+          success: false,
+          message: '存档数据不完整',
+        };
+      }
+
+      // 恢复游戏状态
+      // 注意：maintainedRelationships 需要从数组转换为 Set
+      // 注意：UI 临时状态（showEventResult、pendingEventResult）加载后重置
+      set({
+        // 基础信息
+        playerName: savedState.playerName,
+        playerGender: savedState.playerGender,
+        runId: savedState.runId,
+        deviceId: savedState.deviceId,
+
+        // 核心数值
+        stats: savedState.stats,
+        score: savedState.score,
+
+        // 游戏进度
+        status: savedState.status,
+        currentQuarter: savedState.currentQuarter,
+        maxActionsPerQuarter: savedState.maxActionsPerQuarter,
+        phase: savedState.phase,
+        endReason: savedState.endReason,
+
+        // 职级系统
+        rank: savedState.rank,
+        actualSalary: savedState.actualSalary,
+        gameStats: savedState.gameStats,
+
+        // 材料系统
+        inventory: savedState.inventory,
+        materialPrices: savedState.materialPrices,
+        materialPriceHistory: savedState.materialPriceHistory,
+        nextQuarterRealPrices: savedState.nextQuarterRealPrices,
+        pricePredictions: savedState.pricePredictions,
+
+        // 关系系统（将数组转换为 Set）
+        relationships: savedState.relationships,
+        maintenanceCount: savedState.maintenanceCount,
+        materialTradeCount: savedState.materialTradeCount,
+        maintainedRelationships: new Set<RelationshipType>(savedState.maintainedRelationships),
+
+        // 项目状态
+        projectProgress: savedState.projectProgress,
+        projectQuality: savedState.projectQuality,
+        projectCompletedThisQuarter: savedState.projectCompletedThisQuarter,
+
+        // 团队系统
+        team: savedState.team,
+
+        // 事件系统
+        currentEvent: savedState.currentEvent,
+        eventHistory: savedState.eventHistory,
+        pendingEvents: savedState.pendingEvents,
+        quarterEvents: savedState.quarterEvents,
+        currentEventIndex: savedState.currentEventIndex,
+        completedEventResults: savedState.completedEventResults,
+        allEventHistory: savedState.allEventHistory,
+
+        // 重置 UI 临时状态（这些状态不需要保存，加载后重置）
+        pendingEventResult: null,
+        showEventResult: false,
+
+        // 行动系统
+        actionPoints: savedState.actionPoints,
+        maxActionPoints: savedState.maxActionPoints,
+        actionsThisQuarter: savedState.actionsThisQuarter,
+        actionsSinceLastEventCheck: savedState.actionsSinceLastEventCheck,
+        currentQuarterActionCounts: savedState.currentQuarterActionCounts,
+
+        // 训练系统
+        trainingCooldowns: savedState.trainingCooldowns,
+        currentQuarterTrainingCounts: savedState.currentQuarterTrainingCounts,
+
+        // 特殊效果
+        pricePredictionBonus: savedState.pricePredictionBonus,
+        storageFeeDiscount: savedState.storageFeeDiscount,
+        qualityProjectJustCompleted: savedState.qualityProjectJustCompleted,
+
+        // 关键决策和季度行动记录
+        keyDecisions: savedState.keyDecisions,
+        quarterlyActions: savedState.quarterlyActions,
+
+        // LLM 相关
+        specialEventCount: savedState.specialEventCount,
+        isLLMEnhancing: savedState.isLLMEnhancing,
+
+        // 当前季度结算数据
+        currentSettlement: savedState.currentSettlement,
+      });
+
+      return {
+        success: true,
+        message: '存档加载成功',
+      };
+    } catch (error) {
+      console.error('加载存档失败:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : '加载存档时发生未知错误',
+      };
+    }
   },
 
   /**
