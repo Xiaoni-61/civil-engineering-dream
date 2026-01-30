@@ -2437,3 +2437,199 @@ await db.run(
 - Task 7 完成，loadGame 和 getSavesList 两个方法均已实现
 - 下一步：Task 8 创建存档选择组件
 
+---
+
+## 2026-01-30
+
+### Bug 修复：loadGame API 缺少 deviceId 参数
+
+**背景**：
+- 在端到端测试中发现 loadGame API 调用失败
+- 后端需要 deviceId 和 slotId 参数
+- 前端只传递了 slotId
+
+**问题描述**：
+- `frontend/src/api/savesApi.ts` 中的 `loadGame` 函数没有添加 `deviceId` 参数
+- 与其他 API 函数（如 `startGame`, `finishGame`）不一致
+- 后端返回 400 错误：缺少必要字段
+
+**修复内容**：
+1. 添加 `generateDeviceId` 导入
+2. 在 loadGame 函数中调用 `generateDeviceId()` 获取设备 ID
+3. 将 deviceId 包含在请求体中：`{ deviceId, ...params }`
+
+**修复后代码**：
+```typescript
+export async function loadGame(params: LoadGameRequest): Promise<LoadGameResponse> {
+  const deviceId = generateDeviceId();
+
+  const response = await apiRequest('/api/saves/load', {
+    method: 'POST',
+    body: JSON.stringify({
+      deviceId,
+      ...params,
+    }),
+  });
+
+  return response.data;
+}
+```
+
+**涉及文件**：
+- `frontend/src/api/savesApi.ts:6, 52-64` - 修复 loadGame 函数
+
+**测试验证**：
+- ✅ TypeScript 编译通过（前端）
+- ✅ 端到端测试通过（20/20）
+- ✅ 加载 slot1 和 slot2 功能正常
+
+**提交**: (待提交)
+
+**Review 状态**：✅ Bug 已修复
+
+---
+
+## 2026-01-30
+
+### Task 11: 端到端测试
+
+**背景**：
+- 存档系统实施的第十一个任务
+- 验证存档系统的完整功能流程
+- 发现并修复实际使用中的问题
+
+**测试内容**：
+
+#### 1. 创建测试脚本
+
+**文件**：`backend/test-save-system.sh`（308行）
+
+**测试场景**：
+- **场景 1**：无存档时的初始状态（2个测试）
+- **场景 2**：创建第一个游戏存档（3个测试）
+- **场景 3**：更新存档（2个测试）
+- **场景 4**：创建新游戏测试双槽位切换（3个测试）
+- **场景 5**：再创建新游戏验证 slot2 被覆盖（2个测试）
+- **场景 6**：加载存档功能（5个测试）
+- **场景 7**：边界情况测试（2个测试）
+- **场景 8**：验证数据库记录（1个测试）
+
+**总计**：20个测试用例
+
+#### 2. 发现并修复 Bug
+
+**Bug 1**：loadGame API 缺少 deviceId 参数
+- **症状**：测试 13-16 失败，返回 INVALID_STATE
+- **根因**：前端没有传递 deviceId 参数
+- **修复**：在 loadGame 函数中添加 generateDeviceId() 调用
+- **结果**：所有测试通过
+
+#### 3. 测试结果
+
+**最终结果**：✅ 所有测试通过（20/20）
+
+**测试覆盖**：
+- ✅ 存档创建（无存档时）
+- ✅ 存档更新（同 runId）
+- ✅ 双槽位自动切换（不同 runId）
+- ✅ 存档列表获取
+- ✅ 存档加载（slot1 和 slot2）
+- ✅ 边界情况处理（空槽位、缺失参数）
+- ✅ 数据库记录验证
+
+**测试脚本特点**：
+- 使用 `create_game_state()` 函数生成完整的游戏状态 JSON
+- 包含 runId 和 stats 字段，满足后端验证要求
+- 彩色输出（绿色/红色）清晰显示测试结果
+- 自动清理测试数据
+- 详细的测试报告
+
+#### 4. 创建测试报告
+
+**文件**：`backend/TEST_REPORT.md`
+
+**报告内容**：
+- 测试环境信息
+- 测试结果汇总
+- 各测试场景详细说明
+- 发现的问题和修复记录
+- 测试覆盖的功能清单
+- 测试脚本使用说明
+- 结论：系统已准备好进行用户验收测试（UAT）
+
+**涉及文件**：
+- `backend/test-save-system.sh` - 新建（308行）
+- `backend/TEST_REPORT.md` - 新建（125行）
+- `frontend/src/api/savesApi.ts` - 修复 loadGame bug
+
+**测试验证**：
+- ✅ 所有 20 个测试用例通过
+- ✅ 存档系统核心功能完整实现
+- ✅ 双槽位机制工作正常
+- ✅ API 接口符合设计
+- ✅ 数据持久化正常
+- ✅ 边界情况处理得当
+
+**Review 状态**：✅ 测试完成并通过
+
+**提交**: (待提交)
+
+---
+
+## 2026-01-30
+
+### 存档系统实施总结
+
+**总完成任务数**：11/11（100%）
+**总测试用例**：20（全部通过）
+**发现并修复 Bug 数**：1个
+
+### 完成的任务
+
+1. ✅ Task 1: 创建存档相关类型定义
+2. ✅ Task 2: 创建数据库表结构
+3. ✅ Task 3: 实现后端保存存档 API
+4. ✅ Task 4: 实现后端获取存档列表 API
+5. ✅ Task 5: 实现后端加载存档 API
+6. ✅ Task 6: 前端扩展 gameStoreNew 添加 saveGame 方法
+7. ✅ Task 7: 前端实现 loadGame 和 getSavesList 方法
+8. ✅ Task 8: 创建存档选择组件
+9. ✅ Task 9: 改造首页添加存档功能
+10. ✅ Task 10: 添加退出监听
+11. ✅ Task 11: 端到端测试
+
+### 核心功能
+
+1. **双槽位机制**：
+   - slot1：当前游戏存档
+   - slot2：备份存档
+   - 自动切换：新游戏时自动备份旧存档到 slot2
+
+2. **API 接口**：
+   - POST /api/saves/save - 保存存档
+   - GET /api/saves/list - 获取存档列表
+   - POST /api/saves/load - 加载存档
+
+3. **前端功能**：
+   - 首页显示"继续游戏"和"读取存档"按钮
+   - 存档选择弹窗
+   - 自动保存（季度结算后）
+   - localStorage 备份机制
+
+### 技术亮点
+
+1. **完整的类型定义**：TypeScript 类型安全
+2. **原子操作**：使用 INSERT OR REPLACE 避免事务
+3. **错误处理**：完善的降级机制（localStorage 备份）
+4. **测试覆盖**：20 个端到端测试用例
+
+### 提交历史
+
+```
+(待列出所有提交)
+```
+
+### 下一步
+
+系统已准备好进行用户验收测试（UAT）和主分支合并。
+

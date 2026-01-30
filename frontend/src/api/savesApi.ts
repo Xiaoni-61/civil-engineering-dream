@@ -3,7 +3,7 @@
  * 与后端存档 API 交互
  */
 
-import { apiRequest } from './gameApi';
+import { apiRequest, generateDeviceId } from './gameApi';
 import type {
   SaveGameRequest,
   SaveGameResponse,
@@ -46,11 +46,18 @@ export async function saveGame(params: SaveGameRequest): Promise<SaveGameRespons
 /**
  * 加载游戏存档
  * POST /api/saves/load
+ *
+ * 后端需要 deviceId 和 slotId 参数
  */
 export async function loadGame(params: LoadGameRequest): Promise<LoadGameResponse> {
+  const deviceId = generateDeviceId();
+
   const response = await apiRequest('/api/saves/load', {
     method: 'POST',
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      deviceId,
+      ...params,
+    }),
   });
 
   return response.data;
