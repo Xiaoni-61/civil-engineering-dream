@@ -530,6 +530,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const response = await startGameApi();
       console.log('✅ startGameApi 返回:', { runId: response.runId, serverSeed: response.serverSeed });
 
+      // 获取 deviceId（startGameApi 已生成并保存到 localStorage）
+      const deviceId = localStorage.getItem('civil-engineering-device-id') || null;
+
       set({
         ...initialState,
         playerName: finalConfig.name,
@@ -539,12 +542,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         materialPrices: initialPrices,
         materialPriceHistory: initialHistory,
         runId: response.runId,
-        deviceId: null, // deviceId 在后端通过请求体传递，不需要在 store 中存储
+        deviceId, // 必须存储 deviceId，用于保存存档
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
         nextQuarterRealPrices: initialNextQuarterRealPrices,
       });
-      console.log('✅ 游戏状态已设置，runId:', response.runId);
+      console.log('✅ 游戏状态已设置，runId:', response.runId, 'deviceId:', deviceId);
 
       recentEventIds.clear();
       get().drawEvent();
@@ -768,6 +771,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         initialNextQuarterRealPrices[type] = nextQuarterPrices[type].currentPrice;
       });
 
+      // 获取 deviceId（从 localStorage，startGameApi 已经生成并保存了）
+      const deviceId = localStorage.getItem('civil-engineering-device-id') || null;
+
       set({
         ...initialState,
         status: GameStatus.PLAYING,
@@ -775,6 +781,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         materialPrices: initialPrices,
         materialPriceHistory: initialHistory,
         runId: response.runId,
+        deviceId,
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
         nextQuarterRealPrices: initialNextQuarterRealPrices,
@@ -811,6 +818,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         materialPrices: initialPrices,
         materialPriceHistory: initialHistory,
         runId: null,
+        deviceId: localStorage.getItem('civil-engineering-device-id') || null,
         actionsSinceLastEventCheck: 0,
         actionsThisQuarter: 0,
         nextQuarterRealPrices: initialNextQuarterRealPrices,
@@ -2924,10 +2932,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         pricePredictions: savedState.pricePredictions,
 
         // 关系系统（将数组转换为 Set）
-        relationships: savedState.relationships,
-        maintenanceCount: savedState.maintenanceCount,
-        materialTradeCount: savedState.materialTradeCount,
-        maintainedRelationships: new Set<RelationshipType>(savedState.maintainedRelationships),
+        relationships: savedState.relationships || {},
+        maintenanceCount: savedState.maintenanceCount ?? 0,
+        materialTradeCount: savedState.materialTradeCount ?? 0,
+        maintainedRelationships: Array.isArray(savedState.maintainedRelationships)
+          ? new Set<RelationshipType>(savedState.maintainedRelationships)
+          : new Set<RelationshipType>(),
 
         // 项目状态
         projectProgress: savedState.projectProgress,
@@ -2996,20 +3006,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
    * @returns 存档槽位列表
    */
   getSavesList: async () => {
-    const state = get();
-
-    // 验证 deviceId
-    if (!state.deviceId) {
-      console.warn('设备ID不存在，返回空存档列表');
-      return [
-        { slotId: 1, hasSlot: false },
-        { slotId: 2, hasSlot: false },
-      ];
+    // 如果没有 deviceId，先从 localStorage 读取或生成一个
+    let deviceId = get().deviceId;
+    if (!deviceId) {
+      // 尝试从 localStorage 读取（使用统一的 key）
+      deviceId = localStorage.getItem('civil-engineering-device-id');
+      if (!deviceId) {
+        // 生成新的 deviceId 并保存
+        deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+        localStorage.setItem('civil-engineering-device-id', deviceId);
+      }
+      // 更新 store 中的 deviceId
+      set({ deviceId } as any);
     }
 
     try {
-      const response = await getSavesList(state.deviceId);
-      return response.slots;
+      return await getSavesList(deviceId);
     } catch (error) {
       console.error('获取存档列表失败:', error);
 

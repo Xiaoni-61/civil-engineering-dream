@@ -72,9 +72,16 @@ export function EventsPage() {
         {/* 页面标题 */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-slate-900">第 {currentQuarter} 季度</h1>
-          <span className="text-sm text-slate-800">
-            行动点: {actionPoints}/{maxActionPoints}
-          </span>
+          <div className="flex items-center gap-3">
+            {/* 自动保存状态指示器 */}
+            <div className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+              <span>自动保存已就绪</span>
+            </div>
+            <span className="text-sm text-slate-800">
+              行动点: {actionPoints}/{maxActionPoints}
+            </span>
+          </div>
         </div>
 
         {/* 新事件系统 - 进度指示器 */}

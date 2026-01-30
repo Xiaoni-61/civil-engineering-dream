@@ -1,5 +1,101 @@
 # 开发日志
 
+## 2026-01-30
+
+### 存档系统实现完整版 ✅
+
+**功能概述**：
+- 后端 API：保存、列表、加载存档（双槽位自动轮换）
+- 前端存储：Zustand store 扩展
+- UI 组件：存档槽位选择模态框、首页按钮
+- 自动保存：关闭浏览器时触发（beforeunload + sendBeacon）
+
+**主要改动**：
+
+**1. 后端数据库** - `backend/src/database/init.ts`
+- 添加 `game_saves` 表，支持双槽位存档
+- 字段：device_id, slot_id, run_id, player_name, player_gender, current_quarter, rank, status, game_state, created_at, updated_at
+- 唯一索引：idx_saves_device (device_id, updated_at DESC)
+- 支持槽位轮换逻辑：同 runId 更新 slot1，不同 runId 则 slot1→slot2
+
+**2. 后端 API** - `backend/src/api/saves.ts`
+- POST /api/saves/save：保存存档（自动槽位轮换）
+- GET /api/saves/list?deviceId=xxx：获取存档列表
+- POST /api/saves/load：加载指定槽位
+
+**3. 类型定义** - `shared/types/save.ts`
+- SaveGameState：完整游戏状态结构（150+ 字段）
+- SaveSlot：存档槽位信息（用于列表展示）
+- SaveGameRequest/Response、LoadGameRequest/Response 等
+
+**4. 前端 API 客户端** - `frontend/src/api/savesApi.ts`
+- saveGame()：保存游戏存档
+- loadGame()：加载游戏存档
+- getSavesList()：获取存档列表
+
+**5. 前端 Store** - `frontend/src/store/gameStoreNew.ts`
+- 添加 saveGame 方法：验证并保存当前状态
+- 添加 loadGame 方法：加载存档并恢复状态
+- 添加 getSavesList 方法：获取存档列表（自动生成 deviceId）
+- 修复 initializeGame：保存时正确设置 deviceId
+- 修复 loadGame：处理 maintainedRelationships Set 类型转换
+
+**6. 自动保存** - `frontend/src/App.tsx`
+- beforeunload 监听：关闭浏览器时自动保存
+- 使用 sendBeacon API（适合页面卸载场景）
+- 动态获取最新状态（避免闭包捕获过期值）
+- 正确的数据格式（适配后端期望）
+
+**7. UI 组件** - `frontend/src/components/SaveSlotModal.tsx`
+- SaveSlotCard：单个存档槽位卡片
+- SaveSlotModal：存档槽位选择弹窗
+
+**8. 首页集成** - `frontend/src/pages/Home.tsx`
+- "继续游戏"按钮：槽位1有存档时显示
+- "开始新游戏"按钮：有存档时改名
+- "读取存档"按钮：始终显示（移除条件判断）
+- SaveSlotModal 集成
+
+**关键修复**：
+
+1. **deviceId 统一** - 使用 `civil-engineering-device-id` 作为 localStorage key
+   - gameApi.ts 的 generateDeviceId() 生成 deviceId
+   - gameStoreNew.ts 统一使用相同 key
+
+2. **状态过期问题** - beforeunload 中动态获取最新状态
+   - 不依赖 useEffect 闭包中的状态
+   - 使用 `useGameStore.getState()` 实时获取
+
+3. **数据格式匹配** - sendBeacon 数据格式适配后端
+   - 顶层字段：deviceId, runId, playerName 等
+   - gameState 包含完整状态
+
+4. **类型安全** - Set 类型处理
+   - maintainedRelationships: Array.isArray() 检查
+   - 避免对 undefined/null 使用 new Set()
+
+**涉及文件**：
+- `shared/types/save.ts` - 类型定义
+- `backend/src/database/init.ts` - 数据库表
+- `backend/src/api/saves.ts` - 后端 API
+- `backend/src/index.ts` - 路由注册
+- `backend/src/middleware/auth.ts` - 签名豁免
+- `frontend/src/api/savesApi.ts` - API 客户端
+- `frontend/src/store/gameStoreNew.ts` - Store 扩展
+- `frontend/src/App.tsx` - 自动保存
+- `frontend/src/components/SaveSlotModal.tsx` - UI 组件
+- `frontend/src/pages/Home.tsx` - 首页集成
+
+**TypeScript 编译**：✅ 通过，无错误
+**前端构建**：✓ built in ~900ms
+**后端编译**：✅ 通过，无错误
+
+**Review 状态**：功能完成，待 review
+
+---
+
+## 2026-01-28
+
 ## 2026-01-28
 
 ### 传记签名验证豁免 ✅ - 5ae1a44

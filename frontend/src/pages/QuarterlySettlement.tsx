@@ -15,7 +15,7 @@ const QuarterlySettlement = () => {
 
   useEffect(() => {
     if (status !== 'settlement') {
-      navigate('/game');
+      navigate('/game-new/actions');
     }
   }, [status, navigate]);
 
@@ -36,7 +36,7 @@ const QuarterlySettlement = () => {
       executePromotion(promotionCheck.nextRank);
     }
     nextQuarter();
-    navigate('/game');
+    navigate('/game-new/actions');
   };
 
   const canPromote = promotionCheck.canPromote && promotionCheck.nextRank;

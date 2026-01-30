@@ -3,7 +3,8 @@
  * 与后端 API 交互
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+// 使用相对路径让 Vite proxy 工作
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
  * 获取角色名（永久保存）

@@ -26,7 +26,7 @@ const Home = () => {
     const result = await loadGame(slotId);
     if (result.success) {
       setShowLoadModal(false);
-      navigate('/game');
+      navigate('/game-new/actions');
     } else {
       alert(result.message || '加载存档失败');
     }
@@ -161,8 +161,7 @@ const Home = () => {
               </div>
             </button>
 
-            {/* 读取存档按钮 - 仅在有存档时显示 */}
-            {hasAnySave && (
+            {/* 读取存档按钮 - 测试：始终显示 */}
               <button
                 onClick={() => setShowLoadModal(true)}
                 className="group relative bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:scale-[0.98]"
@@ -204,7 +203,6 @@ const Home = () => {
                   </div>
                 </div>
               </button>
-            )}
 
             {/* 旧版入口 */}
             <button

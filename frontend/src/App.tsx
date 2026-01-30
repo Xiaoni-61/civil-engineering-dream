@@ -9,6 +9,7 @@ import Leaderboard from './pages/Leaderboard';
 import { MainGame } from './pages/MainGame';
 import { CharacterCreationPage } from './pages/CharacterCreationPage';
 import { useGameStore } from '@/store/gameStoreNew';
+import { GameStatus } from '@shared/types';
 
 /**
  * 应用内容组件
@@ -17,59 +18,7 @@ import { useGameStore } from '@/store/gameStoreNew';
 function AppContent() {
   const location = useLocation();
   const prevLocation = useRef(location.pathname);
-  const {
-    status,
-    deviceId,
-    runId,
-    playerName,
-    playerGender,
-    currentQuarter,
-    rank,
-    score,
-    stats,
-    inventory,
-    materialPrices,
-    materialPriceHistory,
-    nextQuarterRealPrices,
-    pricePredictions,
-    relationships,
-    maintenanceCount,
-    materialTradeCount,
-    maintainedRelationships,
-    projectProgress,
-    projectQuality,
-    projectCompletedThisQuarter,
-    team,
-    currentEvent,
-    eventHistory,
-    pendingEvents,
-    quarterEvents,
-    currentEventIndex,
-    completedEventResults,
-    allEventHistory,
-    pendingEventResult,
-    showEventResult,
-    actionPoints,
-    maxActionPoints,
-    actionsThisQuarter,
-    actionsSinceLastEventCheck,
-    currentQuarterActionCounts,
-    trainingCooldowns,
-    currentQuarterTrainingCounts,
-    pricePredictionBonus,
-    storageFeeDiscount,
-    qualityProjectJustCompleted,
-    keyDecisions,
-    quarterlyActions,
-    specialEventCount,
-    isLLMEnhancing,
-    currentSettlement,
-    phase,
-    endReason,
-    maxActionsPerQuarter,
-    gameStats,
-    actualSalary,
-  } = useGameStore();
+  const status = useGameStore((state) => state.status);
 
   /**
    * 导航监听：从其他页面导航到首页时触发保存
@@ -80,85 +29,22 @@ function AppContent() {
 
     // 检测是否从游戏页面导航到首页
     const isNavigatingToHome = currentPath === '/' && prevPath.startsWith('/game-new');
-    const isNavigatingToCharacterCreation = currentPath === '/character-creation' && prevPath.startsWith('/game-new');
 
-    if ((isNavigatingToHome || isNavigatingToCharacterCreation) && status === 'playing') {
-      // 构建保存数据
+    if (isNavigatingToHome && status === GameStatus.PLAYING) {
+      // 动态获取最新状态并保存
+      const store = useGameStore.getState();
       const saveData = {
         slotId: 1,
-        gameState: {
-          playerName,
-          playerGender,
-          runId,
-          deviceId,
-          stats,
-          score,
-          status,
-          currentQuarter,
-          maxActionsPerQuarter,
-          phase,
-          endReason,
-          rank,
-          actualSalary,
-          gameStats,
-          inventory,
-          materialPrices,
-          materialPriceHistory,
-          nextQuarterRealPrices,
-          pricePredictions,
-          relationships,
-          maintenanceCount,
-          materialTradeCount,
-          maintainedRelationships: Array.from(maintainedRelationships),
-          projectProgress,
-          projectQuality,
-          projectCompletedThisQuarter,
-          team,
-          currentEvent,
-          eventHistory,
-          pendingEvents,
-          quarterEvents,
-          currentEventIndex,
-          completedEventResults,
-          allEventHistory,
-          pendingEventResult,
-          showEventResult,
-          actionPoints,
-          maxActionPoints,
-          actionsThisQuarter,
-          actionsSinceLastEventCheck,
-          currentQuarterActionCounts,
-          trainingCooldowns,
-          currentQuarterTrainingCounts,
-          pricePredictionBonus,
-          storageFeeDiscount,
-          qualityProjectJustCompleted,
-          keyDecisions,
-          quarterlyActions,
-          specialEventCount,
-          isLLMEnhancing,
-          currentSettlement,
-        },
+        gameState: { ...store },
       };
 
-      // 使用 fetch 发送保存请求（使用 keepalive 确保请求能够完成）
       fetch('/api/saves/save', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(saveData),
-        keepalive: true, // 确保在页面卸载时请求能够完成
+        keepalive: true,
       }).catch((error) => {
         console.error('导航时自动保存失败:', error);
-        // 失败时备份到 localStorage
-        try {
-          const backupKey = `civil-engineering-save-backup-1`;
-          localStorage.setItem(backupKey, JSON.stringify(saveData.gameState));
-          console.log('存档已备份到 localStorage:', backupKey);
-        } catch (backupError) {
-          console.error('备份到 localStorage 失败:', backupError);
-        }
       });
     }
 
@@ -171,141 +57,40 @@ function AppContent() {
    */
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // 动态获取最新状态（避免闭包捕获过期值）
+      const store = useGameStore.getState();
+      const { status, deviceId, runId, playerName, playerGender, currentQuarter, rank, gameStats } = store;
+
       // 只有在游戏进行中且有必要的 ID 时才保存
-      if (status !== 'playing' || !deviceId || !runId) {
+      if (status !== GameStatus.PLAYING || !deviceId || !runId) {
         return;
       }
 
-      // 构建保存数据
+      // 构建保存数据（按后端期望的格式）
       const saveData = {
         slotId: 1,
-        gameState: {
-          playerName,
-          playerGender,
-          runId,
-          deviceId,
-          stats,
-          score,
-          status,
-          currentQuarter,
-          maxActionsPerQuarter,
-          phase,
-          endReason,
-          rank,
-          actualSalary,
-          gameStats,
-          inventory,
-          materialPrices,
-          materialPriceHistory,
-          nextQuarterRealPrices,
-          pricePredictions,
-          relationships,
-          maintenanceCount,
-          materialTradeCount,
-          maintainedRelationships: Array.from(maintainedRelationships),
-          projectProgress,
-          projectQuality,
-          projectCompletedThisQuarter,
-          team,
-          currentEvent,
-          eventHistory,
-          pendingEvents,
-          quarterEvents,
-          currentEventIndex,
-          completedEventResults,
-          allEventHistory,
-          pendingEventResult,
-          showEventResult,
-          actionPoints,
-          maxActionPoints,
-          actionsThisQuarter,
-          actionsSinceLastEventCheck,
-          currentQuarterActionCounts,
-          trainingCooldowns,
-          currentQuarterTrainingCounts,
-          pricePredictionBonus,
-          storageFeeDiscount,
-          qualityProjectJustCompleted,
-          keyDecisions,
-          quarterlyActions,
-          specialEventCount,
-          isLLMEnhancing,
-          currentSettlement,
-        },
+        deviceId,
+        runId,
+        playerName,
+        playerGender,
+        currentQuarter,
+        rank,
+        status,
+        actualSalary: store.actualSalary,
+        gameStats,
+        gameState: { ...store }, // 完整的游戏状态
       };
 
-      // 使用 sendBeacon 发送保存请求（最适合 beforeunload 场景）
-      // sendBeacon 是异步的，不会阻塞页面卸载，且可靠性更高
+      // 使用 sendBeacon 发送保存请求
       const blob = new Blob([JSON.stringify(saveData)], { type: 'application/json' });
-      const result = navigator.sendBeacon('/api/saves/save', blob);
-
-      if (!result) {
-        console.error('sendBeacon 保存失败，尝试备份到 localStorage');
-        // 如果 sendBeacon 失败，尝试同步备份到 localStorage
-        try {
-          const backupKey = `civil-engineering-save-backup-1`;
-          localStorage.setItem(backupKey, JSON.stringify(saveData.gameState));
-        } catch (backupError) {
-          console.error('备份到 localStorage 失败:', backupError);
-        }
-      }
+      navigator.sendBeacon('/api/saves/save', blob);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [
-    status,
-    deviceId,
-    runId,
-    playerName,
-    playerGender,
-    currentQuarter,
-    rank,
-    score,
-    stats,
-    inventory,
-    materialPrices,
-    materialPriceHistory,
-    nextQuarterRealPrices,
-    pricePredictions,
-    relationships,
-    maintenanceCount,
-    materialTradeCount,
-    maintainedRelationships,
-    projectProgress,
-    projectQuality,
-    projectCompletedThisQuarter,
-    team,
-    currentEvent,
-    eventHistory,
-    pendingEvents,
-    quarterEvents,
-    currentEventIndex,
-    completedEventResults,
-    allEventHistory,
-    pendingEventResult,
-    showEventResult,
-    actionPoints,
-    maxActionPoints,
-    actionsThisQuarter,
-    actionsSinceLastEventCheck,
-    currentQuarterActionCounts,
-    trainingCooldowns,
-    currentQuarterTrainingCounts,
-    pricePredictionBonus,
-    storageFeeDiscount,
-    qualityProjectJustCompleted,
-    keyDecisions,
-    quarterlyActions,
-    specialEventCount,
-    isLLMEnhancing,
-    currentSettlement,
-    phase,
-    endReason,
-    maxActionsPerQuarter,
-    gameStats,
-    actualSalary,
-  ]);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []); // 空依赖数组，只注册一次
 
   return (
     <Routes>

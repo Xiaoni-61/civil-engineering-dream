@@ -9,7 +9,7 @@ import type {
   SaveGameResponse,
   LoadGameRequest,
   LoadGameResponse,
-  GetSavesListResponse,
+  SaveSlot,
 } from '@shared/types/save';
 
 /**
@@ -67,8 +67,10 @@ export async function loadGame(params: LoadGameRequest): Promise<LoadGameRespons
  * 获取存档列表
  * GET /api/saves/list?deviceId=xxx
  */
-export async function getSavesList(deviceId: string): Promise<GetSavesListResponse> {
+export async function getSavesList(deviceId: string): Promise<SaveSlot[]> {
   const response = await apiRequest(`/api/saves/list?deviceId=${encodeURIComponent(deviceId)}`);
 
-  return response.data;
+  // 后端返回 { code: "SUCCESS", data: { success: true, saves: [...] } }
+  // 直接返回 saves 数组
+  return response.data.saves || [];
 }
