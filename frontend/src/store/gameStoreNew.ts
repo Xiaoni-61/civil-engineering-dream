@@ -2851,7 +2851,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
    * @param slotId 存档槽位
    * @returns 加载结果
    */
-  loadGame: async (slotId: 1 | 2) => {
+  loadGame: async (_slotId: 1 | 2) => {
     const state = get();
 
     // 验证 deviceId
