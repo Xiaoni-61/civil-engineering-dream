@@ -1,7 +1,40 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGameStore } from '@/store/gameStoreNew';
+import SaveSlotModal from '@/components/SaveSlotModal';
+import type { SaveSlot } from '@shared/types/save';
 
 const Home = () => {
   const navigate = useNavigate();
+
+  // 存档相关状态
+  const [saves, setSaves] = useState<SaveSlot[]>([]);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const { getSavesList, loadGame } = useGameStore();
+
+  // 页面加载时获取存档列表
+  useEffect(() => {
+    const fetchSaves = async () => {
+      const savesList = await getSavesList();
+      setSaves(savesList);
+    };
+    fetchSaves();
+  }, [getSavesList]);
+
+  // 处理加载存档
+  const handleLoadSave = async (slotId: 1 | 2) => {
+    const result = await loadGame(slotId);
+    if (result.success) {
+      setShowLoadModal(false);
+      navigate('/game');
+    } else {
+      alert(result.message || '加载存档失败');
+    }
+  };
+
+  // 检查 slot1 是否有存档
+  const hasSlot1 = saves.find(s => s.slotId === 1)?.hasSlot;
+  const hasAnySave = saves.some(s => s.hasSlot);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
@@ -32,6 +65,52 @@ const Home = () => {
 
           {/* 卡片容器 */}
           <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* 继续游戏按钮 - 仅在有 slot1 存档时显示 */}
+            {hasSlot1 && (
+              <button
+                onClick={() => handleLoadSave(1)}
+                className="group relative bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 active:scale-[0.98]"
+                style={{ animationDelay: '0.05s' }}
+              >
+                {/* 背景装饰 */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-100 to-transparent rounded-bl-full opacity-30 group-hover:scale-110 transition-transform duration-300"></div>
+
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-500 rounded-feishu flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                        ▶️
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                          继续游戏
+                        </h2>
+                        <p className="text-sm text-emerald-600 font-medium">Continue Game</p>
+                      </div>
+                    </div>
+                    <div className="text-emerald-500 group-hover:translate-x-1 transition-transform">
+                      →
+                    </div>
+                  </div>
+
+                  <p className="text-slate-700 text-sm leading-relaxed mb-4">
+                    <strong>快速继续：</strong>从槽位 1 恢复游戏进度
+                    <br />
+                    <span className="text-slate-500">立即回到上次的游戏状态</span>
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
+                      ⚡ 快速开始
+                    </span>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                      💾 自动存档
+                    </span>
+                  </div>
+                </div>
+              </button>
+            )}
+
             {/* 开始游戏卡片 - 新游戏系统 */}
             <button
               onClick={() => {
@@ -52,7 +131,7 @@ const Home = () => {
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold text-slate-800 group-hover:text-brand-600 transition-colors">
-                        开始游戏
+                        {hasAnySave ? '开始新游戏' : '开始游戏'}
                       </h2>
                       <p className="text-sm text-brand-600 font-medium">New Game System</p>
                     </div>
@@ -81,6 +160,51 @@ const Home = () => {
                 </div>
               </div>
             </button>
+
+            {/* 读取存档按钮 - 仅在有存档时显示 */}
+            {hasAnySave && (
+              <button
+                onClick={() => setShowLoadModal(true)}
+                className="group relative bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-feishu-lg p-8 shadow-feishu hover:shadow-feishu-xl transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 active:scale-[0.98]"
+                style={{ animationDelay: '0.15s' }}
+              >
+                {/* 背景装饰 */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-100 to-transparent rounded-bl-full opacity-30 group-hover:scale-110 transition-transform duration-300"></div>
+
+                <div className="relative">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-feishu flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                        💾
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-800 group-hover:text-amber-600 transition-colors">
+                          读取存档
+                        </h2>
+                        <p className="text-sm text-amber-600 font-medium">Load Game</p>
+                      </div>
+                    </div>
+                    <div className="text-amber-500 group-hover:translate-x-1 transition-transform">
+                      →
+                    </div>
+                  </div>
+
+                  <p className="text-slate-700 text-sm leading-relaxed mb-4">
+                    <strong>存档管理：</strong>选择存档槽位加载游戏
+                    <br />
+                    <span className="text-slate-500">支持 2 个存档槽位</span>
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {saves.filter(s => s.hasSlot).map(s => (
+                      <span key={s.slotId} className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium border border-amber-200">
+                        槽位 {s.slotId}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            )}
 
             {/* 旧版入口 */}
             <button
@@ -241,6 +365,14 @@ const Home = () => {
           </div>
         </div>
       </div>
+
+      {/* 存档选择弹窗 */}
+      <SaveSlotModal
+        isOpen={showLoadModal}
+        onClose={() => setShowLoadModal(false)}
+        saves={saves}
+        onLoad={handleLoadSave}
+      />
     </div>
   );
 };
