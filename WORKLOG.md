@@ -2203,3 +2203,157 @@ await db.run(
 **Review 状态**：✅ 代码质量问题已修复
 
 **提交**: (待提交)
+
+---
+
+## 2026-01-30
+
+### Task 5: 实现后端加载存档 API
+
+**背景**：
+- 存档系统实施的第五个任务
+- 需要实现 POST /api/saves/load 接口
+- 功能：按 deviceId 和 slotId 加载指定槽位的存档
+
+**完成内容**：
+
+1. **添加 POST /api/saves/load 路由**（saves.ts:209-289）
+   - **验证必需字段**：deviceId, slotId
+   - **查询存档**：按 device_id 和 slot_id 查询数据库
+   - **解析游戏状态**：JSON.parse game_state
+   - **验证必需字段**：runId, stats
+   - **返回响应**：success, gameState
+
+2. **错误处理**：
+   - 400：缺少必要字段（deviceId 或 slotId）
+   - 404：存档不存在（槽位为空）
+   - 500：游戏状态解析失败或缺少必需字段
+
+3. **日志输出**：
+   - 请求开始标记
+   - 解析后的数据
+   - 错误情况标记
+   - 成功加载信息
+
+**测试验证**：
+- ✅ 成功加载 slot1（runId=test-run-002）
+- ✅ 成功加载 slot2（runId=test-run-001）
+- ✅ 正确处理缺少 deviceId
+- ✅ 正确处理缺少 slotId
+- ✅ 正确处理不存在的槽位（slotId=999）
+- ✅ 正确解析游戏状态（JSON.parse）
+- ✅ 验证 gameState 包含 runId 和 stats
+- ✅ TypeScript 编译通过（后端）
+
+**涉及文件**：
+- `backend/src/api/saves.ts:209-289` - 添加 /load 路由（+82行）
+
+**Review 状态**：✅ 完成并通过验证
+
+**提交**: `782d6d9` - feat: 实现后端加载存档 API
+
+---
+
+## 2026-01-30
+
+### Task 6: 前端扩展 gameStoreNew 添加 saveGame 方法
+
+**背景**：
+- 存档系统实施的第六个任务
+- 需要在前端 gameStoreNew 中实现存档功能
+- 包括 saveGame, loadGame, getSavesList 三个方法
+
+**完成内容**：
+
+1. **创建 savesApi.ts**（frontend/src/api/savesApi.ts）
+   - 封装存档相关 API 调用
+   - saveGame: 保存游戏存档（POST /api/saves/save）
+   - loadGame: 加载游戏存档（POST /api/saves/load）
+   - getSavesList: 获取存档列表（GET /api/saves/list）
+   - 注意：后端 API 参数格式与类型定义不同，需要提取字段
+
+2. **扩展 gameStoreNew.ts**
+   - 添加类型导入：SaveSlot, SaveGameState
+   - 在 GameStore interface 添加方法签名：
+     * saveGame: (slotId?: 1 | 2) => Promise<{...}>
+     * loadGame: (slotId: 1 | 2) => Promise<{...}>
+     * getSavesList: () => Promise<SaveSlot[]>
+   - 实现 saveGame 方法：
+     * 验证 deviceId 和 runId
+     * 构建保存数据（排除UI临时状态）
+     * 调用后端 API
+     * 失败时备份到 localStorage
+   - 实现 loadGame 方法（占位，待实现）
+   - 实现 getSavesList 方法：
+     * 调用后端 API
+     * 失败时返回空列表
+
+3. **更新 API 导出**（frontend/src/api/index.ts）
+   - 添加 `export * from './savesApi'`
+
+**技术实现细节**：
+
+1. **保存数据结构**（SaveGameState）：
+   - 玩家基础信息：playerName, playerGender, runId, deviceId
+   - 核心数值：stats, score
+   - 游戏进度：status, currentQuarter, phase, endReason
+   - 职级系统：rank, actualSalary, gameStats
+   - 材料系统：inventory, materialPrices, materialPriceHistory, nextQuarterRealPrices, pricePredictions
+   - 关系系统：relationships, maintenanceCount, materialTradeCount, maintainedRelationships（转换为数组）
+   - 项目状态：projectProgress, projectQuality, projectCompletedThisQuarter
+   - 团队系统：team
+   - 事件系统：currentEvent, eventHistory, pendingEvents, quarterEvents 等
+   - 行动系统：actionPoints, actionsThisQuarter, currentQuarterActionCounts 等
+   - 训练系统：trainingCooldowns, currentQuarterTrainingCounts
+   - 特殊效果：pricePredictionBonus, storageFeeDiscount, qualityProjectJustCompleted
+   - 关键决策记录：keyDecisions
+   - 季度行动记录：quarterlyActions
+   - LLM 相关：specialEventCount, isLLMEnhancing
+   - 当前季度结算数据：currentSettlement
+
+2. **localStorage 备份机制**：
+   - 键名：`civil-engineering-save-backup-${slotId}`
+   - 备份时机：后端 API 调用失败时
+   - 目的：确保存档不丢失
+
+3. **API 参数适配**：
+   - 后端期望的参数格式：
+     ```typescript
+     {
+       slotId,
+       deviceId,
+       runId,
+       playerName,
+       playerGender,
+       currentQuarter,
+       rank,
+       status,
+       gameState
+     }
+     ```
+   - 从 SaveGameState 中提取字段以匹配后端接口
+
+**涉及文件**：
+- `frontend/src/api/savesApi.ts` - 新建（65行）
+- `frontend/src/api/index.ts:8` - 添加导出
+- `frontend/src/store/gameStoreNew.ts:33-34` - 添加类型导入
+- `frontend/src/store/gameStoreNew.ts:369-372` - 添加方法签名
+- `frontend/src/store/gameStoreNew.ts:2699-2900` - 实现存档方法（+202行）
+
+**测试验证**：
+- ✅ TypeScript 编译通过（前端）
+- ✅ TypeScript 编译通过（后端）
+- ✅ 前端构建成功
+- ⏳ loadGame 方法待实现
+- ⏳ 需要手动测试：
+  - saveGame 方法正常保存
+  - localStorage 备份机制
+  - getSavesList 获取存档列表
+
+**Review 状态**：✅ 实现完成（loadGame 除外）
+
+**提交**: `926b823` - feat: 前端扩展 gameStoreNew 添加 saveGame 方法
+
+**特殊说明**：
+- loadGame 方法当前返回待实现提示，在 Task 7 中完成
+- saveGame 方法包含完整的错误处理和降级机制
