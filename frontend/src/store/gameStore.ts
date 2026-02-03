@@ -175,8 +175,6 @@ const getMaxMaintenanceCount = (rank: Rank): number => {
   switch (rank) {
     case Rank.INTERN:
       return 1; // 实习生：1次
-    case Rank.ASSISTANT_ENGINEER:
-      return 2; // 助理工程师：2次
     case Rank.ENGINEER:
       return 3; // 工程师：3次
     case Rank.SENIOR_ENGINEER:
@@ -199,22 +197,23 @@ const isRelationshipUnlocked = (rank: Rank, relationshipType: RelationshipType):
       // 实习生：只解锁甲方、劳务队
       return relationshipType === RelationshipType.CLIENT ||
              relationshipType === RelationshipType.LABOR;
-    case Rank.ASSISTANT_ENGINEER:
-      // 助理工程师：+ 监理
-      return relationshipType === RelationshipType.CLIENT ||
-             relationshipType === RelationshipType.LABOR ||
-             relationshipType === RelationshipType.SUPERVISION;
     case Rank.ENGINEER:
-      // 工程师：+ 设计院
+      // 工程师：+ 监理、设计院
       return relationshipType === RelationshipType.CLIENT ||
              relationshipType === RelationshipType.LABOR ||
              relationshipType === RelationshipType.SUPERVISION ||
              relationshipType === RelationshipType.DESIGN;
     case Rank.SENIOR_ENGINEER:
+      // 高级工程师：+ 政府部门
+      return relationshipType === RelationshipType.CLIENT ||
+             relationshipType === RelationshipType.LABOR ||
+             relationshipType === RelationshipType.SUPERVISION ||
+             relationshipType === RelationshipType.DESIGN ||
+             relationshipType === RelationshipType.GOVERNMENT;
     case Rank.PROJECT_MANAGER:
     case Rank.PROJECT_DIRECTOR:
     case Rank.PARTNER:
-      // 高级工程师及以上：解锁全部关系（包括政府部门）
+      // 项目经理及以上：解锁全部关系
       return true;
     default:
       return false;
