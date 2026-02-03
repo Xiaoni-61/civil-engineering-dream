@@ -59,8 +59,6 @@ const RANK_DISPLAY_NAMES: Record<string, string> = {
   'SENIOR_ENGINEER': '高级工程师',
   'engineer': '工程师',
   'ENGINEER': '工程师',
-  'assistant_engineer': '助理工程师',
-  'ASSISTANT_ENGINEER': '助理工程师',
   'intern': '实习生',
   'INTERN': '实习生',
 };

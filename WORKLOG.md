@@ -2758,3 +2758,171 @@ docs: update WORKLOG with save system implementation
 
 ---
 
+
+## 2026-02-03
+
+### 职级系统重构：移除助理工程师职级
+
+**目标**：简化职级系统，从7级减少到6级
+
+**变更内容**：
+1. **Rank 枚举**（`shared/types/game.ts`）
+   - 删除 `ASSISTANT_ENGINEER` 枚举值
+   - 保留6个职级：INTERN, ENGINEER, SENIOR_ENGINEER, PROJECT_MANAGER, PROJECT_DIRECTOR, PARTNER
+
+2. **RANK_CONFIGS**（`shared/types/game.ts`）
+   - 工程师采用原助理工程师配置：
+     - 净资产要求：10万
+     - 项目要求：2个
+     - 声誉要求：40
+     - 季度工资：15000
+     - 涨薪幅度：3%-8%
+   - 高级工程师采用原工程师配置
+   - 项目经理采用原高级工程师配置（添加优质项目要求）
+   - 项目总监采用原项目经理配置
+   - 合伙人采用原项目总监配置
+
+3. **RANK_DISPLAY**（`frontend/src/data/constants.ts`）
+   - 移除助理工程师显示配置
+   - 调整各职级图标和颜色
+
+4. **PHASE_CONFIG**（`frontend/src/data/constants.ts`）
+   - 从前期游戏阶段移除助理工程师
+   - 前期：实习生、工程师、高级工程师
+   - 后期：项目经理、项目总监、合伙人
+
+5. **isRelationshipUnlocked**（`frontend/src/store/gameStoreNew.ts`）
+   - 工程师解锁监理关系（原助理工程师解锁的关系）
+
+6. **getMaxMaintenanceCount**（`frontend/src/store/gameStoreNew.ts`）
+   - 调整每职级维护次数：
+     - 实习生：1次
+     - 工程师：2次
+     - 高级工程师：3次
+     - 项目经理：4次
+     - 项目总监：5次
+     - 合伙人：6次
+
+7. **事件系统**（`frontend/src/data/events/`）
+   - `assistantEngineerEvents.ts`：所有事件的 requiredRank 改为 Rank.ENGINEER
+   - `index.ts`：创建 combinedEngineerEvents，合并原助理工程师事件和工程师事件
+
+**涉及文件**：
+- `shared/types/game.ts`
+- `frontend/src/data/constants.ts`
+- `frontend/src/store/gameStoreNew.ts`
+- `frontend/src/data/events/assistantEngineerEvents.ts`
+- `frontend/src/data/events/index.ts`
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- ⏳ 游戏内测试待进行
+
+**提交**: 1f32507
+
+**状态**: 已完成，待游戏内测试
+
+
+## 2026-02-03
+
+### Bug修复：6级职级系统规范不符合项
+
+**问题描述**：
+规范审查发现大量不符合项，需要修复以符合6级职级系统规范。
+
+**修复内容**：
+
+1. **RANK_CONFIGS**（`shared/types/game.ts`）
+   - 完全替换为规范配置值：
+     - 实习生：0资产、0项目、0声誉、9000工资、[0,0]涨薪
+     - 工程师：20万资产、1项目、45声誉、20000工资、[5,12]涨薪、关系要求（甲方/劳务队任一50）
+     - 高级工程师：100万资产、6项目、65声誉、50000工资、[8,15]涨薪、关系要求（监理/设计全部60）、优质项目要求1个
+     - 项目经理：400万资产、12项目、80声誉、100000工资、[10,20]涨薪、关系要求（甲方70/劳务队65全部）、完成过3个项目
+     - 项目总监：1200万资产、22项目、90声誉、180000工资、[12,25]涨薪、关系要求（全部关系70）、优质项目要求5个
+     - 合伙人：4000万资产、35项目、95声誉、300000工资、[0,0]涨薪、关系要求（全部关系80）、优质项目要求8个
+
+2. **RELATIONSHIP_DISPLAY**（`frontend/src/data/constants.ts`）
+   - 修复监理的 unlockHint：从"晋升助理工程师解锁"改为"晋升工程师解锁"
+
+3. **RANK_DISPLAY**（`frontend/src/data/constants.ts`）
+   - 修正各职级图标和颜色：
+     - 实习生：🎓, #94A3B8
+     - 工程师：👨‍🔧, #3B82F6
+     - 高级工程师：👨‍💼, #2563EB
+     - 项目经理：📋, #7C3AED
+     - 项目总监：🎯, #DC2626
+     - 合伙人：👑, #F59E0B
+
+4. **gameStore.ts**（`frontend/src/store/gameStore.ts`）
+   - 清理旧版 store 中的 Rank.ASSISTANT_ENGINEER 引用
+   - 更新 getMaxMaintenanceCount：移除助理工程师的2次维护，实习生1次、工程师3次
+   - 更新 isRelationshipUnlocked：工程师解锁监理和设计院，高级工程师解锁政府部门
+
+5. **CLAUDE.md**（项目根目录）
+   - 更新职级系统描述：从"7级"改为"6级"
+   - 移除助理工程师的描述
+
+**涉及文件**：
+- `shared/types/game.ts` - RANK_CONFIGS 完全替换
+- `frontend/src/data/constants.ts` - RELATIONSHIP_DISPLAY、RANK_DISPLAY 修复
+- `frontend/src/store/gameStore.ts` - 清理 ASSISTANT_ENGINEER 引用
+- `CLAUDE.md` - 更新文档描述
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- ⏳ 游戏内测试待进行
+
+**提交**: (待提交)
+
+**状态**: 已完成，待游戏内测试
+
+---
+
+## 2026-02-03
+
+### 代码质量修复：清理遗留的助理工程师引用
+
+**问题描述**：
+代码质量审查发现部分文件仍包含"助理工程师"相关内容，需要清理以符合6级职级系统。
+
+**修复内容**：
+
+1. **LLM Prompt 模板**（3个文件）
+   - `backend/prompts/narrative/career-biography.md`
+     - 职级体系从"7级"改为"6级"
+     - 移除"助理工程师"职级项
+     - 更新传记模板中的"从实习生到助理工程师"为"从实习生到工程师"
+   - `backend/prompts/event-generation/creative-event.md`
+     - 职级体系从"7级"改为"6级"
+     - 移除"助理工程师"职级项
+   - `backend/prompts/event-generation/news-based-event.md`
+     - 职级体系从"7级"改为"6级"
+     - 移除"助理工程师"职级项
+
+2. **传记示例文件**（额外发现）
+   - `backend/prompts/narrative/biography-example.md`
+     - 更新示例传记中的职业晋升历程
+     - 移除"助理工程师"引用
+     - 调整晋升时间线以符合6级系统
+
+3. **排行榜页面**
+   - `frontend/src/pages/Leaderboard.tsx`
+     - 删除 `RANK_DISPLAY_NAMES` 中的 assistant_engineer 映射（第62-63行）
+
+**涉及文件**：
+- `backend/prompts/narrative/career-biography.md` - 更新职级体系和传记模板
+- `backend/prompts/event-generation/creative-event.md` - 更新职级体系
+- `backend/prompts/event-generation/news-based-event.md` - 更新职级体系
+- `backend/prompts/narrative/biography-example.md` - 更新示例传记
+- `frontend/src/pages/Leaderboard.tsx` - 删除 assistant_engineer 映射
+
+**测试验证**：
+- ✅ TypeScript 编译通过
+- ✅ 前端构建成功
+- ✅ 无遗留的 assistant_engineer 引用（除了历史记录和文档）
+
+**提交**: (待提交)
+
+**状态**: 已完成
