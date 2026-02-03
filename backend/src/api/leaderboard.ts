@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { Database } from '../database/init.js';
 
-// 职位排序权重
+// 职位排序权重（6级职级系统）
 const RANK_WEIGHT: Record<string, number> = {
   'PARTNER': 100,
   'PROJECT_DIRECTOR': 90,
   'PROJECT_MANAGER': 80,
   'SENIOR_ENGINEER': 70,
   'ENGINEER': 60,
-  'ASSISTANT_ENGINEER': 50,
   'INTERN': 40,
 };
 
@@ -65,7 +64,6 @@ export function createLeaderboardRouter(db: Database): Router {
                   WHEN 'PROJECT_MANAGER' THEN 80
                   WHEN 'SENIOR_ENGINEER' THEN 70
                   WHEN 'ENGINEER' THEN 60
-                  WHEN 'ASSISTANT_ENGINEER' THEN 50
                   WHEN 'INTERN' THEN 40
                   ELSE 0
                 END DESC,
@@ -89,7 +87,6 @@ export function createLeaderboardRouter(db: Database): Router {
               WHEN 'PROJECT_MANAGER' THEN 80
               WHEN 'SENIOR_ENGINEER' THEN 70
               WHEN 'ENGINEER' THEN 60
-              WHEN 'ASSISTANT_ENGINEER' THEN 50
               WHEN 'INTERN' THEN 40
               ELSE 0
             END DESC,
@@ -173,7 +170,6 @@ export function createLeaderboardRouter(db: Database): Router {
                 WHEN 'PROJECT_MANAGER' THEN 80
                 WHEN 'SENIOR_ENGINEER' THEN 70
                 WHEN 'ENGINEER' THEN 60
-                WHEN 'ASSISTANT_ENGINEER' THEN 50
                 WHEN 'INTERN' THEN 40
                 ELSE 0
               END as rankWeight
@@ -192,7 +188,6 @@ export function createLeaderboardRouter(db: Database): Router {
                WHEN 'PROJECT_MANAGER' THEN 80
                WHEN 'SENIOR_ENGINEER' THEN 70
                WHEN 'ENGINEER' THEN 60
-               WHEN 'ASSISTANT_ENGINEER' THEN 50
                WHEN 'INTERN' THEN 40
                ELSE 0
              END as rankWeight,

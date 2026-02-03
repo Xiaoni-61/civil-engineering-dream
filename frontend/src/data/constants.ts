@@ -107,28 +107,28 @@ export const RANK_DISPLAY = {
   },
   [Rank.ENGINEER]: {
     label: '工程师',
-    icon: '👷',
-    color: '#60A5FA',
-  },
-  [Rank.SENIOR_ENGINEER]: {
-    label: '高级工程师',
     icon: '👨‍🔧',
     color: '#3B82F6',
   },
-  [Rank.PROJECT_MANAGER]: {
-    label: '项目经理',
+  [Rank.SENIOR_ENGINEER]: {
+    label: '高级工程师',
     icon: '👨‍💼',
     color: '#2563EB',
   },
-  [Rank.PROJECT_DIRECTOR]: {
-    label: '项目总监',
+  [Rank.PROJECT_MANAGER]: {
+    label: '项目经理',
     icon: '📋',
     color: '#7C3AED',
   },
-  [Rank.PARTNER]: {
-    label: '合伙人',
+  [Rank.PROJECT_DIRECTOR]: {
+    label: '项目总监',
     icon: '🎯',
     color: '#DC2626',
+  },
+  [Rank.PARTNER]: {
+    label: '合伙人',
+    icon: '👑',
+    color: '#F59E0B',
   },
 };
 
@@ -172,7 +172,7 @@ export const RELATIONSHIP_DISPLAY = {
     label: '监理',
     icon: '📝',
     color: '#2563EB',
-    unlockHint: '晋升助理工程师解锁',
+    unlockHint: '晋升工程师解锁',
   },
   [RelationshipType.DESIGN]: {
     label: '设计院',
