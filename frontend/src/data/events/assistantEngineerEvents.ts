@@ -1,6 +1,6 @@
 /**
- * 助理工程师事件池
- * 职级：助理工程师 (Rank.ASSISTANT_ENGINEER)
+ * 工程师事件池（含原助理工程师事件）
+ * 职级：工程师 (Rank.ENGINEER)
  * 特点：开始独立负责部分工作，需要更多技术能力和协调能力
  */
 
@@ -16,7 +16,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '独立负责任务',
     description: '领导第一次让你独立负责一个小型分项工程。虽然规模不大，但这是展现能力的机会，也让你感到压力。',
     category: 'professional',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '从实习生到助理工程师，这是职业生涯的一大步...',
     options: [
       {
@@ -58,7 +58,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '变更单处理',
     description: '甲方提出了一项工程变更，需要你编制变更单和预算。这是你第一次独立处理变更，需要仔细核算成本。',
     category: 'professional',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '工程变更是考验专业能力的重要环节...',
     options: [
       {
@@ -100,7 +100,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '施工方案编制',
     description: '你需要编制一个专项施工方案（如脚手架搭设方案）。这需要查阅规范、计算参数，专业性很强。',
     category: 'professional',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '专项方案是工程质量和安全的重要保障...',
     options: [
       {
@@ -158,7 +158,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '质量问题处理',
     description: '你负责的施工区域出现了质量问题（如混凝土蜂窝麻面）。需要分析原因并制定处理方案。',
     category: 'professional',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '质量问题是对工程师能力的真正考验...',
     options: [
       {
@@ -224,7 +224,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '技术攻关',
     description: '项目中遇到一个技术难题（如复杂节点的钢筋绑扎）。需要研究解决方案，可能需要创新或请教专家。',
     category: 'professional',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '技术难题是展现创新能力的机会...',
     options: [
       {
@@ -281,7 +281,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '新人带教',
     description: '部门来了新的实习生，领导安排你作为导师进行带教。这会增加你的工作量，但也是锻炼管理能力的机会。',
     category: 'workplace',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '带教新人是成长的必经之路...',
     options: [
       {
@@ -318,7 +318,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '部门会议发言',
     description: '在部门例会上，领导询问大家对某项工作的意见。你有想法但不太确定是否应该当众提出。',
     category: 'workplace',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '会议发言是展现思考能力的机会...',
     options: [
       {
@@ -353,7 +353,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '加班安排',
     description: '项目进入关键阶段，需要经常加班。你家里有些事情需要处理，但也不想影响工作。',
     category: 'workplace',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '工作与生活的平衡总是很难...',
     options: [
       {
@@ -393,7 +393,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '职称评审',
     description: '到了职称评审的时间，你准备申报中级工程师职称。需要准备大量材料，还需要通过考试。',
     category: 'workplace',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '职称是职业发展的重要里程碑...',
     options: [
       {
@@ -431,7 +431,7 @@ export const assistantEngineerEvents: DecisionEvent[] = [
     title: '跨部门协作',
     description: '你需要和其他部门协调工作。对方的配合度不高，导致工作进展缓慢。需要想办法推进。',
     category: 'workplace',
-    requiredRank: Rank.ASSISTANT_ENGINEER,
+    requiredRank: Rank.ENGINEER,
     flavorText: '跨部门协作考验沟通协调能力...',
     options: [
       {

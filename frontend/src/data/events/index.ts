@@ -30,12 +30,18 @@ export type {
 // 导入各职级事件
 import { commonEvents } from './commonEvents';
 import { internEvents } from './internEvents';
-import { assistantEngineerEvents } from './assistantEngineerEvents';
+import { assistantEngineerEvents } from './assistantEngineerEvents';  // 原助理工程师事件，现已合并到工程师
 import { engineerEvents } from './engineerEvents';
 import { seniorEngineerEvents } from './seniorEngineerEvents';
 import { managerEvents } from './managerEvents';
 import { directorEvents } from './directorEvents';
 import { partnerEvents } from './partnerEvents';
+
+// 合并助理工程师事件到工程师事件池（原助理工程师事件现已适用于工程师职级）
+const combinedEngineerEvents = [
+  ...assistantEngineerEvents,
+  ...engineerEvents
+];
 
 // 导出关系福利和特殊事件
 export {
@@ -62,11 +68,8 @@ export function getEventsForRank(rank: Rank): DecisionEvent[] {
   if (rank >= Rank.INTERN) {
     events.push(...internEvents);
   }
-  if (rank >= Rank.ASSISTANT_ENGINEER) {
-    events.push(...assistantEngineerEvents);
-  }
   if (rank >= Rank.ENGINEER) {
-    events.push(...engineerEvents);
+    events.push(...combinedEngineerEvents);  // 包含原助理工程师事件
   }
   if (rank >= Rank.SENIOR_ENGINEER) {
     events.push(...seniorEngineerEvents);
@@ -102,8 +105,7 @@ export function findEventById(eventId: string): DecisionEvent | undefined {
   const allEvents = [
     ...commonEvents,
     ...internEvents,
-    ...assistantEngineerEvents,
-    ...engineerEvents,
+    ...combinedEngineerEvents,  // 包含原助理工程师事件
     ...seniorEngineerEvents,
     ...managerEvents,
     ...directorEvents,
@@ -117,8 +119,8 @@ export function findEventById(eventId: string): DecisionEvent | undefined {
 export const eventPool: EventPoolConfig = {
   common: commonEvents,
   intern: internEvents,
-  assistantEngineer: assistantEngineerEvents,
-  engineer: engineerEvents,
+  assistantEngineer: assistantEngineerEvents,  // 保留用于向后兼容，但现已合并到工程师
+  engineer: combinedEngineerEvents,  // 包含原助理工程师事件
   seniorEngineer: seniorEngineerEvents,
   manager: managerEvents,
   director: directorEvents,

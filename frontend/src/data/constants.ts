@@ -105,35 +105,30 @@ export const RANK_DISPLAY = {
     icon: '🎓',
     color: '#94A3B8',
   },
-  [Rank.ASSISTANT_ENGINEER]: {
-    label: '助理工程师',
+  [Rank.ENGINEER]: {
+    label: '工程师',
     icon: '👷',
     color: '#60A5FA',
   },
-  [Rank.ENGINEER]: {
-    label: '工程师',
+  [Rank.SENIOR_ENGINEER]: {
+    label: '高级工程师',
     icon: '👨‍🔧',
     color: '#3B82F6',
   },
-  [Rank.SENIOR_ENGINEER]: {
-    label: '高级工程师',
+  [Rank.PROJECT_MANAGER]: {
+    label: '项目经理',
     icon: '👨‍💼',
     color: '#2563EB',
   },
-  [Rank.PROJECT_MANAGER]: {
-    label: '项目经理',
+  [Rank.PROJECT_DIRECTOR]: {
+    label: '项目总监',
     icon: '📋',
     color: '#7C3AED',
   },
-  [Rank.PROJECT_DIRECTOR]: {
-    label: '项目总监',
-    icon: '🎯',
-    color: '#DC2626',
-  },
   [Rank.PARTNER]: {
     label: '合伙人',
-    icon: '👑',
-    color: '#F59E0B',
+    icon: '🎯',
+    color: '#DC2626',
   },
 };
 
@@ -639,7 +634,6 @@ export const ACTION_POINTS_DIVISOR = 20;
 export const PHASE_CONFIG = {
   earlyGameRanks: [
     Rank.INTERN,
-    Rank.ASSISTANT_ENGINEER,
     Rank.ENGINEER,
     Rank.SENIOR_ENGINEER,
   ],

@@ -89,16 +89,15 @@ const isRelationshipUnlocked = (rank: Rank, relationshipType: RelationshipType):
     case Rank.INTERN:
       return relationshipType === RelationshipType.CLIENT ||
              relationshipType === RelationshipType.LABOR;
-    case Rank.ASSISTANT_ENGINEER:
+    case Rank.ENGINEER:
       return relationshipType === RelationshipType.CLIENT ||
              relationshipType === RelationshipType.LABOR ||
              relationshipType === RelationshipType.SUPERVISION;
-    case Rank.ENGINEER:
+    case Rank.SENIOR_ENGINEER:
       return relationshipType === RelationshipType.CLIENT ||
              relationshipType === RelationshipType.LABOR ||
              relationshipType === RelationshipType.SUPERVISION ||
              relationshipType === RelationshipType.DESIGN;
-    case Rank.SENIOR_ENGINEER:
     case Rank.PROJECT_MANAGER:
     case Rank.PROJECT_DIRECTOR:
     case Rank.PARTNER:
@@ -112,18 +111,16 @@ const getMaxMaintenanceCount = (rank: Rank): number => {
   switch (rank) {
     case Rank.INTERN:
       return 1;
-    case Rank.ASSISTANT_ENGINEER:
-      return 2;
     case Rank.ENGINEER:
-      return 3;
+      return 2;
     case Rank.SENIOR_ENGINEER:
-      return 4;
+      return 3;
     case Rank.PROJECT_MANAGER:
-      return 5;
+      return 4;
     case Rank.PROJECT_DIRECTOR:
-      return 6;
+      return 5;
     case Rank.PARTNER:
-      return 8;
+      return 6;
     default:
       return 3;
   }
