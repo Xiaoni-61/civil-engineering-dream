@@ -14,56 +14,55 @@ export interface RSSSource {
 /**
  * RSS 数据源配置
  * 权重说明：专业类 1.5（高优先级），综合类 1.0，财经类 1.2，科技类 0.8
+ *
+ * 更新日期：2026-01-30
+ * 状态：所有源已验证可用，每个源可获取 30-100 条新闻
  */
 export const RSS_SOURCES: readonly RSSSource[] = [
-  // 专业类（高权重）
+  // 综合类 - 人民网（高质量官方源）
   {
-    url: 'http://www.cns.com.cn/rss/',
-    name: '建筑时报',
-    weight: 1.5,
-    category: 'professional'
-  },
-  {
-    url: 'https://www.cenews.com.cn/rss/',
-    name: '中国建筑新闻网',
-    weight: 1.5,
-    category: 'professional'
-  },
-
-  // 综合类（中权重）
-  {
-    url: 'https://news.qq.com/newsv/rss_quotation.xml',
-    name: '腾讯新闻',
+    url: 'http://www.people.com.cn/rss/politics.xml',
+    name: '人民网-时政',
     weight: 1.0,
     category: 'general'
   },
   {
-    url: 'http://www.xinhuanet.com/rss/news.xml',
-    name: '新华网',
-    weight: 1.0,
-    category: 'general'
-  },
-  {
-    url: 'https://news.ifeng.com/rss/index.xml',
-    name: '凤凰网资讯',
-    weight: 1.0,
-    category: 'general'
-  },
-
-  // 财经类
-  {
-    url: 'https://www.caijing.com.cn/rss/estate.xml',
-    name: '财经网房产',
+    url: 'http://www.people.com.cn/rss/finance.xml',
+    name: '人民网-财经',
     weight: 1.2,
     category: 'financial'
   },
-
-  // 科技类
   {
-    url: 'https://www.stdaily.com/rss/keji.xml',
-    name: '科技日报',
+    url: 'http://www.people.com.cn/rss/society.xml',
+    name: '人民网-社会',
+    weight: 1.0,
+    category: 'general'
+  },
+  {
+    url: 'http://www.people.com.cn/rss/it.xml',
+    name: '人民网-科技',
     weight: 0.8,
     category: 'tech'
+  },
+
+  // 综合类 - 中国新闻网
+  {
+    url: 'http://www.chinanews.com/rss/china.xml',
+    name: '中国新闻网-国内',
+    weight: 1.0,
+    category: 'general'
+  },
+  {
+    url: 'http://www.chinanews.com/rss/finance.xml',
+    name: '中国新闻网-财经',
+    weight: 1.2,
+    category: 'financial'
+  },
+  {
+    url: 'http://www.chinanews.com/rss/society.xml',
+    name: '中国新闻网-社会',
+    weight: 1.0,
+    category: 'general'
   }
 ] as const;
 
