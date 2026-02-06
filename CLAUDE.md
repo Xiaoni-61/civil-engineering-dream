@@ -59,12 +59,20 @@ cd backend && npm run lint
 **核心数值**：Cash（现金）、Health（健康）、Rep（声誉）
 
 **职级系统**（6 级）：实习生 → 工程师 → 高级工程师 → 项目经理 → 项目总监 → 合伙人
+- 注意：从 2026-02-03 起移除了"助理工程师"职级，简化为 6 级系统
+- 所有配置在 `shared/types/game.ts` 的 `RANK_CONFIGS` 中
 
 **材料市场**：水泥、钢筋、砂石、混凝土 - 价格波动，可低买高卖
 
 **关系系统**：甲方、监理、设计院、劳务队、政府部门 - 需要定期维护
 
 **失败条件**：Cash < 0（破产）、Health ≤ 0（过劳）、Rep ≤ 0（封杀）
+
+**存档系统**（双槽位）：
+- 基于后端 SQLite 持久化存储
+- Slot1: 当前游戏存档（自动更新）
+- Slot2: 备份存档（新游戏时自动保存旧的 Slot1）
+- 季度结算后自动保存，支持继续游戏和读取存档
 
 ### 状态管理架构
 
@@ -108,18 +116,26 @@ set((prev) => ({ field: prev.field + 1 }))  // 基于前一状态（推荐用于
 | `frontend/src/store/gameStore.ts` | 旧版 store（逐步废弃中） |
 | `frontend/src/data/events/` | 事件系统：`commonEvents.ts`, `bonusEvents.ts`, `quarterStartEvents.ts` 等 |
 | `frontend/src/data/constants.ts` | 游戏配置常量：行动、材料、关系、职级等 |
-| `shared/types/game.ts` | 游戏状态类型定义 |
+| `shared/types/game.ts` | 游戏状态类型定义，包含 `RANK_CONFIGS` |
 | `shared/types/player.ts` | 玩家属性、效果类型定义 |
 | `shared/types/event.ts` | 事件卡类型定义 |
+| `shared/types/save.ts` | 存档系统类型定义 |
+| `backend/src/api/saves.ts` | 存档系统 API（保存/加载/列表） |
+| `backend/src/services/scheduler.ts` | 定时任务调度器（新闻生成、事件补充） |
+| `backend/src/services/eventGenerator.ts` | LLM 事件生成器（news/creative） |
+| `backend/src/services/rssFetcher.ts` | RSS 新闻抓取器 |
+| `backend/src/config/rss-sources.ts` | RSS 源配置（7个可用源） |
 | `backend/src/services/llmService.ts` | LLM 调用封装 |
-| `backend/src/utils/promptTemplates.ts` | LLM Prompt 模板 |
+| `backend/prompts/` | LLM Prompt 模板目录 |
 
 ### 路径别名
 
 - `@/` → `frontend/src/`
 - `@shared/` → `shared/`
 
-## LLM 配置（可选）
+## 后端系统架构
+
+### LLM 配置（可选）
 
 在 `backend/.env` 配置：
 
@@ -132,8 +148,53 @@ LLM_MODEL=doubao-seed-1-6-lite-251015
 
 **架构原则**：
 - 前端只调用 `/api/llm/*`，不直接调用 LLM API
-- Prompt 模板在后端管理
+- Prompt 模板在后端 `backend/prompts/` 目录管理
 - LLM 失败时自动降级到预设内容
+
+### 动态事件生成系统
+
+**两种事件生成方式**：
+
+1. **News 类型**（基于真实新闻）：
+   - RSS 抓取器从 7 个新闻源获取实时新闻
+   - LLM 将新闻转换为游戏事件
+   - 每日凌晨 3:00 自动运行
+   - 配置文件：`backend/src/config/rss-sources.ts`
+
+2. **Creative 类型**（LLM 创意生成）：
+   - LLM 直接创意生成游戏事件
+   - 当事件池数量 < 20 时自动补充
+   - 每 2 小时检查一次
+
+**定时任务调度器**（`backend/src/services/scheduler.ts`）：
+```
+- 每日凌晨 3:00：抓取新闻 + 生成事件
+- 每日凌晨 4:00：清理过期事件（7天）
+- 每 2 小时：检查事件数量并补充
+```
+
+**数据库表**：
+- `dynamic_events`：存储生成的事件
+- `event_usage_log`：记录事件使用情况
+- `career_biographies`：职业传记缓存
+
+### 存档系统架构
+
+**双槽位机制**：
+- `game_saves` 表：`device_id` + `slot_id` (1 or 2)
+- 同一 `run_id`：更新 Slot1
+- 不同 `run_id`：Slot1 → Slot2，新游戏 → Slot1
+- 使用 `INSERT OR REPLACE` 保证原子性
+
+**API 接口**：
+- `POST /api/saves/save`：保存存档
+- `GET /api/saves/list?deviceId=xxx`：获取存档列表
+- `POST /api/saves/load`：加载存档
+
+**前端集成**：
+- `gameStoreNew.saveGame()`：保存完整游戏状态
+- `gameStoreNew.loadGame(slotId)`：恢复游戏状态
+- 失败时自动降级到 localStorage 备份
 
 ## 设计规范
 
@@ -141,9 +202,37 @@ LLM_MODEL=doubao-seed-1-6-lite-251015
 - **动画**：`animate-slide-up`、`animate-fade-in`、`animate-scale-in`
 - **适配**：Mobile First（375px iPhone 优先）
 
-## 工作日志
+## 开发流程
 
-每次完成任务后更新 `WORKLOG.md`，记录时间、改动点、涉及文件和 review 状态。
+### 工作日志
+
+每次完成任务后更新 `WORKLOG.md`，记录：
+- 时间（日期）
+- 改动点（问题描述、解决方案）
+- 涉及文件
+- Review 状态
+- 特殊改动点
+
+### 测试脚本
+
+项目包含多个测试脚本用于验证功能：
+
+**后端测试**：
+```bash
+cd backend
+
+# RSS 源测试
+npx tsx test-rss-sources.ts        # 测试第一批 RSS 源
+npx tsx test-rss-sources-2.ts      # 测试第二批 RSS 源
+npx tsx test-new-rss-config.ts     # 测试当前配置
+
+# 事件生成测试
+npx tsx test-news-generation.ts          # 测试新闻事件生成
+npx tsx test-full-news-generation.ts     # 完整流程测试
+
+# 存档系统测试
+bash test-save-system.sh            # 20个端到端测试用例
+```
 
 ## 常见问题与调试指南
 
@@ -192,6 +281,21 @@ Object.values(MaterialType).forEach(type => {
 });
 // 在 return 中添加：materialPriceHistory: newHistory
 ```
+
+### RSS 源失效
+
+**症状**：动态事件生成系统只产生 creative 类型，没有 news 类型事件
+
+**根因**：RSS 新闻源 URL 失效（404、格式错误等）
+
+**解决**：
+1. 使用测试脚本验证 RSS 源：`npx tsx backend/test-rss-sources.ts`
+2. 更新 `backend/src/config/rss-sources.ts` 配置为可用源
+3. 重启后端服务使配置生效
+
+**当前可用源**（2026-01-30 验证）：
+- 人民网：时政、财经、社会、科技（100条/次）
+- 中国新闻网：国内、财经、社会（30条/次）
 
 ## 代码规范
 
