@@ -3,9 +3,12 @@ node_modules/
 dist/
 /WORKLOG.md
 
-# docs/ is ignored, but docs/plans/ is tracked
+# docs/ is ignored, but specific files are tracked
 docs/*
 !docs/plans/
+!docs/README.md
+!docs/GAME_DESIGN_DOCUMENT.md
+!docs/DEPLOYMENT.md
 .worktrees/
 
 *.db

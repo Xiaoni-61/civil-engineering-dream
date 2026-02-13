@@ -3095,6 +3095,48 @@ docs: update WORKLOG with save system implementation
 - ✅ 后端构建成功
 - ⚠️ ESLint 配置文件缺失（已有问题，非本次修改引起）
 
+**提交**: a427854
+
+**状态**: 已完成
+
+---
+
+## 2026-02-13
+
+### 部署配置：Docker + 部署文档
+
+**任务描述**：
+为部署上线创建完整的 Docker 配置和部署文档，支持 Docker 一键部署和阿里云/腾讯云服务器部署。
+
+**完成内容**：
+
+1. **Docker 配置**
+   - `backend/Dockerfile`：多阶段构建，生产优化，健康检查
+   - `backend/.dockerignore`：排除不必要文件
+   - `frontend/Dockerfile`：Nginx 静态托管，构建参数支持
+   - `frontend/nginx.conf`：Gzip 压缩、缓存策略、SPA 路由
+   - `frontend/.dockerignore`：排除不必要文件
+   - `docker-compose.yml`：一键部署配置
+   - `docker-compose.prod.yml`：生产环境资源限制
+
+2. **部署文档**
+   - `docs/DEPLOYMENT.md`：完整的部署指南
+     - Docker 部署（推荐）
+     - 阿里云/腾讯云部署（含 Nginx、PM2、HTTPS）
+     - PaaS 平台部署（Vercel + Railway）
+     - 环境变量说明
+     - 常见问题解答
+
+**涉及文件**：
+- `backend/Dockerfile` - 新建
+- `backend/.dockerignore` - 新建
+- `frontend/Dockerfile` - 新建
+- `frontend/nginx.conf` - 新建
+- `frontend/.dockerignore` - 新建
+- `docker-compose.yml` - 新建
+- `docker-compose.prod.yml` - 新建
+- `docs/DEPLOYMENT.md` - 新建
+
 **提交**: (待提交)
 
 **状态**: 已完成
