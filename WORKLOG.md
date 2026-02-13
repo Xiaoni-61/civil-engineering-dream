@@ -3052,3 +3052,49 @@ docs: update WORKLOG with save system implementation
 **提交**: (待提交)
 
 **状态**: 已完成
+
+---
+
+## 2026-02-13
+
+### 部署准备：统一 Store、环境变量清单、构建验证
+
+**任务描述**：
+为部署上线准备，完成三个短期任务：统一 Store（删除旧 gameStore.ts）、完善环境变量模板、验证生产构建。
+
+**完成内容**：
+
+1. **统一 Store - 删除 gameStore.ts**
+   - 删除 `frontend/src/store/gameStore.ts`（1594 行旧代码）
+   - 所有 19 个文件已使用 `gameStoreNew.ts`，无引用错误
+   - TypeScript 类型检查通过
+   - 前端构建成功
+
+2. **完善环境变量清单**
+   - 更新 `backend/.env.example`：添加详细注释分组和说明
+   - 更新 `frontend/.env.example`：添加开发环境说明
+   - 创建 `frontend/.env.production.example`：生产环境配置模板
+
+3. **前端构建验证**
+   - TypeScript 编译成功
+   - Vite 生产构建成功
+   - Bundle 大小合理：
+     - CSS: 53.70 kB (gzip: 8.52 kB)
+     - react-vendor: 160.16 kB (gzip: 52.31 kB)
+     - index: 369.35 kB (gzip: 121.21 kB)
+
+**涉及文件**：
+- `frontend/src/store/gameStore.ts` - 删除
+- `backend/.env.example` - 更新
+- `frontend/.env.example` - 更新
+- `frontend/.env.production.example` - 新建
+
+**测试验证**：
+- ✅ 前端 TypeScript 检查通过
+- ✅ 前端构建成功
+- ✅ 后端构建成功
+- ⚠️ ESLint 配置文件缺失（已有问题，非本次修改引起）
+
+**提交**: (待提交)
+
+**状态**: 已完成
