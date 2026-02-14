@@ -35,7 +35,15 @@ export function EventsPage() {
   };
 
   const handleContinue = () => {
+    // 检查当前是否是最后一个事件
+    const isLastEvent = currentEventIndex === quarterEvents.length - 1;
+
     continueToNextEvent();
+
+    // 如果是最后一个事件，立即跳转到行动页面
+    if (isLastEvent) {
+      navigate('/game-new/actions');
+    }
   };
 
   // 旧的 selectOption 调用改为新的

@@ -67,6 +67,9 @@ export function signatureMiddleware(req: Request, res: Response, next: NextFunct
     '/api/saves/save',         // 保存存档
     '/api/saves/list',         // 获取存档列表
     '/api/saves/load',         // 加载存档
+    '/api/admin/login',        // 管理员登录
+    '/api/analytics/event',    // 事件记录
+    '/api/analytics/batch',    // 批量事件记录
   ];
 
   // 不需要签名验证的路径模式（支持动态路由）

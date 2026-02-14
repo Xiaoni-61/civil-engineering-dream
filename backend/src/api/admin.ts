@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import type { Database } from '../database/init.js';
 
 // 管理员密码从环境变量获取
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // 简单的 token 存储（生产环境应使用 JWT 或 Redis）
 const adminTokens = new Set<string>();
@@ -132,11 +132,11 @@ export function createAdminRouter(db: Database): Router {
       const savesCountQuery = `SELECT COUNT(*) as count FROM game_saves`;
       const savesCount = await db.get<{ count: number }>(savesCountQuery);
 
-      // 9. 排行榜 Top 10
+      // 9. 排行榜 Top 10（从 game_stats 表获取）
       const leaderboardQuery = `
-        SELECT playerName, bestScore, updatedAt
-        FROM leaderboard
-        ORDER BY bestScore DESC
+        SELECT playerName, score as bestScore, finalRank, createdAt as updatedAt
+        FROM game_stats
+        ORDER BY score DESC
         LIMIT 10
       `;
       const leaderboard = await db.all(leaderboardQuery);
@@ -192,6 +192,8 @@ export function createAdminRouter(db: Database): Router {
         SELECT
           (SELECT COUNT(*) FROM activity_logs) as activity_logs,
           (SELECT COUNT(*) FROM game_saves) as game_saves,
+          (SELECT COUNT(*) FROM game_stats) as game_stats,
+          (SELECT COUNT(*) FROM runs) as runs,
           (SELECT COUNT(*) FROM leaderboard) as leaderboard,
           (SELECT COUNT(*) FROM dynamic_events) as dynamic_events
       `;

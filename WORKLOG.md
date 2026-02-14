@@ -3195,3 +3195,45 @@ docs: update WORKLOG with save system implementation
 **提交**: 442f57c
 
 **状态**: 已完成，已推送到 GitHub
+
+---
+
+## 2026-02-14
+
+### Bug 修复：监控后台和排行榜相关问题
+
+**任务描述**：
+修复监控后台登录失败、排行榜数据不显示、事件完成后不跳转等问题。
+
+**完成内容**：
+
+1. **监控后台登录失败**
+   - 问题：`/api/admin/login` 被签名验证中间件拦截
+   - 修复：将 admin 和 analytics 路径添加到签名验证豁免列表
+
+2. **Nginx API 代理未启用**
+   - 问题：前端请求 `/api/*` 无法到达后端
+   - 修复：启用 `frontend/nginx.conf` 中的 API 代理配置
+
+3. **排行榜数据不显示**
+   - 问题：admin.ts 查询的是 `leaderboard` 表，但实际数据在 `game_stats` 表
+   - 修复：修改查询从 `game_stats` 表获取排行榜数据
+
+4. **成绩无法上传到排行榜**
+   - 问题：前端签名密钥（硬编码）与后端 JWT_SECRET 不一致
+   - 修复：更新 `.env` 文件中 `JWT_SECRET=civil-engineering-dream-secret-key`
+
+5. **事件完成后不跳转到行动页面**
+   - 问题：`continueToNextEvent` 完成后会清空 `quarterEvents`，导致判断条件失效
+   - 修复：在调用 `continueToNextEvent()` 前判断是否是最后一个事件，是则立即跳转
+
+**涉及文件**：
+- `backend/src/middleware/auth.ts` - 添加 admin/analytics 豁免路径
+- `backend/src/api/admin.ts` - 修复排行榜查询、健康检查
+- `frontend/nginx.conf` - 启用 API 代理
+- `frontend/src/pages/EventsPage.tsx` - 添加事件完成后自动跳转
+- `.env` - 修复 JWT_SECRET 配置
+
+**提交**: (待提交)
+
+**状态**: 已完成
