@@ -6,12 +6,64 @@
 
 ## 目录
 
+- [最简部署流程（云服务器）](#最简部署流程云服务器)
 - [快速开始](#快速开始)
 - [方案一：Docker 部署（推荐）](#方案一docker-部署推荐)
 - [方案二：阿里云/腾讯云部署](#方案二阿里云腾讯云部署)
 - [方案三：PaaS 平台部署](#方案三paas-平台部署)
 - [环境变量说明](#环境变量说明)
 - [常见问题](#常见问题)
+
+---
+
+## 最简部署流程（云服务器）
+
+> 假设你有一台云服务器（阿里云/腾讯云），IP 地址为 `123.45.67.89`
+
+### 1. 开放端口
+
+在云服务商控制台的**安全组**中开放：
+- **80** - 前端访问端口
+- **3001** - 后端 API 端口（可选）
+
+### 2. 安装 Docker
+
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+### 3. 克隆项目并启动
+
+```bash
+git clone https://github.com/xiaoni-61/civil-engineering-dream.git
+cd civil-engineering-dream
+
+# 配置环境变量
+cp backend/.env.example backend/.env
+nano backend/.env
+# 修改 JWT_SECRET 为随机字符串（必须修改！）
+
+# 启动
+docker-compose up -d
+
+# 检查状态
+docker-compose ps
+```
+
+### 4. 访问应用
+
+浏览器打开 `http://123.45.67.89` 即可访问游戏。
+
+- 前端：`http://你的IP`
+- 后端 API：`http://你的IP:3001`
+- 健康检查：`http://你的IP:3001/health`
+
+### 5. 使用域名（可选）
+
+如果有域名 `example.com`：
+
+1. 在域名服务商添加 A 记录：`example.com → 123.45.67.89`
+2. 浏览器打开 `http://example.com`
 
 ---
 
