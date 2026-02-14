@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { RANDOM_NAMES, EVALUATIONS, type CharacterEvaluation } from '@shared/types/character';
 import { useGameStore as useGameStoreNew } from '@/store/gameStoreNew';
 import { savePlayerName } from '@/api/gameApi';
+import { analytics } from '@/utils/analytics';
 
 export function CharacterCreationPage() {
   const navigate = useNavigate();
@@ -55,6 +56,9 @@ export function CharacterCreationPage() {
       workAbility,
       luck
     });
+
+    // 记录开始游戏事件
+    analytics.gameStart({ playerName: name, gender });
 
     navigate('/game-new/actions');
   };

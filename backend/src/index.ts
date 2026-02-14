@@ -12,6 +12,8 @@ import { createLeaderboardRouter } from './api/leaderboard.js';
 import { createLLMRouter } from './api/llm.js';
 import { createEventsRouter } from './api/events.js';
 import { createSavesRouter } from './api/saves.js';
+import { createAnalyticsRouter } from './api/analytics.js';
+import { createAdminRouter } from './api/admin.js';
 import { startScheduler, stopScheduler } from './services/scheduler.js';
 
 // 加载环境变量
@@ -50,6 +52,8 @@ async function startServer() {
     app.use('/api/llm', createLLMRouter());
     app.use('/api/events', createEventsRouter(db));
     app.use('/api/saves', createSavesRouter(db));
+    app.use('/api/analytics', createAnalyticsRouter(db));
+    app.use('/api/admin', createAdminRouter(db));
 
     // 错误处理
     app.use(errorHandler);
@@ -85,6 +89,10 @@ async function startServer() {
   - 获取事件: GET  /api/events?playerRank=xxx
   - 记录使用: POST /api/events/:eventId/use
   - 保存存档: POST /api/saves/save
+  - 记录事件: POST /api/analytics/event
+  - 管理登录: POST /api/admin/login
+  - 统计数据: GET  /api/admin/stats
+  - 留存分析: GET  /api/admin/retention
 
 ⏰ 定时任务:
   - 每日新闻生成: 每日凌晨 3:00

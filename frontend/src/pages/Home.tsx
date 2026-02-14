@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/store/gameStoreNew';
 import SaveSlotModal from '@/components/SaveSlotModal';
 import type { SaveSlot } from '@shared/types/save';
+import { analytics } from '@/utils/analytics';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -12,19 +13,24 @@ const Home = () => {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const { getSavesList, loadGame } = useGameStore();
 
-  // 页面加载时获取存档列表
+  // 页面加载时获取存档列表并记录访问
   useEffect(() => {
     const fetchSaves = async () => {
       const savesList = await getSavesList();
       setSaves(savesList);
     };
     fetchSaves();
+
+    // 记录访问事件
+    analytics.visit();
   }, [getSavesList]);
 
   // 处理加载存档
   const handleLoadSave = async (slotId: 1 | 2) => {
     const result = await loadGame(slotId);
     if (result.success) {
+      // 记录加载存档事件
+      analytics.gameLoad({ slotId });
       setShowLoadModal(false);
       navigate('/game-new/actions');
     } else {

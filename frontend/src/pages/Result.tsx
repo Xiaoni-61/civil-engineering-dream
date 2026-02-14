@@ -6,6 +6,7 @@ import { END_MESSAGES } from '@/data/constants';
 import ReactMarkdown from 'react-markdown';
 import { generateBiographyStream, shareBiography as shareBiographyApi } from '@/api/eventsApi';
 import { startGame as startGameApi } from '@/api/gameApi';
+import { analytics } from '@/utils/analytics';
 
 const Result = () => {
   const navigate = useNavigate();
@@ -53,6 +54,14 @@ const Result = () => {
       hasUploaded.current = true;
       // 异步上传成绩，不阻塞页面渲染
       uploadScore();
+
+      // 记录游戏结束事件
+      analytics.gameEnd({
+        quarter: currentQuarter,
+        rank: rank,
+        reason: endReason || undefined,
+        score: score,
+      });
     }
   }, [status]); // 移除 uploadScore 依赖，避免重复执行
 

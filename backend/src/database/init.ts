@@ -190,6 +190,25 @@ export async function initDatabase(): Promise<Database> {
         db.run(`CREATE INDEX IF NOT EXISTS idx_dynamic_events_weight
                 ON dynamic_events (base_weight DESC)`);
 
+        // 用户活跃日志表（用于统计分析）
+        db.run(`
+          CREATE TABLE IF NOT EXISTS activity_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            event_data TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        // 为活跃日志创建索引
+        db.run(`CREATE INDEX IF NOT EXISTS idx_activity_device
+                ON activity_logs(device_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_activity_created
+                ON activity_logs(created_at)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_activity_type
+                ON activity_logs(event_type)`);
+
         console.log('✅ 数据库表创建成功');
       });
 

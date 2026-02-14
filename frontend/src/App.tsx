@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Leaderboard from './pages/Leaderboard';
+import Admin from './pages/Admin';
 import { MainGame } from './pages/MainGame';
 import { CharacterCreationPage } from './pages/CharacterCreationPage';
 import { useGameStore } from '@/store/gameStoreNew';
@@ -94,6 +95,7 @@ function AppContent() {
       <Route path="/character-creation" element={<CharacterCreationPage />} />
       <Route path="/game-new/*" element={<MainGame />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
+      <Route path="/admin" element={<Admin />} />
     </Routes>
   );
 }
