@@ -3140,3 +3140,58 @@ docs: update WORKLOG with save system implementation
 **提交**: e7bf56b
 
 **状态**: 已完成，已推送到 GitHub
+
+---
+
+## 2026-02-14
+
+### 监控管理后台系统
+
+**任务描述**：
+为游戏添加监控管理后台，用于统计日活、用户行为等数据，帮助了解游戏运营情况。
+
+**完成内容**：
+
+1. **数据层**
+   - 新建 `activity_logs` 表记录用户活跃事件
+   - 添加索引优化查询性能
+
+2. **后端 API**
+   - `POST /api/analytics/event` - 记录单个事件
+   - `POST /api/analytics/batch` - 批量记录事件
+   - `POST /api/admin/login` - 管理员登录
+   - `GET /api/admin/stats` - 获取统计数据
+   - `GET /api/admin/health` - 系统健康检查
+   - `GET /api/admin/retention` - 留存率分析
+
+3. **前端页面**
+   - `/admin` 管理后台页面（密码保护）
+   - 概览：DAU/WAU/MAU、存档总数、今日事件
+   - 趋势：DAU 趋势图、新用户趋势、游戏局数
+   - 职级分布：玩家职级统计
+   - 系统健康：状态检查
+
+4. **事件追踪**
+   - 首页访问 (visit)
+   - 开始新游戏 (game_start)
+   - 加载存档 (game_load)
+   - 游戏结束 (game_end)
+
+**涉及文件**：
+- `backend/src/database/init.ts` - 新建 activity_logs 表
+- `backend/src/api/analytics.ts` - 新建
+- `backend/src/api/admin.ts` - 新建
+- `backend/src/index.ts` - 注册新路由
+- `frontend/src/pages/Admin.tsx` - 新建
+- `frontend/src/utils/analytics.ts` - 新建
+- `frontend/src/App.tsx` - 添加 /admin 路由
+- `frontend/src/pages/Home.tsx` - 添加 visit/game_load 事件
+- `frontend/src/pages/CharacterCreationPage.tsx` - 添加 game_start 事件
+- `frontend/src/pages/Result.tsx` - 添加 game_end 事件
+
+**环境变量**：
+- `ADMIN_PASSWORD` - 管理后台密码（默认 admin123）
+
+**提交**: 442f57c
+
+**状态**: 已完成，已推送到 GitHub
