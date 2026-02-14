@@ -40,7 +40,7 @@ cd backend && npm run lint
 ### 游戏流程
 
 ```
-首页 → 事件阶段（处理事件卡）→ 策略阶段（交易/关系维护）→ 季度结算 → 循环/结束
+首页 → 人物创建 → 行动阶段（事件/行动/市场/关系/团队）→ 季度结算 → 循环/结束
 ```
 
 ### 页面路由
@@ -48,10 +48,14 @@ cd backend && npm run lint
 | 路由 | 页面 | 说明 |
 |-----|-----|-----|
 | `/` | Home | 游戏首页 |
-| `/game` | Game | 事件阶段（处理事件卡） |
-| `/strategy` | StrategyPhase | 策略阶段（材料交易、关系维护） |
-| `/settlement` | QuarterlySettlement | 季度结算（工资、仓储费、晋升检查） |
-| `/result` | Result | 游戏结束结算 |
+| `/character-creation` | CharacterCreationPage | 人物创建（姓名、性别） |
+| `/game-new/actions` | ActionsPage | 行动页面（主要游戏界面） |
+| `/game-new/events` | EventsPage | 事件处理 |
+| `/game-new/market` | MarketPage | 材料市场交易 |
+| `/game-new/relations` | RelationsPage | 关系维护 |
+| `/game-new/team` | TeamPage | 团队管理 |
+| `/game-new/settlement` | QuarterlySettlementPage | 季度结算 |
+| `/game-new/result` | Result | 游戏结束结算 |
 | `/leaderboard` | Leaderboard | 排行榜 |
 
 ### 游戏系统
@@ -76,12 +80,9 @@ cd backend && npm run lint
 
 ### 状态管理架构
 
-**核心状态管理**：使用 Zustand 实现全局状态管理，主要有两个 store：
+**核心状态管理**：使用 Zustand 实现全局状态管理。
 
-- **`gameStore.ts`**：旧版 store（仍在使用，部分页面依赖）
-- **`gameStoreNew.ts`**：新版 store（推荐使用，包含完整的行动点、团队、事件系统）
-
-**重要**：新功能应使用 `gameStoreNew.ts`。两个 store 目前共存，逐步迁移中。
+- **`gameStoreNew.ts`**：主 store，包含完整的行动点、团队、事件系统
 
 **状态更新模式**：
 ```typescript
@@ -112,8 +113,7 @@ set((prev) => ({ field: prev.field + 1 }))  // 基于前一状态（推荐用于
 
 | 文件 | 职责 |
 |-----|-----|
-| `frontend/src/store/gameStoreNew.ts` | **主要** Zustand store，包含完整游戏逻辑 |
-| `frontend/src/store/gameStore.ts` | 旧版 store（逐步废弃中） |
+| `frontend/src/store/gameStoreNew.ts` | Zustand store，包含完整游戏逻辑 |
 | `frontend/src/data/events/` | 事件系统：`commonEvents.ts`, `bonusEvents.ts`, `quarterStartEvents.ts` 等 |
 | `frontend/src/data/constants.ts` | 游戏配置常量：行动、材料、关系、职级等 |
 | `shared/types/game.ts` | 游戏状态类型定义，包含 `RANK_CONFIGS` |
