@@ -40,6 +40,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
+# 复制 prompts 目录（LLM 提示词模板）
+COPY --from=builder --chown=nodejs:nodejs /app/prompts ./prompts
+
 # 创建数据目录
 RUN mkdir -p /app/data && chown -R nodejs:nodejs /app/data
 

@@ -38,10 +38,12 @@ curl -fsSL https://get.docker.com | sh
 git clone https://github.com/xiaoni-61/civil-engineering-dream.git
 cd civil-engineering-dream
 
-# 配置环境变量
-cp backend/.env.example backend/.env
-nano backend/.env
-# 修改 JWT_SECRET 为随机字符串（必须修改！）
+# 配置环境变量（项目根目录的 .env 文件）
+# 如果没有 .env 文件，复制模板
+cp .env.example .env 2>/dev/null || true
+nano .env
+# 重要：确保 JWT_SECRET=civil-engineering-dream-secret-key（前端硬编码值）
+# 设置 ADMIN_PASSWORD=你的管理后台密码
 
 # 启动
 docker-compose up -d
@@ -88,37 +90,50 @@ cd civil-engineering-dream
 
 ### 1. 配置环境变量
 
-```bash
-# 复制环境变量模板
-cp backend/.env.example backend/.env
+Docker Compose 会自动读取项目根目录的 `.env` 文件。
 
-# 编辑配置（必须修改 JWT_SECRET）
-nano backend/.env
+```bash
+# 检查是否有 .env 文件
+cat .env
+
+# 如果没有，复制模板
+cp .env.example .env
+
+# 编辑配置
+nano .env
 ```
 
-**重要**：修改 `JWT_SECRET` 为强随机字符串：
-```bash
-# 生成随机密钥
-openssl rand -base64 32
-```
+**关键配置说明**：
 
-### 2. 创建 .env 文件（docker-compose 使用）
+| 变量 | 说明 | 示例值 |
+|-----|------|-------|
+| `JWT_SECRET` | **必须与前端一致**，否则排行榜等功能无法工作 | `civil-engineering-dream-secret-key` |
+| `ADMIN_PASSWORD` | 管理后台登录密码 | `your-admin-password` |
+| `VITE_API_BASE_URL` | 前端构建时的后端地址 | `http://your-server-ip:3001` |
 
-在项目根目录创建 `.env` 文件：
+> ⚠️ **重要**：`JWT_SECRET` 必须使用 `civil-engineering-dream-secret-key`，这是前端代码中硬编码的值。如果修改此值，排行榜上传将失败。
+
+### 2. 完整 .env 示例
 
 ```env
+# ============================================================
+# Docker Compose 环境变量配置
+# ============================================================
+
+# 管理后台密码（访问 /admin 时使用）
+ADMIN_PASSWORD=your-admin-password
+
+# JWT 密钥（必须与前端一致，不要修改！）
+JWT_SECRET=civil-engineering-dream-secret-key
+
 # 后端 API 地址（前端构建时使用）
-# 如果前后端部署在同一服务器，使用服务器 IP
 VITE_API_BASE_URL=http://your-server-ip:3001
 
-# JWT 密钥（必须修改！）
-JWT_SECRET=your-strong-random-secret-here
-
 # LLM 配置（可选）
-LLM_PROVIDER=doubao
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-LLM_MODEL=doubao-seed-1-6-lite-251015
+# LLM_PROVIDER=doubao
+# LLM_API_KEY=your-api-key
+# LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+# LLM_MODEL=doubao-seed-1-6-lite-251015
 ```
 
 ### 3. 启动服务
@@ -139,8 +154,19 @@ docker-compose ps
 - 前端：http://your-server-ip
 - 后端 API：http://your-server-ip:3001
 - 健康检查：http://your-server-ip:3001/health
+- **管理后台**：http://your-server-ip/admin（密码在 `.env` 中的 `ADMIN_PASSWORD`）
 
-### 5. 常用命令
+### 5. 管理后台功能
+
+访问 `/admin` 可以查看：
+- DAU/WAU/MAU 统计
+- 用户留存率
+- 游戏局数趋势
+- 职级分布
+- 排行榜 TOP 10
+- 系统健康状态
+
+### 6. 常用命令
 
 ```bash
 # 停止服务
@@ -171,6 +197,8 @@ docker cp civil-engineering-dream-backend-1:/tmp/backup.tar.gz ./backup.tar.gz
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
+
+> **安全提示**：生产环境建议修改 `ADMIN_PASSWORD` 为强密码。`JWT_SECRET` 由于前端限制无法修改，但仅用于签名验证，风险可控。
 
 ---
 
@@ -425,26 +453,22 @@ echo "✅ 部署完成！"
 
 ## 环境变量说明
 
-### 后端环境变量
+### 后端环境变量（Docker Compose .env 文件）
 
 | 变量 | 必需 | 默认值 | 说明 |
 |-----|:---:|-------|------|
+| `JWT_SECRET` | **是** | - | JWT 密钥，**必须为 `civil-engineering-dream-secret-key`** |
+| `ADMIN_PASSWORD` | **是** | - | 管理后台登录密码 |
+| `VITE_API_BASE_URL` | 生产必需 | - | 前端构建时的后端 API 地址 |
 | `PORT` | 否 | 3001 | 服务端口 |
 | `HOST` | 否 | localhost | 服务地址 |
 | `NODE_ENV` | 否 | development | 环境模式 |
-| `JWT_SECRET` | **是** | - | JWT 密钥（生产必须更换）|
 | `LLM_PROVIDER` | 否 | - | LLM 提供商：doubao/deepseek/openai/anthropic |
 | `LLM_API_KEY` | 否 | - | LLM API Key |
 | `LLM_BASE_URL` | 否 | - | API 端点 |
 | `LLM_MODEL` | 否 | - | 模型名称 |
-| `RATE_LIMIT_WINDOW` | 否 | 60000 | 限流窗口(ms) |
-| `RATE_LIMIT_MAX` | 否 | 100 | 限流最大请求数 |
 
-### 前端环境变量
-
-| 变量 | 必需 | 默认值 | 说明 |
-|-----|:---:|-------|------|
-| `VITE_API_BASE_URL` | **生产必需** | - | 后端 API 地址 |
+> **注意**：所有环境变量都配置在项目根目录的 `.env` 文件中，docker-compose 会自动读取。
 
 ---
 
@@ -494,6 +518,25 @@ docker-compose up -d --build
 
 # 云服务器部署
 ./deploy.sh
+```
+
+### Q: 管理后台登录失败？
+
+1. 确认 `.env` 文件中配置了 `ADMIN_PASSWORD`
+2. 确认重启了 Docker 容器：`docker-compose restart`
+3. 清除浏览器缓存后重试
+
+### Q: 排行榜上传失败（排行榜为空）？
+
+检查 `JWT_SECRET` 是否为 `civil-engineering-dream-secret-key`。前端代码中硬编码了这个值，后端必须匹配。
+
+```bash
+# 检查当前配置
+grep JWT_SECRET .env
+
+# 如果不对，修改后重启
+nano .env
+docker-compose restart
 ```
 
 ---

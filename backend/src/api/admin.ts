@@ -278,5 +278,50 @@ export function createAdminRouter(db: Database): Router {
     }
   });
 
+  /**
+   * POST /api/admin/trigger-supplement
+   * 手动触发事件补充（测试用）
+   */
+  router.post('/trigger-supplement', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { getScheduler } = await import('../services/scheduler.js');
+      const scheduler = getScheduler();
+
+      if (!scheduler) {
+        return res.status(500).json({ error: '调度器未运行' });
+      }
+
+      await scheduler.triggerSupplement();
+
+      res.json({ success: true, message: '事件补充任务已触发' });
+    } catch (error) {
+      console.error('触发事件补充失败:', error);
+      res.status(500).json({ error: '触发事件补充失败' });
+    }
+  });
+
+  /**
+   * POST /api/admin/trigger-daily
+   * 手动触发每日新闻生成（测试用）
+   */
+  router.post('/trigger-daily', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { getScheduler } = await import('../services/scheduler.js');
+      const scheduler = getScheduler();
+
+      if (!scheduler) {
+        return res.status(500).json({ error: '调度器未运行' });
+      }
+
+      // 异步触发，不等待完成（因为可能耗时较长）
+      scheduler.triggerDailyGeneration();
+
+      res.json({ success: true, message: '每日新闻生成任务已触发，请查看后端日志' });
+    } catch (error) {
+      console.error('触发每日新闻生成失败:', error);
+      res.status(500).json({ error: '触发每日新闻生成失败' });
+    }
+  });
+
   return router;
 }

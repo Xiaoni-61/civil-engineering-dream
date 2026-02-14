@@ -57,11 +57,10 @@ export interface EventSourceInfo {
 }
 
 /**
- * 职级列表（用于验证）
+ * 职级列表（用于验证）- 6级体系
  */
 const VALID_RANKS = [
   '实习生',
-  '助理工程师',
   '工程师',
   '高级工程师',
   '项目经理',

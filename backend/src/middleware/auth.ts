@@ -68,6 +68,8 @@ export function signatureMiddleware(req: Request, res: Response, next: NextFunct
     '/api/saves/list',         // 获取存档列表
     '/api/saves/load',         // 加载存档
     '/api/admin/login',        // 管理员登录
+    '/api/admin/trigger-supplement', // 手动触发事件补充
+    '/api/admin/trigger-daily', // 手动触发每日新闻生成
     '/api/analytics/event',    // 事件记录
     '/api/analytics/batch',    // 批量事件记录
   ];

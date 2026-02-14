@@ -3237,3 +3237,110 @@ docs: update WORKLOG with save system implementation
 **提交**: f19a00b
 
 **状态**: 已完成，已推送到 GitHub
+
+---
+
+### 部署文档更新
+
+**任务描述**：
+更新 `docs/DEPLOYMENT.md`，使其与实际部署配置一致，解决部署过程中发现的问题。
+
+**完成内容**：
+
+1. **JWT_SECRET 配置说明**
+   - 明确 `JWT_SECRET` 必须为 `civil-engineering-dream-secret-key`
+   - 说明这是前端硬编码值，修改会导致排行榜功能失效
+
+2. **ADMIN_PASSWORD 环境变量**
+   - 添加到环境变量表格中
+   - 说明用于管理后台登录
+
+3. **管理后台功能说明**
+   - 添加 `/admin` 访问入口说明
+   - 列出管理后台功能（DAU/WAU/MAU、留存率、排行榜等）
+
+4. **FAQ 新增**
+   - 管理后台登录失败排查
+   - 排行榜上传失败排查
+
+5. **创建项目根目录 .env.example**
+   - 提供 Docker Compose 环境变量模板
+   - 包含详细注释说明
+
+**涉及文件**：
+- `docs/DEPLOYMENT.md` - 全面更新部署说明
+- `.env.example` - 新建项目根目录环境变量模板
+
+**状态**: 已完成
+
+---
+
+### Docker 后端镜像修复：prompts 目录缺失
+
+**任务描述**：
+修复 Docker 部署后事件生成系统报错，无法加载 LLM 提示词模板。
+
+**问题**：
+```
+Error: Failed to load prompt template: /app/prompts/event-generation/creative-event.md
+```
+
+**原因**：
+后端 Dockerfile 只复制了 `dist`、`node_modules` 和 `package*.json`，但没有复制 `prompts` 目录。
+
+**修复**：
+在 Dockerfile 中添加复制 prompts 目录的指令：
+```dockerfile
+COPY --from=builder --chown=nodejs:nodejs /app/prompts ./prompts
+```
+
+**涉及文件**：
+- `backend/Dockerfile` - 添加 prompts 目录复制
+
+**状态**: 已完成，需要重新构建镜像 `docker-compose up -d --build`
+
+---
+
+### 事件系统优化：职级范围精准化
+
+**任务描述**：
+优化事件生成系统，让职级范围更精准，并彻底移除已废弃的"助理工程师"职级。
+
+**完成内容**：
+
+1. **Dockerfile 修复**
+   - 添加 prompts 目录复制，修复事件生成失败问题
+
+2. **Prompt 模板优化**
+   - 更新 `creative-event.md` 和 `news-based-event.md`
+   - 新增职级范围规则，要求生成 2-3 个相邻职级
+   - 更新示例中的职级范围
+
+3. **验证器同步 6 级体系**
+   - 从 VALID_RANKS 中移除"助理工程师"
+   - 确保与新职级系统一致
+
+4. **数据库清理**
+   - 14 个包含"助理工程师"的事件更新为"工程师"
+   - 彻底移除助理工程师相关数据
+
+5. **新增管理 API**
+   - `POST /api/admin/trigger-supplement` - 手动触发补充事件
+   - `POST /api/admin/trigger-daily` - 手动触发新闻生成
+
+6. **新增测试脚本**
+   - `backend/test-event-generation.ts` - 测试创意事件生成
+   - `backend/test-news-generation.ts` - 测试新闻事件生成
+
+**涉及文件**：
+- `backend/Dockerfile` - 添加 prompts 目录复制
+- `backend/prompts/event-generation/creative-event.md` - 职级范围优化
+- `backend/prompts/event-generation/news-based-event.md` - 职级范围优化
+- `backend/src/services/eventGenerator.ts` - VALID_RANKS 更新
+- `backend/src/api/admin.ts` - 新增手动触发 API
+- `backend/src/middleware/auth.ts` - 添加新 API 签名豁免
+- `backend/test-event-generation.ts` - 新建
+- `backend/test-news-generation.ts` - 新建
+- `backend/data/game.db` - 清理助理工程师数据
+
+**状态**: 已完成
