@@ -203,37 +203,6 @@ const Home = () => {
                   </div>
                 </div>
               </button>
-
-            {/* 旧版入口 */}
-            <button
-              onClick={() => navigate('/game')}
-              className="group relative bg-white/60 rounded-feishu-lg p-6 shadow-feishu hover:shadow-feishu-md transition-all duration-300 text-left overflow-hidden animate-slide-up cursor-pointer focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 active:scale-[0.98] opacity-70 hover:opacity-100"
-              style={{ animationDelay: '0.15s' }}
-            >
-              <div className="relative">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-slate-200 rounded-feishu flex items-center justify-center text-xl">
-                      📜
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-600 group-hover:text-slate-800 transition-colors">
-                        经典版
-                      </h2>
-                      <p className="text-xs text-slate-400">Classic</p>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-slate-500 text-xs leading-relaxed mb-2">
-                  20回合事件制游戏体验
-                </p>
-                <p className="text-slate-400 text-xs">
-                  （保留用于兼容）
-                </p>
-              </div>
-            </button>
-
             {/* 排行榜卡片 */}
             <button
               onClick={() => navigate('/leaderboard')}
@@ -328,10 +297,7 @@ const Home = () => {
           {/* 底部说明 */}
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500 mb-2">
-              <strong>新玩法目标：</strong>从实习生晋升到合伙人，平衡资源、健康和声誉
-            </p>
-            <p className="text-xs text-slate-400">
-              <strong>经典版目标：</strong>在 20 回合内完成项目，同时保持各项指标平衡
+              <strong>游戏目标：</strong>从实习生晋升到合伙人，平衡资源、健康和声誉
             </p>
 
             {/* 链接按钮组 */}

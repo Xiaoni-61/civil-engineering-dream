@@ -12,8 +12,8 @@ services:
   # ============================================================
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         # 构建时传入后端 API 地址
         # 如果前后端同域，可以使用 /api 让 nginx 代理

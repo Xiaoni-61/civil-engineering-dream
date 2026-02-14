@@ -1,7 +1,7 @@
 # ============================================================
 # 还我一个土木梦 - 前端 Docker 镜像
 # ============================================================
-# 构建命令: docker build -t civil-engineering-frontend ./frontend
+# 构建命令: docker build -t civil-engineering-frontend -f frontend/Dockerfile .
 # 运行命令: docker run -p 80:80 civil-engineering-frontend
 # ============================================================
 
@@ -13,14 +13,16 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # 复制 package 文件
-COPY package*.json ./
+COPY frontend/package*.json ./
 
 # 安装依赖
 RUN npm ci
 
-# 复制源代码和 shared 目录
-COPY . .
-COPY ../shared /shared
+# 复制源代码
+COPY frontend/ ./
+
+# 复制 shared 目录
+COPY shared /shared
 
 # 构建参数：后端 API 地址
 ARG VITE_API_BASE_URL
@@ -35,7 +37,7 @@ RUN npm run build
 FROM nginx:alpine
 
 # 复制 nginx 配置
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY frontend/nginx.conf /etc/nginx/nginx.conf
 
 # 复制构建产物
 COPY --from=builder /app/dist /usr/share/nginx/html
