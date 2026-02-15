@@ -297,6 +297,25 @@ Object.values(MaterialType).forEach(type => {
 - 人民网：时政、财经、社会、科技（100条/次）
 - 中国新闻网：国内、财经、社会（30条/次）
 
+### Docker 部署后前端代码不更新
+
+**症状**：Docker 重新构建后，访问页面仍显示旧代码，刷新页面无效
+
+**根因**：浏览器缓存了 index.html 或静态资源文件
+
+**解决**：
+1. **硬刷新页面**：`Cmd+Shift+R`（Mac）或 `Ctrl+Shift+R`（Windows）
+2. 或清除浏览器缓存后重新访问
+3. nginx 配置已设置 index.html 不缓存：
+```nginx
+location = /index.html {
+    expires -1;
+    add_header Cache-Control "no-store, no-cache, must-revalidate";
+}
+```
+
+**预防措施**：每次 Docker 重新构建后，提醒用户硬刷新浏览器
+
 ## 代码规范
 
 ### TypeScript 类型

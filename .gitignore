@@ -12,3 +12,5 @@ docs/*
 .worktrees/
 
 *.db
+.env
+

@@ -225,6 +225,7 @@ interface ActionResult {
   success: boolean;
   message: string;
   effects?: Effects;
+  requiresUI?: 'recruit' | 'resolveIssue';  // 需要 UI 交互的行动
 }
 
 interface GameStore extends GameState {
@@ -367,6 +368,17 @@ interface GameStore extends GameState {
   saveGame: (slotId?: 1 | 2) => Promise<{ success: boolean; message?: string; slotId?: 1 | 2 }>;
   loadGame: (slotId: 1 | 2) => Promise<{ success: boolean; message?: string }>;
   getSavesList: () => Promise<SaveSlot[]>;
+
+  // 调试系统
+  setDebugState: (debugState: {
+    rank?: Rank;
+    cash?: number;
+    health?: number;
+    reputation?: number;
+    phase?: GamePhase;
+    currentQuarter?: number;
+  }) => void;
+  addTeamMember: (config?: { name?: string; role?: string; morale?: number; efficiency?: number }) => void;
 }
 
 // ==================== 材料价格初始化 ====================
@@ -936,6 +948,192 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }
 
+    // ==================== 团队行动特殊处理 ====================
+    if (actionType === ActionType.RECRUIT) {
+      // 招募成员需要 UI 交互，返回特殊标志
+      return {
+        success: true,
+        message: '请选择要招募的成员类型',
+        requiresUI: 'recruit',
+      };
+    }
+
+    if (actionType === ActionType.RESOLVE_ISSUE) {
+      // 解决问题需要 UI 交互
+      if (state.team.pendingIssues.length === 0) {
+        return {
+          success: false,
+          message: '当前没有需要处理的团队问题',
+        };
+      }
+      return {
+        success: true,
+        message: '请选择要解决的问题',
+        requiresUI: 'resolveIssue',
+      };
+    }
+
+    if (actionType === ActionType.TEAM_PROJECT) {
+      // 团队项目：需要有团队成员
+      if (state.team.members.length === 0) {
+        return {
+          success: false,
+          message: '没有团队成员，请先招募成员',
+        };
+      }
+
+      // 计算职业效果加成
+      let progressBonus = 0;  // 工程师：项目进度
+      let qualityBonus = 0;   // 设计师：项目质量
+      let incomeBonus = 0;    // 业务员：额外收益
+      let costReduction = 0;  // 劳务工：成本降低
+
+      state.team.members.forEach(member => {
+        const skillFactor = member.skill; // 1-5
+        switch (member.type) {
+          case TeamMemberType.ENGINEER:
+            progressBonus += 4 * skillFactor; // 每技能+4%进度
+            break;
+          case TeamMemberType.DESIGNER:
+            qualityBonus += 2 * skillFactor; // 每技能+2质量
+            break;
+          case TeamMemberType.SALESPERSON:
+            incomeBonus += 2000 * skillFactor; // 每技能+2000收益
+            break;
+          case TeamMemberType.WORKER:
+            costReduction += 500 * skillFactor; // 每技能-500成本
+            break;
+        }
+      });
+
+      // 计算团队效率加成
+      const efficiencyBonus = state.team.teamEfficiency / 100;
+      const baseProgress = 20;
+      const totalProgress = Math.round((baseProgress + progressBonus) * efficiencyBonus);
+
+      // 成本计算（劳务工降低成本）
+      const baseCost = actionConfig.costCash || 0;
+      const actualCost = Math.max(0, baseCost - costReduction);
+
+      // 执行团队项目
+      const newStats = {
+        ...state.stats,
+        cash: state.stats.cash - actualCost + incomeBonus,
+      };
+
+      set({
+        stats: newStats,
+        projectProgress: clampStat(state.projectProgress + totalProgress),
+        projectQuality: clampStat(state.projectQuality + qualityBonus),
+        actionPoints: state.actionPoints - 1,
+        actionsThisQuarter: state.actionsThisQuarter + 1,
+      });
+
+      // 项目加班导致士气下降
+      const updatedMembers = state.team.members.map(m => ({
+        ...m,
+        morale: Math.max(0, m.morale - 3),
+      }));
+
+      // 有概率获得领导力提升
+      const leadershipGain = Math.random() < 0.3 ? LEADERSHIP_GAIN.teamSuccess : 0;
+
+      set({
+        team: {
+          ...state.team,
+          members: updatedMembers,
+          leadership: Math.min(100, state.team.leadership + leadershipGain),
+        },
+      });
+
+      get().updateTeamEfficiency();
+
+      // 构建消息
+      let message = `团队项目成功！进度 +${totalProgress}`;
+      if (qualityBonus > 0) message += `，质量 +${qualityBonus}`;
+      if (incomeBonus > 0) message += `，收益 +${incomeBonus.toLocaleString()}`;
+      if (costReduction > 0) message += `，节省 ${costReduction.toLocaleString()}`;
+      message += `，士气 -3`;
+      if (leadershipGain > 0) message += `，领导力 +${leadershipGain}`;
+
+      return {
+        success: true,
+        message,
+        effects: { progress: totalProgress, quality: qualityBonus },
+      };
+    }
+
+    if (actionType === ActionType.TEAM_TRAINING) {
+      // 团队培训：需要有团队成员
+      if (state.team.members.length === 0) {
+        return {
+          success: false,
+          message: '没有团队成员，请先招募成员',
+        };
+      }
+
+      // 检查现金
+      if (state.stats.cash < 5000) {
+        return {
+          success: false,
+          message: '现金不足（需要 5000）',
+        };
+      }
+
+      // 提升所有成员士气
+      let updatedMembers = state.team.members.map(m => ({
+        ...m,
+        morale: Math.min(100, m.morale + 10),
+      }));
+
+      // 20% 概率随机提升一个成员的技能
+      let skillUpMember: string | null = null;
+      if (Math.random() < 0.2 && updatedMembers.length > 0) {
+        // 找出技能未满的成员
+        const upgradableMembers = updatedMembers.filter(m => m.skill < 5);
+        if (upgradableMembers.length > 0) {
+          const luckyMember = upgradableMembers[Math.floor(Math.random() * upgradableMembers.length)];
+          updatedMembers = updatedMembers.map(m =>
+            m.id === luckyMember.id
+              ? { ...m, skill: Math.min(5, m.skill + 1) }
+              : m
+          );
+          skillUpMember = luckyMember.name;
+        }
+      }
+
+      // 提升领导力
+      const newLeadership = Math.min(100, state.team.leadership + LEADERSHIP_GAIN.training);
+
+      set({
+        stats: {
+          ...state.stats,
+          cash: state.stats.cash - 5000,
+        },
+        team: {
+          ...state.team,
+          members: updatedMembers,
+          leadership: newLeadership,
+        },
+        actionPoints: state.actionPoints - 1,
+        actionsThisQuarter: state.actionsThisQuarter + 1,
+      });
+
+      get().updateTeamEfficiency();
+
+      let message = `团队培训完成！全员士气 +10，领导力 +${LEADERSHIP_GAIN.training}`;
+      if (skillUpMember) {
+        message += `，${skillUpMember} 技能提升！`;
+      }
+
+      return {
+        success: true,
+        message,
+      };
+    }
+
+    // ==================== 普通行动处理 ====================
+
     // 检查现金
     if (actionConfig.costCash && state.stats.cash < actionConfig.costCash) {
       return {
@@ -1013,7 +1211,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const livingCost = Math.round(salary * livingCostPercent);
     const relationshipDecay: Record<RelationshipType, number> = {} as any;
 
-    // 关系衰减
+    // ==================== 团队系统季度处理 ====================
+    // 计算团队成员工资支出
+    const teamSalary = state.team.members.reduce((sum, m) => sum + m.salary, 0);
+
+    // 士气衰减（每季度自然衰减8点）
+    let updatedMembers = state.team.members.map(m => ({
+      ...m,
+      morale: Math.max(0, m.morale - 8),
+    }));
+
+    // 未解决问题的士气惩罚
+    state.team.pendingIssues.forEach(issue => {
+      const penalty = issue.severity === 'high' ? 20 : issue.severity === 'medium' ? 15 : 10;
+      if (issue.affectedMember) {
+        updatedMembers = updatedMembers.map(m =>
+          m.id === issue.affectedMember
+            ? { ...m, morale: Math.max(0, m.morale - penalty) }
+            : m
+        );
+      } else {
+        // 如果没有指定成员，全员受影响（减半）
+        updatedMembers = updatedMembers.map(m => ({
+          ...m,
+          morale: Math.max(0, m.morale - Math.floor(penalty / 2)),
+        }));
+      }
+    });
+
+    // 离职检查（士气<20有30%概率离职）
+    const resignedMembers: string[] = [];
+    const remainingMembers = updatedMembers.filter(m => {
+      if (m.morale < 20 && Math.random() < 0.3) {
+        resignedMembers.push(m.name);
+        return false;
+      }
+      return true;
+    });
+    updatedMembers = remainingMembers;
+
+    // ==================== 关系衰减 ====================
     const newRelationships = { ...state.relationships };
     Object.values(RelationshipType).forEach((type) => {
       if (!isRelationshipUnlocked(state.rank, type)) {
@@ -1065,7 +1302,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const bonusIncome = bonusEvent ? bonusEvent.cashReward : 0;
     const disasterPenalty = disasterEvent ? disasterEvent.cashPenalty : 0;
     const totalIncome = projectIncome + salary + bonusIncome;
-    const totalExpenses = Math.abs(Math.min(0, salary)) + storageFee + livingCost + disasterPenalty;
+    const totalExpenses = Math.abs(Math.min(0, salary)) + storageFee + livingCost + disasterPenalty + teamSalary;
 
     // 计算净变化
     const netChange = totalIncome - totalExpenses;
@@ -1079,10 +1316,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     console.log('生活费:', livingCost);
     console.log('仓储费:', storageFee);
     console.log('天灾惩罚:', disasterPenalty);
+    console.log('团队工资:', teamSalary);
     console.log('总收入:', totalIncome);
     console.log('总支出:', totalExpenses);
     console.log('净变化:', netChange);
     console.log('预期现金:', state.stats.cash + netChange);
+    if (resignedMembers.length > 0) {
+      console.log('离职成员:', resignedMembers);
+    }
 
     // 季度涨薪机制
     let salaryRaise = 0;
@@ -1125,7 +1366,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       actualSalary: salaryRaise > 0 ? state.actualSalary + salaryRaise : state.actualSalary,
       projectProgress: newProjectProgress,
       relationships: newRelationships,
+      team: {
+        ...state.team,
+        members: updatedMembers,
+        pendingIssues: [], // 清空问题（下季度重新生成）
+      },
     });
+
+    // 更新团队效率
+    get().updateTeamEfficiency();
 
     // 检查游戏结束条件
     get().checkGameEnd();
@@ -1395,6 +1644,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentQuarterTrainingCounts: {},
       };
     });
+
+    // 生成团队问题（30% 概率）
+    if (Math.random() < 0.3) {
+      get().generateTeamIssue();
+    }
   },
 
   // ==================== 团队系统 ====================
@@ -1516,6 +1770,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ? state.team.members.reduce((sum, m) => sum + m.morale, 0) / state.team.members.length
       : 80;
     efficiency += (avgMorale - 80) * 0.2;
+
+    // 成员技能加成（平均技能 × 5%）
+    if (state.team.members.length > 0) {
+      const avgSkill = state.team.members.reduce((sum, m) => sum + m.skill, 0) / state.team.members.length;
+      efficiency += avgSkill * 5;
+    }
 
     set({
       team: {
@@ -3028,5 +3288,79 @@ export const useGameStore = create<GameStore>((set, get) => ({
         { slotId: 2, hasSlot: false },
       ];
     }
+  },
+
+  // ==================== 调试系统 ====================
+
+  /**
+   * 设置调试状态（仅用于测试）
+   */
+  setDebugState: (debugState: {
+    rank?: Rank;
+    cash?: number;
+    health?: number;
+    reputation?: number;
+    phase?: GamePhase;
+    currentQuarter?: number;
+  }) => {
+    const state = get();
+
+    const newState: Partial<GameStore> = {};
+
+    if (debugState.rank !== undefined) {
+      newState.rank = debugState.rank;
+      // 更新阶段
+      if (debugState.phase !== undefined) {
+        newState.phase = debugState.phase;
+      } else {
+        newState.phase = PHASE_CONFIG.lateGameRanks.includes(debugState.rank)
+          ? GamePhase.LATE
+          : GamePhase.EARLY;
+      }
+    }
+
+    if (debugState.cash !== undefined) {
+      newState.stats = { ...state.stats, cash: debugState.cash };
+    }
+
+    if (debugState.health !== undefined) {
+      newState.stats = { ...(newState.stats || state.stats), health: debugState.health };
+    }
+
+    if (debugState.reputation !== undefined) {
+      newState.stats = { ...(newState.stats || state.stats), reputation: debugState.reputation };
+    }
+
+    if (debugState.currentQuarter !== undefined) {
+      newState.currentQuarter = debugState.currentQuarter;
+    }
+
+    set(newState);
+  },
+
+  /**
+   * 添加团队成员（调试用，无限制）
+   */
+  addTeamMember: (config?: { name?: string; role?: string; morale?: number; efficiency?: number }) => {
+    const state = get();
+
+    const newMember: TeamMember = {
+      id: `member_${Date.now()}`,
+      type: 'engineer' as TeamMemberType,
+      name: config?.name || `测试成员${state.team.members.length + 1}`,
+      skill: 70,
+      salary: 5000,
+      morale: config?.morale ?? 80,
+      efficiency: config?.efficiency ?? 100,
+    };
+
+    set({
+      team: {
+        ...state.team,
+        members: [...state.team.members, newMember],
+      },
+    });
+
+    get().updateTeamEfficiency();
   },
 }));

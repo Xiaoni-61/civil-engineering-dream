@@ -42,6 +42,7 @@ export enum ActionType {
   RECRUIT = 'recruit',
   TEAM_PROJECT = 'team_project',
   RESOLVE_ISSUE = 'resolve_issue',
+  TEAM_TRAINING = 'team_training',
 }
 
 /**

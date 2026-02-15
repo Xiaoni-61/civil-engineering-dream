@@ -616,6 +616,15 @@ export const ACTIONS: Record<ActionType, ActionConfig> = {
     costAP: 1,
     phase: 'late',
   },
+  [ActionType.TEAM_TRAINING]: {
+    type: ActionType.TEAM_TRAINING,
+    name: '团队培训',
+    icon: '📚',
+    description: '提升团队士气和领导力',
+    costAP: 1,
+    costCash: 5000,
+    phase: 'late',
+  },
 };
 
 // 每季度最大行动次数

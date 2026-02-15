@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import Home from './pages/Home';
 import Leaderboard from './pages/Leaderboard';
 import Admin from './pages/Admin';
+import { DebugPage } from './pages/Debug';
 import { MainGame } from './pages/MainGame';
 import { CharacterCreationPage } from './pages/CharacterCreationPage';
 import { useGameStore } from '@/store/gameStoreNew';
@@ -96,6 +97,7 @@ function AppContent() {
       <Route path="/game-new/*" element={<MainGame />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/debug" element={<DebugPage />} />
     </Routes>
   );
 }
